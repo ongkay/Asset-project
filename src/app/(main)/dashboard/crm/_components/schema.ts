@@ -1,4 +1,4 @@
-import z from "zod";
+import z from 'zod'
 
 export const recentLeadSchema = z.object({
   id: z.string(),
@@ -7,4 +7,4 @@ export const recentLeadSchema = z.object({
   status: z.string(),
   source: z.string(),
   lastActivity: z.string(),
-});
+})

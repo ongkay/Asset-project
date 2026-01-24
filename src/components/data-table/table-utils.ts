@@ -1,9 +1,9 @@
-"use no memo";
+'use no memo'
 
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from '@tanstack/react-table'
 
-import { dragColumn } from "./drag-column";
+import { dragColumn } from './drag-column'
 
 export function withDndColumn<T>(columns: ColumnDef<T>[]): ColumnDef<T>[] {
-  return [dragColumn as ColumnDef<T>, ...columns];
+  return [dragColumn as ColumnDef<T>, ...columns]
 }

@@ -11,128 +11,128 @@ import {
   Plus_Jakarta_Sans,
   Poppins,
   Roboto,
-} from "next/font/google";
+} from 'next/font/google'
 
 const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+  subsets: ['latin'],
+  variable: '--font-inter',
+})
 
 const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-jakarta",
-});
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+})
 
 const roboto = Roboto({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  variable: "--font-roboto",
-});
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-roboto',
+})
 
 const geist = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist",
-});
+  subsets: ['latin'],
+  variable: '--font-geist',
+})
 
 const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-poppins",
-});
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-poppins',
+})
 
 const outfit = Outfit({
-  subsets: ["latin"],
-  variable: "--font-outfit",
-});
+  subsets: ['latin'],
+  variable: '--font-outfit',
+})
 
 const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-});
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
+})
 
 const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-dm-sans",
-});
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+})
 
 const nunito = Nunito({
-  subsets: ["latin"],
-  variable: "--font-nunito",
-});
+  subsets: ['latin'],
+  variable: '--font-nunito',
+})
 
 const gabriela = Gabriela({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-gabriela",
-});
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-gabriela',
+})
 
 const manrope = Manrope({
-  subsets: ["latin"],
-  variable: "--font-manrope",
-});
+  subsets: ['latin'],
+  variable: '--font-manrope',
+})
 
 const greatVibes = Great_Vibes({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-great-vibes",
-});
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-great-vibes',
+})
 
 export const fontRegistry = {
   inter: {
-    label: "Inter",
+    label: 'Inter',
     font: inter,
   },
   roboto: {
-    label: "Roboto",
+    label: 'Roboto',
     font: roboto,
   },
   poppins: {
-    label: "Poppins",
+    label: 'Poppins',
     font: poppins,
   },
   geist: {
-    label: "Geist",
+    label: 'Geist',
     font: geist,
   },
   geistMono: {
-    label: "Geist Mono",
+    label: 'Geist Mono',
     font: geistMono,
   },
   jakarta: {
-    label: "Plus Jakarta Sans",
+    label: 'Plus Jakarta Sans',
     font: jakarta,
   },
   nunito: {
-    label: "Nunito",
+    label: 'Nunito',
     font: nunito,
   },
   gabriela: {
-    label: "Gabriela",
+    label: 'Gabriela',
     font: gabriela,
   },
   outfit: {
-    label: "Outfit",
+    label: 'Outfit',
     font: outfit,
   },
   manrope: {
-    label: "Manrope",
+    label: 'Manrope',
     font: manrope,
   },
   dmSans: {
-    label: "DM Sans",
+    label: 'DM Sans',
     font: dmSans,
   },
   greatVibes: {
-    label: "Great Vibes",
+    label: 'Great Vibes',
     font: greatVibes,
   },
-} as const;
+} as const
 
-export type FontKey = keyof typeof fontRegistry;
+export type FontKey = keyof typeof fontRegistry
 
 export const fontVars = (Object.values(fontRegistry) as Array<(typeof fontRegistry)[FontKey]>)
   .map((f) => f.font.variable)
-  .join(" ");
+  .join(' ')
 
 export const fontOptions = (Object.entries(fontRegistry) as Array<[FontKey, (typeof fontRegistry)[FontKey]]>).map(
   ([key, f]) => ({
@@ -140,4 +140,4 @@ export const fontOptions = (Object.entries(fontRegistry) as Array<[FontKey, (typ
     label: f.label,
     variable: f.font.variable,
   }),
-);
+)
