@@ -25,6 +25,7 @@ function DragHandle({ id }: { id: number }) {
   )
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: react-table requires any type
 export const dragColumn: ColumnDef<any> = {
   id: 'drag',
   header: () => null,

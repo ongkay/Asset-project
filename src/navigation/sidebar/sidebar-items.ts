@@ -13,6 +13,7 @@ import {
   Mail,
   MessageSquare,
   ReceiptText,
+  Settings,
   ShoppingBag,
   SquareArrowUpRight,
   Users,
@@ -152,6 +153,11 @@ export const sidebarItems: NavGroup[] = [
     id: 3,
     label: 'Misc',
     items: [
+      {
+        title: 'Settings',
+        url: '/dashboard/settings',
+        icon: Settings,
+      },
       {
         title: 'Others',
         url: '/dashboard/coming-soon',
