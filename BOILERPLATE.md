@@ -32,7 +32,7 @@ Catatan:
 - shadcn/ui (source code dicopy ke `src/components/ui`)
 - Zustand (khusus preferences)
 - Forms: React Hook Form + Zod
-- Data table: TanStack Table (`@tanstack/react-table`) + optional drag & drop (`@dnd-kit/*`)
+- Data table: TanStack Table (`@tanstack/react-table`)
 - Charts: Recharts
 - Tooling: Biome
 
@@ -184,35 +184,23 @@ Input addons:
 Contoh implementasi RHF + Zod:
 - `src/app/(main)/auth/_components/login-form.tsx`
 
-### 3) Data table system (TanStack Table + optional DnD)
+### 3) Data table system (TanStack Table)
 
 Sebelum membuat table baru, gunakan modul yang sudah ada:
 
 Hook untuk create table instance:
 - `src/hooks/use-data-table-instance.ts`
   - handle sorting/filtering/pagination/visibility/rowSelection
-  - default `getRowId` mengasumsikan data punya `id` (`(row as any).id.toString()`)
+  - `getRowId` wajib diberikan (untuk type-safety dan menghindari asumsi `id`)
 
 Renderer table:
 - `src/components/data-table/data-table.tsx`
-  - props: `{ table, columns, dndEnabled?, onReorder? }`
-  - jika `dndEnabled=true`, wrapper `DndContext` + reorder via `onReorder(newData)`
+  - props: `{ table, columns }`
 
 Komponen pendukung:
 - `src/components/data-table/data-table-column-header.tsx` (sort menu + hide)
 - `src/components/data-table/data-table-pagination.tsx`
 - `src/components/data-table/data-table-view-options.tsx` (toggle column visibility)
-- `src/components/data-table/table-utils.ts` (`withDndColumn(columns)`)
-
-DnD internals:
-- `src/components/data-table/drag-column.tsx` (drag handle column)
-- `src/components/data-table/draggable-row.tsx` (sortable row)
-
-Catatan penting DnD:
-- DnD row mengasumsikan row memiliki `id: number` (`DraggableRow` memakai `(row.original as { id: number }).id`).
-- Jika datamu tidak punya `id` numeric, jangan bikin table baru untuk "menghindari". Lebih baik:
-  - pass `getRowId` custom ke `useDataTableInstance`, dan/atau
-  - sesuaikan implementasi DnD agar menggunakan `UniqueIdentifier` yang sesuai.
 
 ### 4) Charts
 
@@ -328,7 +316,7 @@ Gunakan modul yang sudah ada (jangan membuat data table baru):
 - Pagination: `src/components/data-table/data-table-pagination.tsx`
 - View options (toggle columns): `src/components/data-table/data-table-view-options.tsx`
 
-Pola minimal (tanpa DnD):
+Pola minimal:
 
 ```tsx
 import { DataTable } from '@/components/data-table/data-table'
@@ -355,12 +343,8 @@ return (
 )
 ```
 
-Pola DnD reorder:
-- Tambahkan kolom drag: `withDndColumn(columns)` dari `src/components/data-table/table-utils.ts`
-- Render `<DataTable dndEnabled ... onReorder={setData} />`
-
 Contoh referensi:
-- `src/app/(main)/dashboard/default/_components/data-table.tsx` (DnD + view options + pagination)
+- `src/app/(main)/dashboard/default/_components/data-table.tsx` (view options + pagination)
 - `src/app/(main)/dashboard/crm/_components/table-cards.tsx` (table di Card)
 
 
@@ -428,7 +412,6 @@ Contoh referensi:
 
 - Jangan menambah sistem theme baru. Ikuti preferences system yang ada.
 - Banyak dependency tersedia tapi belum dipakai (mis. axios, react-query). Jika ingin pakai, buat integrasinya dengan pola yang jelas (provider, folder `src/lib`, dsb), jangan setengah-setengah.
-- DnD data table mengasumsikan `id` numeric.
 - Ada lebih dari satu lockfile dalam repo; gunakan PNPM sebagai standard (sesuai instruksi user).
 
 

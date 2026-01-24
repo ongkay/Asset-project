@@ -21,7 +21,7 @@ type UseDataTableInstanceProps<TData, TValue> = {
   enableRowSelection?: boolean
   defaultPageIndex?: number
   defaultPageSize?: number
-  getRowId?: (row: TData, index: number) => string
+  getRowId: (row: TData, index: number) => string
 }
 
 export function useDataTableInstance<TData, TValue>({
@@ -52,7 +52,7 @@ export function useDataTableInstance<TData, TValue>({
       pagination,
     },
     enableRowSelection,
-    getRowId: getRowId ?? ((row) => (row as any).id.toString()),
+    getRowId,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
