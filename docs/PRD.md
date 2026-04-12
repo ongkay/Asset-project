@@ -908,4 +908,4 @@ Dokumen ini dianggap siap diimplementasikan jika aturan berikut tidak dilanggar:
 - semua route `/admin/*` hanya untuk admin
 - semua `/api/extension/*` wajib memvalidasi header extension, origin, session, dan banned status
 - semua response error extension mengikuti format baku
-- wajib ikuti struktur folder `.docs/agentRules/folder-structure`
+- wajib ikuti struktur folder `docs/agentRules/folder-structure`
