@@ -35,3 +35,28 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.playwright-mcp/
+dist/
+*.tsbuildinfo
+.worktrees/
+
+.docs/.obsidian/
+.docs/.obsidian/*
+.bp/
+.superpowers/brainstorm/*
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf

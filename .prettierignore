@@ -6,3 +6,13 @@ coverage
 src/components/ui
 pnpm-lock.yaml
 package-lock.json
+build
+.playwright-mcp
+.agents
+.docs
+AGENTS.md
+.docsplan/agenrules
+.docsplan/spec
+*.md
+.worktrees
+.bp

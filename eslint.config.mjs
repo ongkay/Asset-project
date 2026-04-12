@@ -15,7 +15,22 @@ const tsRecommended = tseslint.configs.recommended.map((config) =>
 
 export default defineConfig([
   {
-    ignores: [".next/**", "dist/**", "out/**", "coverage/**", "node_modules/**", "src/components/ui/**"],
+    ignores: [
+      ".next/**",
+      "dist/**",
+      "out/**",
+      "coverage/**",
+      "node_modules/**",
+      "src/components/ui/**",
+      ".docs/**",
+      "docs/**",
+      ".worktrees/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      ".agents/**",
+      ".bp/**",
+    ],
   },
   js.configs.recommended,
   ...tsRecommended,

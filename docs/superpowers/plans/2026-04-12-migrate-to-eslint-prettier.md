@@ -1,5 +1,4 @@
 # Migrate To ESLint Prettier Implementation Plan
-
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace Biome with ESLint and Prettier while keeping repository behavior and code style close to the current setup.
@@ -11,9 +10,7 @@
 ---
 
 ### Task 1: Replace Tooling Configuration
-
 **Files:**
-
 - Create: `eslint.config.mjs`
 - Create: `.prettierrc.json`
 - Create: `.prettierignore`
@@ -27,9 +24,7 @@
 - [ ] Remove the Biome dependency and delete `biome.json`.
 
 ### Task 2: Remove Biome-Specific Usage
-
 **Files:**
-
 - Modify: `src/scripts/generate-theme-presets.ts`
 - Modify: `src/scripts/theme-boot.tsx`
 - Modify: `README.md`
@@ -40,9 +35,7 @@
 - [ ] Update repository documentation to reference ESLint and Prettier instead of Biome.
 
 ### Task 3: Verify And Stabilize
-
 **Files:**
-
 - Modify: any files required by ESLint/Prettier autofix
 
 - [ ] Install updated dependencies and regenerate `pnpm-lock.yaml`.

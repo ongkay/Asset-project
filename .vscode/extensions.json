@@ -1,0 +1,19 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "emeraldwalk.runonsave",
+    "formulahendry.auto-rename-tag",
+    "bracketpaircolordlw.bracket-pair-color-dlw",
+    "irongeek.vscode-env",
+    "dsznajder.es7-react-js-snippets",
+    "zignd.html-css-class-completion",
+    "afifu.vscode-js-ts-react-nextjs-snippets",
+    "christian-kohler.path-intellisense",
+    "bradlc.vscode-tailwindcss",
+    "enkia.tokyo-night",
+    "avetis.tokyo-night",
+    "vscode-icons-team.vscode-icons",
+    "heybourn.headwind"
+  ]
+}
