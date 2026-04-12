@@ -1,6 +1,6 @@
 // Proxy disabled.
 // Rename this file to `proxy.ts` to enable it.
-import { type NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from "next/server";
 
 /**
  * Runs before requests complete.
@@ -13,7 +13,7 @@ export function proxy(_req: NextRequest) {
   // if (token && req.nextUrl.pathname === "/auth/login")
   //   return NextResponse.redirect(new URL("/dashboard", req.url));
 
-  return NextResponse.next()
+  return NextResponse.next();
 }
 
 /**
@@ -21,5 +21,5 @@ export function proxy(_req: NextRequest) {
  * To skip assets or APIs, use a negative matcher from docs.
  */
 export const config = {
-  matcher: '/:path*',
-}
+  matcher: "/:path*",
+};

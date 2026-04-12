@@ -1,97 +1,106 @@
-'use client'
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
-import { z } from 'zod'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 
-import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import { Button } from "@/components/ui/button";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
-const FormSchema = z
+const formSchema = z
   .object({
-    email: z.string().email({ message: 'Please enter a valid email address.' }),
-    password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-    confirmPassword: z.string().min(6, { message: 'Confirm Password must be at least 6 characters.' }),
+    email: z.string().email({ message: "Please enter a valid email address." }),
+    password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+    confirmPassword: z.string().min(6, { message: "Confirm Password must be at least 6 characters." }),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match.',
-    path: ['confirmPassword'],
-  })
+    message: "Passwords do not match.",
+    path: ["confirmPassword"],
+  });
 
 export function RegisterForm() {
-  const form = useForm<z.infer<typeof FormSchema>>({
-    resolver: zodResolver(FormSchema),
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
+      email: "",
+      password: "",
+      confirmPassword: "",
     },
-  })
+  });
 
-  const onSubmit = async (data: z.infer<typeof FormSchema>) => {
-    toast('You submitted the following values', {
+  const onSubmit = (data: z.infer<typeof formSchema>) => {
+    toast("You submitted the following values", {
       description: (
-        <pre className='mt-2 w-[320px] rounded-md bg-neutral-950 p-4'>
-          <code className='text-white'>{JSON.stringify(data, null, 2)}</code>
+        <pre className="mt-2 w-[320px] rounded-md bg-neutral-950 p-4">
+          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
         </pre>
       ),
-    })
-  }
+    });
+  };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
-        <FormField
+    <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <FieldGroup className="gap-4">
+        <Controller
           control={form.control}
-          name='email'
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email Address</FormLabel>
-              <FormControl>
-                <Input id='email' type='email' placeholder='you@example.com' autoComplete='email' {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+          name="email"
+          render={({ field, fieldState }) => (
+            <Field className="gap-1.5" data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="register-email">Email Address</FieldLabel>
+              <Input
+                {...field}
+                id="register-email"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                aria-invalid={fieldState.invalid}
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
           )}
         />
-        <FormField
+        <Controller
           control={form.control}
-          name='password'
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input id='password' type='password' placeholder='••••••••' autoComplete='new-password' {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+          name="password"
+          render={({ field, fieldState }) => (
+            <Field className="gap-1.5" data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="register-password">Password</FieldLabel>
+              <Input
+                {...field}
+                id="register-password"
+                type="password"
+                placeholder="••••••••"
+                autoComplete="new-password"
+                aria-invalid={fieldState.invalid}
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
           )}
         />
-        <FormField
+        <Controller
           control={form.control}
-          name='confirmPassword'
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirm Password</FormLabel>
-              <FormControl>
-                <Input
-                  id='confirmPassword'
-                  type='password'
-                  placeholder='••••••••'
-                  autoComplete='new-password'
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+          name="confirmPassword"
+          render={({ field, fieldState }) => (
+            <Field className="gap-1.5" data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="register-confirm-password">Confirm Password</FieldLabel>
+              <Input
+                {...field}
+                id="register-confirm-password"
+                type="password"
+                placeholder="••••••••"
+                autoComplete="new-password"
+                aria-invalid={fieldState.invalid}
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
           )}
         />
-        <Button className='w-full' type='submit'>
-          Register
-        </Button>
-      </form>
-    </Form>
-  )
+      </FieldGroup>
+      <Button className="w-full" type="submit">
+        Register
+      </Button>
+    </form>
+  );
 }
