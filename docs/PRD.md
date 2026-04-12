@@ -279,7 +279,7 @@ Aturan relasi minimum:
 - Package Manager: `pnpm` only
 
 ### 5.2. Aturan Teknis Wajib
-- Semua antarmuka UI wajib memakai stack yang sudah ada di repo: `tailwindcss + heroUI`.
+- Semua antarmuka UI wajib memakai stack yang sudah ada di repo: `tailwindcss + shadcn primitive `.
 - API Routes Next.js di bawah `/api/*` hanya dipakai untuk kebutuhan Chrome Extension dan endpoint cron server-side tepercaya. UI web tidak boleh membuka endpoint publik baru di luar dua kebutuhan ini.
 - Interaksi data dari UI web sebaiknya menggunakan Server Actions atau server-side layer internal, bukan membuka endpoint publik baru.
 - Seluruh query dan mutation untuk halaman admin harus dijalankan server-side menggunakan session user admin biasa. Browser admin tidak boleh memakai credential `project_admin` atau service credential langsung.

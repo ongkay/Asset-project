@@ -1,14 +1,7 @@
 # Next Shadcn Admin Dashboard Boilerplate
-An admin dashboard boilerplate for Next.js App Router, ready to use in real projects.
-
-This boilerplate focuses on:
-- Consistent UI across theme presets, light/dark/system modes, and layout preferences.
-- A clean feature structure using colocation patterns.
-- Reusable components/hooks/utilities so teams do not reinvent everything from scratch.
+Admin dashboard boilerplate for Next.js App Router, built to serve as a production starting point.
 
 ## Quick Start
-Use PNPM as the standard package manager in this repo.
-
 ```bash
 pnpm i
 pnpm dev
@@ -17,7 +10,6 @@ pnpm dev
 The app runs at `http://localhost:3000`.
 
 Main scripts:
-
 ```bash
 pnpm dev
 pnpm build
@@ -26,13 +18,14 @@ pnpm lint
 pnpm format
 pnpm check
 pnpm check:fix
+pnpm markdown:check
+pnpm markdown:fix
 pnpm generate:presets
 ```
 
-Important note:
-- Husky pre-commit runs `pnpm generate:presets` and auto-adds `src/lib/preferences/theme.ts`.
+Husky pre-commit runs `pnpm generate:presets` and `lint-staged`.
 
-## Tech Stack
+## Stack
 - Next.js 16 App Router
 - React 19 + TypeScript
 - Tailwind CSS v4
@@ -41,269 +34,130 @@ Important note:
 - React Hook Form + Zod
 - TanStack Table
 - Recharts
-- Biome + Husky
+- ESLint, Prettier, Husky, lint-staged
 
-## Folder Map
-- `src/app/*`: routes, layouts, pages
-- `src/components/ui/*`: shadcn UI primitives + internal components
-- `src/components/data-table/*`: reusable DataTable
+## What This Repo Gives You
+- Dashboard shell with sidebar, settings, auth, unauthorized, and not-found flows
+- Theme/preset/layout/font preference system with SSR-safe persistence
+- Feature-local forms, tables, charts, and reusable UI primitives
+- Sample dashboard pages you can copy into real product modules
+
+## Project Structure
+- `src/app/*`: routes and layouts
+- `src/components/ui/*`: shared UI primitives and internal components
+- `src/components/*`: small shared leaf components
+- `src/app/(main)/dashboard/*/_components/*`: dashboard blocks, charts, and tables
+- `src/app/(main)/auth/_components/*`: shared auth forms and social auth UI
+- `src/config/*`: app metadata and config values
 - `src/hooks/*`: reusable hooks
-- `src/lib/*`: utilities, preferences, fonts, storage helpers
-- `src/stores/preferences/*`: Zustand preferences store/provider
+- `src/lib/*`: utilities, fonts, and preference helpers
+- `src/stores/preferences/*`: preference store/provider
 - `src/navigation/sidebar/*`: sidebar config
-- `src/styles/presets/*`: preset CSS
-- `src/scripts/*`: theme boot + preset registry generator
-- `src/server/*`: server actions (cookie/preference SSR)
-- `src/data/*`: dummy data
+- `src/styles/presets/*`: theme preset CSS
+- `src/scripts/*`: theme boot, preset generation, markdown utilities
+- `src/server/*`: server actions for cookies and SSR preference reads
+- `src/data/*`: sample data
 
-## Routing and Layout
-Important entries:
-- Root layout: `src/app/layout.tsx`
-- Global CSS + tokens: `src/app/globals.css`
-- Redirect `/` to default dashboard: `src/app/(external)/page.tsx`
-- Redirect `/dashboard` to `/dashboard/default`: `next.config.mjs`
+## Routing
+- `/` redirects to `/dashboard/default`
+- `/dashboard` redirects to `/dashboard/default`
+- Dashboard examples: `default`, `crm`, `finance`, `analytics`, `settings`, `coming-soon`
+- Auth examples: `v1/login`, `v1/register`, `v2/login`, `v2/register`
+- Other routes: `unauthorized`, dashboard-local not-found, global not-found
 
-In `src/app/layout.tsx`:
-- Default `data-*` attributes on `<html>` are taken from `PREFERENCE_DEFAULTS`.
-- `ThemeBootScript` runs before hydration.
-- The app is wrapped with `PreferencesStoreProvider`.
-- Toaster is rendered globally.
-
-Dashboard shell:
-- `src/app/(main)/dashboard/layout.tsx` reads the `sidebar_state` cookie.
-- SSR-critical layout reads valid preferences via `getPreference(...)`.
-
-Built-in route examples:
-- `src/app/(main)/dashboard/default/page.tsx`
-- `src/app/(main)/dashboard/crm/page.tsx`
-- `src/app/(main)/dashboard/finance/page.tsx`
-- `src/app/(main)/dashboard/settings/page.tsx`
-- `src/app/(main)/auth/v1/*`
-- `src/app/(main)/auth/v2/*`
-
-## Theme Presets and Preferences
-This system is based on:
-- `.dark` on `<html>` for resolved dark mode
-- `data-*` attributes on `<html>` for mode/preset/layout/font
-- CSS variables in `src/app/globals.css` + overrides in `src/styles/presets/*.css`
-
-HTML attributes in use:
+## Theme And Preferences
+The app stores preferences on `<html>` via these attributes:
 - `data-theme-mode`: `light | dark | system`
-- `data-theme-preset`: e.g. `default | brutalist | soft-pop | tangerine`
+- `data-theme-preset`: `default | brutalist | soft-pop | tangerine`
 - `data-content-layout`: `centered | full-width`
 - `data-navbar-style`: `sticky | scroll`
 - `data-sidebar-variant`: `sidebar | inset | floating`
 - `data-sidebar-collapsible`: `icon | offcanvas`
 - `data-font`: see `src/lib/fonts/registry.ts`
 
-Configuration:
-- Defaults: `src/lib/preferences/preferences-config.ts` (`PREFERENCE_DEFAULTS`)
-- Persistence per key: `src/lib/preferences/preferences-config.ts` (`PREFERENCE_PERSISTENCE`)
-- Storage writer: `persistPreference(...)` in `src/lib/preferences/preferences-storage.ts`
-
-Preference apply helpers:
-- Theme: `src/lib/preferences/theme-utils.ts`
-- Layout/font: `src/lib/preferences/layout-utils.ts`
-
-Zustand preferences:
-- Store: `src/stores/preferences/preferences-store.ts`
-- Provider: `src/stores/preferences/preferences-provider.tsx`
-- Provider reads a DOM snapshot so client state stays in sync with boot script output.
-- Provider subscribes to system theme changes (`matchMedia`).
-
-Theme preset registry:
-- Final preset list is in `src/lib/preferences/theme.ts`.
-- Generated by `src/scripts/generate-theme-presets.ts` from `src/styles/presets/*.css`.
+Key files:
+- `src/app/globals.css`: base tokens and default theme
+- `src/styles/presets/*.css`: preset overrides
+- `src/lib/preferences/preferences-config.ts`: defaults and persistence rules
+- `src/lib/preferences/theme-utils.ts`: apply theme mode/preset
+- `src/lib/preferences/layout-utils.ts`: apply layout/font preferences
+- `src/scripts/theme-boot.tsx`: pre-hydration DOM sync
+- `src/stores/preferences/preferences-provider.tsx`: client store sync + system theme updates
+- `src/scripts/generate-theme-presets.ts`: regenerates `src/lib/preferences/theme.ts`
 
 ## Mandatory UI Rules
-
-### Source of truth
-- CSS tokens and mapping are in `src/app/globals.css`.
-- Active preset is applied via `html[data-theme-preset=...]` selectors.
-- Preferences are applied pre-hydration via `src/scripts/theme-boot.tsx`.
-
 ### Colors
-Use tokens, do not hardcode common colors.
-
-Use:
-- `bg-background text-foreground`
-- `bg-card text-card-foreground`
-- `bg-popover text-popover-foreground`
-- `bg-primary text-primary-foreground`
-- `bg-secondary text-secondary-foreground`
-- `bg-muted text-muted-foreground`
-- `bg-accent text-accent-foreground`
-- `border-border`
-- `focus-visible:ring-ring/50`
-- `focus-visible:border-ring`
-- `outline-ring/50`
-
-Avoid:
-- `bg-white`, `text-black`
-- `text-zinc-*`, `bg-slate-*`, `border-gray-*`
-- hardcoded hex/rgb/hsl colors for primary surfaces/text
+- Use semantic tokens for app surfaces and text.
+- Avoid hardcoded colors in product UI unless there is a clear local reason.
+- Avoid `bg-white`, `text-black`, `text-zinc-*`, `bg-slate-*`, and `border-gray-*` in product screens.
+- Exceptions: `src/components/ui/*` internals, status/data-viz accents, and isolated debug/demo blocks.
 
 ### Components
-- Prioritize components in `src/components/ui/*`.
+- Prefer `src/components/ui/*` before adding new UI.
 - Use `cn(...)` from `src/lib/utils.ts` to merge classes.
 
-### Theme switching
+### Theme Switching
 - Do not toggle `.dark` manually.
-- Do not create a new theme switcher system.
-- Read state from the store in client code when needed:
-  - `usePreferencesStore((s) => s.themeMode)`
-  - `usePreferencesStore((s) => s.resolvedThemeMode)`
-  - `usePreferencesStore((s) => s.themePreset)`
+- Do not introduce a separate theme system.
+- Read `themeMode`, `resolvedThemeMode`, and `themePreset` from the preference store in client code.
 
-### Layout-aware styling
-To adapt UI by layout preference, use selectors based on html attributes.
-Examples:
-- `[html[data-content-layout=centered]_&]:mx-auto`
-- `[html[data-content-layout=centered]_&]:max-w-screen-2xl`
-- `[html[data-navbar-style=sticky]_&]:sticky`
-- `[html[data-navbar-style=sticky]_&]:top-0`
+### Layout-Aware Styling
+- Use `html[data-*]` selectors for layout-dependent UI.
+- Example: `[html[data-content-layout=centered]_&]:mx-auto`.
 
-### SSR vs client
-- Layout-critical preferences (see `LAYOUT_CRITICAL_KEYS`) must be read on the server via `getPreference()`.
-- If it is only for client interaction, use `usePreferencesStore(...)`.
+### SSR Vs Client
+- Read layout-critical preferences on the server with `getPreference(...)`.
+- Use the preference store only for client interaction.
 
-### Chart and font
-- Charts must use `var(--chart-1)` through `var(--chart-5)`.
+### Charts And Fonts
+- Prefer `var(--chart-1)` through `var(--chart-5)` for chart palettes.
+- Use `var(--primary)` only when a chart is intentionally branded to the primary color.
 - Do not set `font-family` directly in components.
 
-## Reusable Building Blocks (Do Not Reinvent)
-UI primitives:
-- `src/components/ui/*`
-- especially: `src/components/ui/sidebar.tsx`, `src/components/ui/chart.tsx`, `src/components/ui/sonner.tsx`
+## Build Patterns
+### New Dashboard Page
+- Add `src/app/(main)/dashboard/<feature>/page.tsx`.
+- Keep local blocks in `src/app/(main)/dashboard/<feature>/_components/*`.
+- A good page wrapper is `@container/main flex flex-col gap-4 md:gap-6`.
 
-Forms:
-- `src/components/ui/form.tsx`
-- `src/components/ui/field.tsx`
-- `src/components/ui/input-group.tsx`
-- example: `src/app/(main)/auth/_components/login-form.tsx`
-
-Data table:
-- hook: `src/hooks/use-data-table-instance.ts`
-- renderer: `src/components/data-table/data-table.tsx`
-- pagination: `src/components/data-table/data-table-pagination.tsx`
-- column toggle: `src/components/data-table/data-table-view-options.tsx`
-- column header util: `src/components/data-table/data-table-column-header.tsx`
-
-Utilities:
-- `src/lib/utils.ts` (`cn`, `getInitials`, `formatCurrency`)
-- `src/lib/fonts/registry.ts`
-- `src/lib/cookie.client.ts`
-- `src/lib/local-storage.client.ts`
-
-## Real Project Implementation Recipes
-
-### 1) Create a new dashboard page
-Location:
-- `src/app/(main)/dashboard/<feature>/page.tsx`
-- `src/app/(main)/dashboard/<feature>/_components/*`
-
-Common wrapper pattern:
-
-```tsx
-export default function Page() {
-  return <div className="@container/main flex flex-col gap-4 md:gap-6">{/* content */}</div>;
-}
-```
-
-### 2) Add a sidebar menu
+### Sidebar Item
 1. Add the route page.
 2. Update `src/navigation/sidebar/sidebar-items.ts`.
 3. Use `subItems` for nested menus.
 
-Sidebar renderers already exist:
-- `src/app/(main)/dashboard/_components/sidebar/app-sidebar.tsx`
-- `src/app/(main)/dashboard/_components/sidebar/nav-main.tsx`
+### Table
+- Use `useReactTable` inside the feature-local table component.
+- Pair it with `src/components/ui/table.tsx`.
+- Always set `getRowId`.
 
-### 3) DataTable pattern
-Use the existing hook + components and always set `getRowId`.
+### Form
+- Use Zod + React Hook Form.
+- Build inputs with `field`, `input`, `select`, and `checkbox` primitives.
 
-```tsx
-const table = useDataTableInstance({
-  data,
-  columns,
-  getRowId: (row) => row.id.toString(),
-});
-```
+### Chart
+- Use `ChartContainer` and the chart components from `src/components/ui/chart.tsx`.
 
-Full examples:
-- `src/app/(main)/dashboard/default/_components/data-table.tsx`
-- `src/app/(main)/dashboard/crm/_components/table-cards.tsx`
+### Preferences UI
+- Apply changes through the theme/layout helpers.
+- Update the Zustand store.
+- Persist with `persistPreference(...)`.
 
-### 4) Form pattern
-Use Zod + RHF + `src/components/ui/form.tsx` wrapper.
+### New Preset
+1. Add `src/styles/presets/<preset>.css`.
+2. Add `label:` and `value:` comments.
+3. Define both `:root[...]` and `.dark:root[...]` selectors.
+4. Define `--primary` in both selectors.
+5. Import the preset in `src/app/globals.css`.
+6. Run `pnpm generate:presets`.
 
-### 5) Chart pattern
-Use `ChartContainer` and related components from `src/components/ui/chart.tsx`.
+## Conventions
+- PNPM is the standard package manager.
+- `src/components/ui` is excluded from the project-specific ESLint rule enforcement.
+- Husky pre-commit runs `pnpm generate:presets` and `lint-staged`.
+- Keep feature code colocated next to the page in `_components`.
 
-### 6) Preferences/settings UI
-When creating settings UI:
-- apply changes to the DOM via theme/layout helpers
-- update the Zustand store
-- persist via `persistPreference`
-
-Examples:
-- `src/app/(main)/dashboard/settings/_components/settings-page.tsx`
-- `src/app/(main)/dashboard/_components/sidebar/layout-controls.tsx`
-
-### 7) Read preferences in SSR
-Use:
-- `getPreference(key, allowed, fallback)` in `src/server/server-actions.ts`
-
-Other exports in the same file:
-- `getValueFromCookie(key)`
-- `setValueToCookie(key, value, opts?)`
-
-### 8) Add a new preset
-1. Add `src/styles/presets/<preset>.css`
-2. Add header comments: `label` and `value`
-3. Define light + dark selectors
-4. Import in `src/app/globals.css`
-5. Run `pnpm generate:presets`
-
-## Conventions and Tooling
-- ESLint config: `eslint.config.mjs`
-- Prettier config: `.prettierrc.json`
-- `src/components/ui` is excluded from project-specific ESLint rule enforcement
-- `next.config.mjs`:
-  - `reactCompiler: true`
-  - remove `console` in production
-  - redirect `/dashboard` to `/dashboard/default`
-- Feature component convention: place in `_components` folder next to `page.tsx`
-
-## Pitfalls to Avoid
-- Do not add a new theme system.
-- Do not rebuild DataTable/Form/Sidebar if reusable components already exist.
-- This repo has multiple lockfiles, but PNPM is the working standard.
-- Some dependencies are not used yet (e.g. axios, react-query). If used, integrate fully with a clear pattern, not partially.
-- Current note: `Soon` badge in `src/app/(main)/dashboard/_components/sidebar/nav-main.tsx` is still hardcoded as `bg-gray-200`.
-
-## Do Not Reinvent Checklist
-Before creating a new file/component, check:
-- UI primitives: `src/components/ui/*`
-- Form wrappers: `src/components/ui/form.tsx`, `src/components/ui/field.tsx`, `src/components/ui/input-group.tsx`
-- DataTable: `src/hooks/use-data-table-instance.ts` + `src/components/data-table/*`
-- Theme/preferences: `src/lib/preferences/*`, `src/scripts/theme-boot.tsx`, `src/stores/preferences/*`
-- Sidebar config: `src/navigation/sidebar/sidebar-items.ts`
-
-## Checklist Before Go-Live
-- No hardcoded colors for primary surface/text/border.
-- All main screens follow theme-safe tokens.
-- Routes and sidebar are in sync.
-- Forms are validated and error states are clear.
-- DataTable follows the built-in reusable stack.
-- SSR-critical preferences are read via `getPreference`.
-- Brand presets are tested in light and dark.
-- `pnpm check` and `pnpm build` pass.
-
-## Migration Guide: Boilerplate to Product
-Recommended sequence:
-1. Lock the first MVP module to go live.
-2. Define the data layer and API/domain contracts.
-3. Implement one module end-to-end as the golden path.
-4. Use that module as a template for subsequent features.
-5. Verify theme/mode/layout consistency before scaling out.
+## Before Shipping
+- Run `pnpm check` and `pnpm build`.
+- Make sure routes and sidebar stay in sync.
+- Keep colors theme-safe and forms clear.
+- Reuse existing patterns before adding new abstractions.
