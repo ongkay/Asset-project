@@ -41,9 +41,9 @@ Phase 0 tidak harus langsung menghapus semua legacy file di hari pertama. Namun,
 
 ## Task Backlog
 - [ ] `P0.1` Lock dependency dan env contract.
-  Target: `package.json`, `pnpm-lock.yaml`, `.env.example`, `src/config/env.ts`, `src/config/app-config.ts`.
+  Target: `package.json`, `pnpm-lock.yaml`, `.env.example`, `src/config/env.server.ts`, `src/config/env.client.ts`, `src/config/app-config.ts`.
   Depends on: tidak ada.
-  Work: tambahkan dependency fondasi yang belum ada, minimal `next-safe-action`, `@tanstack/react-query`, paket SDK InsForge yang benar-benar akan dipakai project, dan tool E2E yang dipilih. Buat `.env.example` dan `src/config/env.ts` sebagai typed runtime contract. Kunci kategori env yang dibutuhkan: database runtime, koneksi InsForge browser-safe, credential server/admin, secret session, allowlist extension, secret cron, dan trusted IP/geo header config. Ganti branding dan metadata template di `APP_CONFIG` agar tidak lagi memakai identitas `Studio Admin`.
+  Work: tambahkan dependency fondasi yang belum ada, minimal `next-safe-action`, `@tanstack/react-query`, paket SDK InsForge yang benar-benar akan dipakai project, dan tool E2E yang dipilih. Buat `.env.example`, `src/config/env.server.ts`, dan `src/config/env.client.ts` sebagai typed runtime contract. Pisahkan env private server-only dari env `NEXT_PUBLIC_*` agar boundary client tetap aman. Kunci kategori env yang dibutuhkan: database runtime, koneksi InsForge browser-safe, credential server/admin, secret session, allowlist extension, secret cron, dan trusted IP/geo header config. Gunakan raw extension ID untuk `EXTENSION_ALLOWED_IDS` dan origin `chrome-extension://...` untuk `EXTENSION_ALLOWED_ORIGINS`. Ganti branding dan metadata template di `APP_CONFIG` agar tidak lagi memakai identitas `Studio Admin`.
   Acceptance: repo punya contract env yang fail-fast saat nilai wajib belum ada, dependency fondasi Phase 0 sudah tercatat di `package.json`, dan metadata app tidak lagi menyebut template dashboard bawaan.
 
 - [ ] `P0.2` Bentuk route topology baru untuk product app.

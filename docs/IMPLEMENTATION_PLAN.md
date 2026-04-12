@@ -104,6 +104,7 @@ Backlog rinci untuk phase ini ada di `docs/PHASE_0_FOUNDATION_BACKLOG.md`.
 
 Scope wajib:
 - setup env runtime dan koneksi InsForge
+- env contract dipisah aman antara server-only dan client-safe access
 - setup `src/lib/insforge/*`
 - setup `src/lib/safe-action/client.ts`
 - setup `@tanstack/react-query` provider
