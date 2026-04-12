@@ -9,13 +9,12 @@
  *
  * Usage:
  * - During local development, run manually after adding any new theme preset:
- *     npm run generate:presets
+ *     pnpm generate:presets
  * - Ensure that each new CSS preset includes `label:` and `value:` comments.
- * - This generation step is currently automated using a Husky pre-push hook.
+ * - This generation step is currently automated using a Husky pre-commit hook.
  * - You may optionally integrate it directly into a build step if preferred.
  */
 
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -107,11 +106,10 @@ const updated = fileContent.replace(
   generatedBlock,
 );
 
-function main() {
-  const biomeBin = require.resolve("@biomejs/biome/bin/biome");
-  const formatted = execFileSync(process.execPath, [biomeBin, "format", "--stdin-file-path", outputPath], {
-    input: updated,
-    encoding: "utf8",
+async function main() {
+  const prettier = await import("prettier");
+  const formatted = await prettier.format(updated, {
+    filepath: outputPath,
   });
 
   if (formatted === fileContent) {
@@ -123,9 +121,7 @@ function main() {
   console.log("✅ theme.ts updated with new theme presets");
 }
 
-try {
-  main();
-} catch (err) {
+void main().catch((err) => {
   console.error("❌ Unexpected error while generating theme presets:", err);
   process.exit(1);
-}
+});
