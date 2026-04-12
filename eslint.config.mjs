@@ -21,7 +21,6 @@ export default defineConfig([
       "out/**",
       "coverage/**",
       "node_modules/**",
-      "src/components/ui/**",
       ".docs/**",
       "docs/**",
       ".worktrees/**",

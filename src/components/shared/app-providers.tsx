@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { AppToaster } from "@/components/shared/app-toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/components/shared/query-provider";
 import { PreferencesStoreProvider } from "@/stores/preferences/preferences-provider";
@@ -31,7 +31,7 @@ export function AppProviders({ children, preferences }: Readonly<AppProvidersPro
       >
         <QueryProvider>
           {children}
-          <AppToaster />
+          <Toaster />
         </QueryProvider>
       </PreferencesStoreProvider>
     </TooltipProvider>
