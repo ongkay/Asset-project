@@ -22,7 +22,7 @@ Stack resmi yang dipakai proyek ini. Jangan ganti stack atau pola utamanya tanpa
 - **Table & Client Read State**: TanStack Table `v8.x` + TanStack React Query `v5.x`
 - **Target Server Actions Wrapper**: `next-safe-action` sesuai PRD. Jika package belum terpasang, tambahkan pada Phase 0, jangan ganti dengan pattern lain
 - **Backend**: InsForge untuk Auth, Database, dan Storage
-- **Browser Verification**: gunakan skill `agent-browser` untuk verifikasi flow browser dan E2E. Jangan default ke Playwright untuk verifikasi manual flow project ini kecuali jika agen-browser terbatas fiturnya boleh menggunakn playwright
+- **Browser Verification**: gunakan skill `agent-browser` untuk verifikasi flow browser test E2E. Jangan default ke Playwright untuk verifikasi manual flow project ini.
 
 Catatan penting:
 - repo ini masih membawa sisa template dashboard. Jangan jadikan struktur `(main)` atau halaman demo lama sebagai source of truth product
