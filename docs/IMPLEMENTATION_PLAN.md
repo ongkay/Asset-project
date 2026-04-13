@@ -25,12 +25,12 @@ Sebuah phase baru dianggap lulus jika semua poin ini terpenuhi:
 - tidak ada langkah verifikasi yang bergantung pada edit database manual di tengah flow
 
 ## Prasyarat Global Sebelum Mulai
-- apply migration mengikuti urutan di `migrations/README.md`, dari `001` sampai `030`
+- apply migration mengikuti urutan di `migrations/README.md`, dari `001` sampai `031`
 - baseline migration hanya boleh dijalankan pada database yang sudah memiliki schema `auth.users`
 - plain local Postgres tanpa schema auth tidak cukup untuk baseline project ini
 - `040_dev_seed_full.sql` membutuhkan auth user development lebih dulu di `auth.users`
 - `041_dev_seed_loginable_users.sql` bergantung pada `040_dev_seed_full.sql` dan tidak boleh dijalankan sendiri pada database kosong
-- migration baseline `001` sampai `030`, `040`, dan `041` harus applied ke database InsForge yang benar-benar dipakai runtime app
+- migration baseline `001` sampai `031`, `040`, dan `041` harus applied ke database InsForge yang benar-benar dipakai runtime app
 - route app sudah dipindah mengikuti struktur `(public)`, `(member)`, `(admin)`, dan `api`
 - `DATABASE_URL` dan env InsForge runtime sudah mengarah ke project yang sama dengan data seed
 - database yang dipakai tooling admin atau MCP tidak boleh diasumsikan identik dengan database runtime app; verifikasi harus selalu mengacu ke `DATABASE_URL` runtime

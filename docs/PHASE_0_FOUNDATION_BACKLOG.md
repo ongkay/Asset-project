@@ -109,7 +109,7 @@ Phase 0 tidak harus langsung menghapus semua legacy file di hari pertama. Namun,
 - [ ] `P0.12` Dokumentasikan workflow setup yang benar untuk dev browser testing.
   Target: `docs/PHASE_0_FOUNDATION_BACKLOG.md`, `README.md`, `docs/IMPLEMENTATION_PLAN.md`.
   Depends on: `P0.1`, `P0.11`.
-  Work: tulis langkah real setup untuk developer: apply migration `001-030`, pastikan `auth.users` tersedia, apply `040`, apply `041`, jalankan app dengan `DATABASE_URL` runtime yang benar, dan jalankan smoke test browser. Catat juga bahwa verifikasi browser harus mengacu ke database runtime app, bukan database tooling yang kebetulan aktif.
+  Work: tulis langkah real setup untuk developer: apply migration `001-031`, pastikan `auth.users` tersedia, apply `040`, apply `041`, jalankan app dengan `DATABASE_URL` runtime yang benar, dan jalankan smoke test browser. Catat juga bahwa verifikasi browser harus mengacu ke database runtime app, bukan database tooling yang kebetulan aktif.
   Acceptance: developer baru dapat menyiapkan baseline browser-loginable environment tanpa menebak urutan seed atau target database.
 
 ## Suggested Execution Order

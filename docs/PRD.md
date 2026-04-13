@@ -882,7 +882,7 @@ Baseline migration SQL untuk project ini sudah siap dan disimpan di folder `migr
 
 Catatan implementasi:
 - file migration sudah dipecah per domain agar mudah dibaca dan mudah di-apply dari clean database
-- baseline schema, policy, trigger, view, dan RPC runtime ada di `migrations/001_extensions.sql` sampai `migrations/030_rpc.sql`
+- baseline schema, policy, trigger, view, dan RPC runtime ada di `migrations/001_extensions.sql` sampai `migrations/031_activation_rpc.sql`
 - seed development lengkap ada di `migrations/040_dev_seed_full.sql`
 - saat database di-reset dari nol, apply migration mengikuti urutan file di folder `migrations/README.md`
 
