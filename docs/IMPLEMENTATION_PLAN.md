@@ -15,6 +15,7 @@ Dokumen source of truth yang harus selalu diikuti:
 - verifikasi browser tidak mensyaratkan pembuatan file test; gunakan checklist phase sebagai panduan manual yang dijalankan lewat `agent-browser` CLI
 - role guard, session guard, dan error state yang relevan wajib ikut selesai di phase tempat feature itu dikirim
 - setiap phase harus tetap menjaga acceptance rules utama di `docs/PRD.md`
+- invariant server-side yang tidak browser-visible tetap wajib benar, tetapi pembuktiannya harus lewat automated test, trusted server-side diagnostic path, atau mekanisme verifikasi terkontrol lain; jangan menjadikan SQL manual ad-hoc sebagai browser gate utama
 
 ## Definition of Done per Phase
 Sebuah phase baru dianggap lulus jika semua poin ini terpenuhi:
@@ -181,6 +182,7 @@ Scope wajib:
 - counter gagal login reset saat login berhasil atau setelah lewat 15 menit sejak kegagalan terakhir
 - `/reset-password` untuk request reset dan set password baru
 - response request reset password harus generik agar tidak membocorkan email terdaftar atau tidak
+- reject user banned sebelum session `app_session` baru dibuat
 - create session `app_session`
 - simpan hanya `token_hash` ke `app_sessions`, bukan token mentah
 - validasi session aktif memakai hash lookup ke row `app_sessions` yang `revoked_at is null`
@@ -194,7 +196,7 @@ Scope wajib:
 Hasil minimal yang harus ada:
 - `/console` dan `/admin` sudah menjadi guarded shell yang benar setelah login berhasil
 - single-device login enforcement sudah aktif
-- banned state minimal sudah menghormati guard login bila mekanismenya sudah tersedia
+- banned user sudah ditolak pada login dan tidak bisa melewati guarded shell
 
 Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai `seed.active.browser@assetnext.dev` dengan password benar dan pastikan redirect ke `/console`
@@ -206,10 +208,11 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] sebelum 5 kali gagal, pastikan CTA reset password belum tampil
 - [ ] setelah login berhasil pada email yang sama, pastikan failed counter reset dan CTA reset password hilang kembali
 - [ ] verifikasi reset counter berbasis 15 menit dengan clock dev, seeded state, atau helper dev yang setara agar tidak perlu menunggu manual 15 menit di browser
-- [ ] jalankan flow `/reset-password` sampai set password baru berhasil lalu pastikan user diarahkan kembali ke shell yang benar
+- [ ] jalankan flow `/reset-password` sampai set password baru berhasil lalu pastikan user diarahkan kembali ke shell yang benar, atau ke `/login` dengan instruksi jelas jika auth provider tidak mengembalikan authenticated context
 - [ ] pada flow set password baru, coba simpan password kurang dari 6 karakter dan pastikan form ditolak
 - [ ] kirim request reset password untuk email yang tidak terdaftar dan pastikan UI tetap menampilkan pesan sukses generik yang sama
 - [ ] buka link reset token yang invalid atau expired dan pastikan UI menampilkan state error yang benar
+- [ ] siapkan satu akun member dalam status banned lewat trusted admin atau dev setup, lalu pastikan login ditolak tanpa membuat session app baru
 - [ ] klik logout dan pastikan route member atau admin tidak lagi bisa diakses tanpa login ulang
 - [ ] login pada browser normal lalu login lagi dengan user yang sama di incognito atau browser lain dan pastikan session lama langsung tidak valid
 - [ ] reload halaman setelah login dan pastikan session tetap terbaca dengan benar

@@ -136,6 +136,7 @@ Implikasi rule:
 - Password saat register minimal 6 karakter.
 - Form register wajib memiliki field konfirmasi password.
 - Semua input password wajib mendukung show/hide.
+- User yang berstatus banned harus ditolak pada flow login sebelum session app baru dibuat.
 
 ### 3.2. Single-Device Login Enforcement
 - Satu user hanya boleh memiliki satu session aktif pada saat yang sama.
@@ -146,7 +147,8 @@ Implikasi rule:
 
 ### 3.3. Failed Login Counter
 - Counter gagal login dihitung per email.
-- Tombol `Reset Password` baru ditampilkan setelah 5 kegagalan login berturut-turut.
+- Counter ini hanya bertambah untuk kegagalan login karena password salah pada email yang memang terdaftar.
+- Tombol `Reset Password` baru ditampilkan setelah 5 kegagalan login berturut-turut karena password salah.
 - Counter gagal login reset jika:
   - login berhasil, atau
   - sudah melewati 15 menit sejak kegagalan terakhir.
@@ -316,10 +318,10 @@ semua form password wajib bisa show/hide password dengan icon mata di sebelah ka
 
 Flow wajib:
 1. user memasukkan email lalu klik `Next`
-2. server memeriksa apakah email sudah terdaftar
+2. server memeriksa lewat trusted server-side path apakah email sudah terdaftar di auth provider
 3. jika email sudah terdaftar:
-   - tampilkan form password di bawah form email tersebut
-   - Login
+    - tampilkan form password di bawah form email tersebut
+    - Login
 
 4. jika email belum terdaftar:
    - tampilkan dialog konfirmasi register
@@ -338,8 +340,8 @@ Flow minimum:
 1. user input email
 2. sistem mengirim instruksi reset password ke email
 3. jika email tidak ditemukan, UI tetap menampilkan pesan generik yang tidak membocorkan keberadaan akun
-4. setelah token reset valid, user dapat mengatur password baru dengan 2 form konfirmas password
-5. setelah berhasil reset password langsung redirect ke /console atau /admin
+4. setelah token reset valid, user dapat mengatur password baru dengan field `password` dan `confirm password`
+5. setelah berhasil reset password, user diarahkan ke `/console` atau `/admin` jika auth provider mengembalikan konteks user yang valid; jika provider tidak mengembalikan konteks itu, user diarahkan ke `/login` dengan instruksi jelas untuk login memakai password baru
 
 ### 6.3. User Dashboard (`/console`)
 Dashboard user memiliki tiga section utama.
@@ -908,4 +910,4 @@ Dokumen ini dianggap siap diimplementasikan jika aturan berikut tidak dilanggar:
 - semua route `/admin/*` hanya untuk admin
 - semua `/api/extension/*` wajib memvalidasi header extension, origin, session, dan banned status
 - semua response error extension mengikuti format baku
-- wajib ikuti struktur folder `docs/agentRules/folder-structure`
+- wajib ikuti struktur folder `docs/agent-rules/folder-structure.md`

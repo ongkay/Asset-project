@@ -22,6 +22,7 @@ const DEFAULT_IGNORED_DIRS = new Set([
   ".agent",
   "docs/superpowers",
   "docs/superpowers/plans",
+  "openspec",
 ]);
 
 const DEFAULT_IGNORED_FILES = new Set(["pnpm-lock.yaml"]);

@@ -91,25 +91,25 @@ The purpose of this specification is to provide an implementation-ready contract
 - **REQ-011**: `/login` must not split register into a separate route.
 - **REQ-012**: `/reset-password` must support request reset and set new password states.
 - **REQ-013**: Email input must be validated before server request.
-- **REQ-014**: Password fields must validate minimum 6 characters where a new password is created or submitted.
+- **REQ-014**: Password fields must validate minimum 6 characters only when creating or replacing a password in register and reset completion flows.
 - **REQ-015**: Register must include `password` and `confirmPassword`.
 - **REQ-016**: Set new password must include `password` and `confirmPassword`.
 - **REQ-017**: `confirmPassword` must match `password`.
 - **REQ-018**: Every password input must include show/hide behavior with an eye icon or equivalent accessible control.
 - **REQ-019**: Submit controls must expose loading and disabled states during requests.
 - **REQ-020**: Error messages must be clear and placed near the affected field when the error is field-specific.
-- **REQ-021**: Successful login, register, and reset completion must redirect directly to the correct shell, without a long success screen.
+- **REQ-021**: Successful login and register must redirect directly to the correct shell, without a long success screen. Reset completion follows the redirect rules in **REQ-078** through **REQ-080**.
 - **REQ-022**: When the password step is shown, the selected email must remain visible and the user must have a clear way to go back or change email.
 
 ### 3.3 Login Requirements
 - **REQ-030**: `/login` must start with email input and a `Next` action.
-- **REQ-031**: The server must check whether the email exists.
+- **REQ-031**: The server must check whether the email exists through a trusted server-side auth lookup. Do not use public `profiles` read as the source of truth for the public email-check step.
 - **REQ-032**: If the email exists, the UI must show password step for the selected email.
 - **REQ-033**: If the email does not exist, the UI must show a register confirmation dialog.
 - **REQ-034**: If the user cancels register confirmation, the UI must return to email step.
 - **REQ-035**: If the user changes email after a branch was selected, stale password/register state and stale errors must be cleared.
 - **REQ-036**: Login success must revoke old sessions, create a new `app_session`, write a success login log, and redirect by role.
-- **REQ-037**: Login failure must write a failed login log and update failed-login counter for the email.
+- **REQ-037**: Login failure must write a failed login log. The failed-login counter must increment only when the failure reason is a wrong password for a registered email.
 - **REQ-038**: Login must reject banned users before creating a new app session.
 - **REQ-039**: A failed login for a non-existing email must not create a session.
 - **REQ-040**: If the email-check step returns `unregistered`, do not write a failed login log and do not increment the failed-login counter. Show only the register confirmation dialog.
@@ -139,6 +139,7 @@ The purpose of this specification is to provide an implementation-ready contract
 - **REQ-078**: Reset completion success must redirect by role.
 - **REQ-079**: After password reset success, reuse or create a new `app_session` only if InsForge Auth returns or permits a valid authenticated user context as part of reset completion.
 - **REQ-080**: If InsForge Auth cannot provide a valid authenticated context after reset completion, redirect to `/login` with a clear instruction to login using the new password. This fallback is allowed only for that provider limitation.
+- **REQ-081**: The reset completion actor and redirect target must be resolved from the provider-validated reset context plus `profiles`, not from trusting the submitted email as the final authority.
 
 ### 3.6 Session Requirements
 - **SEC-001**: The cookie name must be exactly `app_session`.
@@ -153,6 +154,7 @@ The purpose of this specification is to provide an implementation-ready contract
 - **SEC-010**: Session lookup and mutation code must stay server-only.
 - **SEC-011**: The `revoke_app_sessions(user_id)` DB helper may be used only through a trusted server-side path; do not expose it to browser code.
 - **SEC-012**: Authenticated server-side shell access must touch `app_sessions.last_seen_at` when validating the active `app_session`, so Live User and session freshness have accurate data.
+- **SEC-013**: Because baseline RLS does not provide member self-access for `app_sessions` or `login_logs`, session lookup by `token_hash`, session insert, session revoke, login-log insert, and `last_seen_at` touch must all run through a privileged server-only repository path.
 
 ### 3.7 Failed-Login Counter Requirements
 - **REQ-090**: Failed-login counter is counted per normalized email.
@@ -171,6 +173,7 @@ The purpose of this specification is to provide an implementation-ready contract
 - **DAT-003**: `ip_address` is required by schema and must be derived from a trusted request metadata source.
 - **DAT-004**: `browser` and `os` may be null if parsing is unavailable, but the schema contract must be explicit.
 - **DAT-005**: Failure reasons should use stable internal strings such as `wrong_password`, `user_banned`, `sign_in_failed`, or `auth_provider_error`.
+- **DAT-006**: If InsForge Auth succeeds but the app cannot resolve the required `profiles` row for an existing user, the flow must fail closed, must not create `app_session`, and should write a stable failure reason such as `profile_missing`.
 
 ### 3.9 Role Guard and Redirect Requirements
 - **REQ-110**: Successful member auth redirects to `/console`.
@@ -226,14 +229,14 @@ The purpose of this specification is to provide an implementation-ready contract
 ### 4.2 Recommended Server Actions
 The exact exported names may follow existing project naming, but the contracts below must exist.
 
-| Action                        | Input                                                                                | Output                                                   | Notes                                                   |
-| ----------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------- |
-| `checkAuthEmailAction`        | `{ email: string }`                                                                  | `{ status: "registered" \| "unregistered" }`             | Must validate and normalize email.                      |
-| `loginAction`                 | `{ email: string; password: string }` plus request metadata                          | `{ redirectTo: "/console" \| "/admin" }` or action error | Must create `app_session` on success.                   |
-| `registerAction`              | `{ email: string; password: string; confirmPassword: string }` plus request metadata | `{ redirectTo: "/console" }` or action error             | Must auto login public members only.                    |
-| `requestPasswordResetAction`  | `{ email: string }`                                                                  | `{ success: true }`                                      | Must be generic for registered and unregistered emails. |
-| `completePasswordResetAction` | `{ email: string; resetToken: string; password: string; confirmPassword: string }`   | `{ redirectTo: "/console" \| "/admin" \| "/login" }`     | Use `/login` only when provider session is unavailable. |
-| `logoutAction`                | No body or `{}`                                                                      | `{ redirectTo: "/login" }`                               | Must revoke active session and clear cookie.            |
+| Action                        | Input                                                                                | Output                                                   | Notes                                                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `checkAuthEmailAction`        | `{ email: string }`                                                                  | `{ status: "registered" \| "unregistered" }`             | Must validate and normalize email.                                                                                                                                             |
+| `loginAction`                 | `{ email: string; password: string }` plus request metadata                          | `{ redirectTo: "/console" \| "/admin" }` or action error | Must create `app_session` on success.                                                                                                                                          |
+| `registerAction`              | `{ email: string; password: string; confirmPassword: string }` plus request metadata | `{ redirectTo: "/console" }` or action error             | Must auto login public members only.                                                                                                                                           |
+| `requestPasswordResetAction`  | `{ email: string }`                                                                  | `{ success: true }`                                      | Must be generic for registered and unregistered emails.                                                                                                                        |
+| `completePasswordResetAction` | `{ email: string; resetToken: string; password: string; confirmPassword: string }`   | `{ redirectTo: "/console" \| "/admin" \| "/login" }`     | `email` is user input for UX continuity only; actor and redirect authority come from provider-validated reset context. Use `/login` only when provider session is unavailable. |
+| `logoutAction`                | No body or `{}`                                                                      | `{ redirectTo: "/login" }`                               | Must revoke active session and clear cookie.                                                                                                                                   |
 
 ### 4.3 Input Schemas
 Schemas must be Zod schemas. The messages may be localized, but the validation semantics must match this table.
@@ -310,14 +313,15 @@ Login and register success must use this sequence:
 2. Authenticate or create user with InsForge Auth.
 3. For register only, upsert the public member profile through a trusted server-side path.
 4. Read profile.
-5. Reject if profile is banned.
-6. Revoke all active app sessions for user.
-7. Create a new opaque raw session token.
-8. Hash the token.
-9. Insert `app_sessions` row with `token_hash`.
-10. Write cookie `app_session` with raw token.
-11. Write success `login_logs` row.
-12. Redirect existing-user login by role and public self-register to `/console`.
+5. Fail closed if the expected existing-user profile does not exist.
+6. Reject if profile is banned.
+7. Revoke all active app sessions for user.
+8. Create a new opaque raw session token.
+9. Hash the token.
+10. Insert `app_sessions` row with `token_hash`.
+11. Write cookie `app_session` with raw token.
+12. Write success `login_logs` row.
+13. Redirect existing-user login by role and public self-register to `/console`.
 
 Create the session and write the success log inside one trusted server-side unit of work. If any failure happens after session insert, the implementation must revoke the newly created session and clear the cookie before returning or otherwise leave no active session from the failed transaction.
 
@@ -326,7 +330,7 @@ The counter for an email is computed from consecutive failed password submission
 - a successful login for the same normalized email, or
 - the latest failed password submission being older than 15 minutes.
 
-When deriving the counter from `login_logs`, count only failed password submission rows newer than the latest success row for the same normalized email and newer than `now() - 15 minutes`.
+When deriving the counter from `login_logs`, count only failed rows with `failure_reason = 'wrong_password'` that are newer than the latest success row for the same normalized email and newer than `now() - 15 minutes`.
 
 The reset prompt is shown when the current consecutive failure count is at least 5.
 
@@ -350,6 +354,8 @@ The exact language may be adjusted for the product tone, but the UI must convey 
 | Generic system error     | The action failed. Try again later.                                       |
 
 ## 5. Acceptance Criteria
+
+### 5.1 Browser Acceptance Criteria
 - **AC-001**: Given the user opens `/login`, When the page loads, Then the email step renders without runtime error.
 - **AC-002**: Given `seed.active.browser@assetnext.dev` and password `Devpass123`, When login succeeds, Then the browser has `app_session` and redirects to `/console`.
 - **AC-003**: Given `seed.admin.browser@assetnext.dev` and password `Devpass123`, When login succeeds, Then the browser has `app_session` and redirects to `/admin`.
@@ -372,11 +378,15 @@ The exact language may be adjusted for the product tone, but the UI must convey 
 - **AC-020**: Given a logged-in member, When `/admin` is opened, Then access is denied.
 - **AC-021**: Given a logged-in admin, When `/admin` is opened, Then access is allowed.
 - **AC-022**: Given a logged-in user reloads the target shell, When the page reloads, Then the `app_session` is read successfully and the shell remains accessible.
-- **AC-023**: Given login succeeds or fails, When inspecting `login_logs`, Then the corresponding success or failure row is written with email, IP, browser, OS, and failure reason as applicable.
-- **AC-024**: Given a session is created, When inspecting `app_sessions`, Then only `token_hash` is stored and the raw token is not present in the database.
-- **AC-025**: Given an unregistered email is checked from `/login`, When the UI branches to register confirmation, Then no failed login log is written and the failed-login counter does not change.
 - **AC-026**: Given a logged-in admin opens `/console`, When the member shell guard runs, Then the user is redirected to `/admin`.
-- **AC-027**: Given an authenticated shell is loaded, When session validation succeeds, Then `app_sessions.last_seen_at` is touched through server-side session code.
+
+### 5.2 Server-Side Correctness Invariants
+These invariants are mandatory for correctness, but they are not part of the manual browser checklist gate.
+- **INV-001**: Given login succeeds or fails, When server-side auth effects are verified, Then the corresponding `login_logs` row is written with email, IP, browser, OS, and failure reason as applicable.
+- **INV-002**: Given a session is created, When server-side session persistence is verified, Then only `token_hash` is stored in `app_sessions` and the raw token is not present in the database.
+- **INV-003**: Given an unregistered email is checked from `/login`, When the UI branches to register confirmation, Then no failed login log is written and the failed-login counter does not change.
+- **INV-004**: Given an authenticated shell is loaded, When session validation succeeds, Then `app_sessions.last_seen_at` is touched through server-side session code.
+- **INV-005**: Given an existing auth user does not have the required `profiles` row, When login or reset completion reaches app-layer profile resolution, Then the flow fails closed, does not create `app_session`, and returns a clear system error.
 
 ## 6. Test Automation Strategy
 
@@ -400,6 +410,7 @@ The exact language may be adjusted for the product tone, but the UI must convey 
 - Submit reset completion with password shorter than 6 characters and verify clear rejection.
 - Request reset for an unregistered email and verify generic success.
 - Open invalid or expired reset token and verify error state.
+- Verify login is rejected for a banned user prepared through trusted admin or development setup.
 - Logout and verify guarded routes require login again.
 - Login from another browser context and verify old session is invalid.
 - Reload after login and verify the session remains valid.
@@ -413,6 +424,9 @@ Run available project gates relevant to the implementation:
 - `pnpm markdown:check` only if Markdown files are changed
 
 Do not claim a gate passed unless it was actually run and completed successfully.
+
+### 6.4 Server-Side Invariants To Verify Outside Manual Browser Gate
+The invariants in **Section 5.2** remain required for Phase 1 correctness, but they are not manual browser checklist items. Verify them through automated tests, a trusted server-side diagnostic path, or controlled development inspection. Do not treat ad-hoc raw SQL inspection as the primary browser gate for Phase 1 completion.
 
 ## 7. Rationale & Context
 The PRD requires single-device login and extension compatibility through one shared cookie: `app_session`. This means the app cannot delegate all session behavior to a generic browser auth session alone. The Next.js server layer must own the app session lifecycle: revoke old app sessions, create an opaque session token, store only a hash, and validate through `app_sessions`.
@@ -477,6 +491,7 @@ The folder structure rules require `src/app/**` to remain thin and domain logic 
   - `seed.canceled.browser@assetnext.dev`
   - `seed.none.browser@assetnext.dev`
   - shared password `Devpass123`
+- **DAT-015**: The browser-loginable seed does not include a banned-user fixture or a prebuilt 5-failure recent window for the failed-login threshold. Those scenarios must be verified through repeated browser attempts or trusted development setup.
 
 ## 9. Examples & Edge Cases
 
@@ -569,8 +584,11 @@ Expected result: login is rejected, no new app_sessions row remains active, and 
 - `migrations/README.md`
 - `migrations/003_core_helpers.sql`
 - `migrations/010_profiles_and_auth_tables.sql`
+- `migrations/012_subscription_tables.sql`
 - `migrations/020_admin_access_helpers.sql`
 - `migrations/021_rls_policies.sql`
 - `migrations/022_subscription_engine.sql`
+- `migrations/024_views.sql`
 - `migrations/025_table_grants.sql`
+- `migrations/030_rpc.sql`
 - `migrations/041_dev_seed_loginable_users.sql`

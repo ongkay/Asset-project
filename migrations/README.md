@@ -4,8 +4,8 @@ Dokumen ini merangkum baseline migration yang sudah dipecah per domain agar lebi
 ## Source of Truth
 | File               | Fungsi                                                              |
 | ------------------ | ------------------------------------------------------------------- |
-| `.docsplan/PRD.md` | source of truth business rules, user flow, admin flow, API contract |
-| `.docsplan/DB.md`  | source of truth schema database MVP                                 |
+| `docs/PRD.md`      | source of truth business rules, user flow, admin flow, API contract |
+| `docs/DB.md`       | source of truth schema database MVP                                 |
 | `migrations/*.sql` | implementasi baseline schema, RPC, dan seed development             |
 
 ## Struktur Migration
