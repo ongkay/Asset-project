@@ -20,6 +20,7 @@ export default defineConfig([
       "dist/**",
       "out/**",
       "coverage/**",
+      "test-results/**",
       "node_modules/**",
       ".docs/**",
       "docs/**",

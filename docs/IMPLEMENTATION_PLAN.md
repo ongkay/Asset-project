@@ -154,6 +154,16 @@ Browser test wajib untuk lulus:
 - [ ] akses `/admin` tanpa login harus diarahkan ke flow auth
 - [ ] login sebagai admin atau member belum wajib sukses pada phase ini, tetapi shell route dan guard dasar harus siap untuk phase 1
 
+### Workflow Setup Browser Dev
+- apply migration `001_extensions.sql` sampai `031_activation_rpc.sql` secara berurutan
+- pastikan target database sudah memiliki schema `auth.users` sebelum apply baseline
+- apply `040_dev_seed_full.sql`
+- apply `041_dev_seed_loginable_users.sql`
+- pastikan `DATABASE_URL` runtime app mengarah ke database yang sama dengan data seed tersebut
+- jalankan `pnpm dev`
+- jalankan `pnpm test:e2e:smoke` untuk smoke verification repeatable
+- jika verifikasi manual memakai browser, selalu cek terhadap app runtime yang memakai `DATABASE_URL`, bukan database tooling admin/MCP yang kebetulan aktif
+
 ## Phase 1. Auth
 Tujuan phase ini adalah menyelesaikan seluruh flow autentikasi sampai user benar-benar bisa masuk, keluar, dan mengganti password dari browser.
 

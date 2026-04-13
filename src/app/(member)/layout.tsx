@@ -5,8 +5,11 @@ import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { requireMemberShellAccess } from "@/modules/users/services";
 
-export default function MemberLayout({ children }: Readonly<{ children: ReactNode }>) {
+export default async function MemberLayout({ children }: Readonly<{ children: ReactNode }>) {
+  await requireMemberShellAccess();
+
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-8 lg:px-10">
@@ -27,9 +30,9 @@ export default function MemberLayout({ children }: Readonly<{ children: ReactNod
         <main className="flex-1 py-8">{children}</main>
         <Alert className="mt-6 border-dashed border-border/60 bg-background/60">
           <AlertCircle className="size-4" />
-          <AlertTitle>Guard belum final</AlertTitle>
+          <AlertTitle>Member shell guarded</AlertTitle>
           <AlertDescription>
-            Phase 0 hanya mengunci route topology. Guard server-side member akan dipasang pada task `P0.8`.
+            Route ini sekarang memakai guard server-side berbasis `app_session` dan role member sebagai fondasi Phase 1.
           </AlertDescription>
         </Alert>
       </div>

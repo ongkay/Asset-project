@@ -64,6 +64,12 @@ Phase 0 tidak harus langsung menghapus semua legacy file di hari pertama. Namun,
   Work: bangun wrapper browser, server, dan admin client sesuai folder rules. File server/admin wajib diberi boundary server-only. Seluruh akses SDK selanjutnya harus lewat folder ini, bukan instantiate client langsung dari `page.tsx`, `route.ts`, atau client component. `admin-client.ts` hanya boleh dipakai server-side untuk flow yang memang butuh trusted path, terutama auth/admin writes dan session lifecycle yang tidak bisa bergantung pada akses tabel biasa karena RLS.
   Acceptance: repo punya satu lapisan adapter InsForge yang jelas dan siap dipakai modules, tanpa kebocoran credential ke browser.
 
+- [ ] `P0.4a` Siapkan shared safe action client.
+  Target: `src/lib/safe-action/client.ts`.
+  Depends on: `P0.1`.
+  Work: buat setup minimal `next-safe-action` yang akan menjadi entry point semua web mutation berbasis server action pada phase berikutnya. File ini harus hidup di `src/lib/safe-action/client.ts`, bukan di `src/app` dan bukan di domain tertentu.
+  Acceptance: repo memiliki shared `actionClient` yang siap dipakai `src/modules/*/actions.ts` pada phase berikutnya.
+
 - [ ] `P0.5` Kunci contract session `app_session` dan trusted auth/session write path.
   Target: `src/modules/auth/types.ts`, `src/modules/auth/schemas.ts`, `src/modules/auth/repositories.ts`, `src/modules/auth/services.ts`, `src/modules/sessions/types.ts`, `src/modules/sessions/schemas.ts`, `src/modules/sessions/repositories.ts`, `src/modules/sessions/services.ts`, `src/lib/cookies.ts`.
   Depends on: `P0.1`, `P0.4`.
@@ -143,6 +149,19 @@ Phase 0 baru dianggap lulus jika seluruh kondisi ini sudah benar:
 - [ ] akses `/console` tanpa login dan pastikan guest tidak bisa masuk
 - [ ] akses `/admin` tanpa login dan pastikan guest tidak bisa masuk
 - [ ] reload setiap route shell baru dan pastikan tidak ada hydration error atau crash
+
+## Setup Workflow Reference
+Urutan setup dev browser testing yang benar:
+1. apply migration `001_extensions.sql` sampai `031_activation_rpc.sql`
+2. pastikan target database sudah memiliki `auth.users`
+3. apply `040_dev_seed_full.sql`
+4. apply `041_dev_seed_loginable_users.sql`
+5. jalankan app dengan `DATABASE_URL` runtime yang benar
+6. jalankan `pnpm test:e2e:smoke`
+
+Catatan:
+- verifikasi browser harus selalu mengacu ke database runtime app
+- jangan mengasumsikan database tooling admin atau MCP identik dengan `DATABASE_URL`
 
 ## Catatan Praktis
 - jangan implementasikan Phase 1 di atas `src/app/(main)/auth/**`

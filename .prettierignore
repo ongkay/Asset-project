@@ -16,3 +16,4 @@ AGENTS.md
 *.md
 .worktrees
 .bp
+test-results/
