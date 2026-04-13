@@ -61,3 +61,5 @@ dist/
 .roo
 .trae
 .windsurf
+
+.playwright-cli
