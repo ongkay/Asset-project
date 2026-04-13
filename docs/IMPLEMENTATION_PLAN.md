@@ -11,7 +11,8 @@ Dokumen source of truth yang harus selalu diikuti:
 - setiap phase harus punya `write path`, `read path`, dan `negative path`
 - hasil mutation harus bisa langsung dibaca kembali dari UI phase yang sama
 - phase tidak lulus jika masih butuh SQL manual untuk membuktikan hasilnya
-- browser test wajib dilakukan pada route nyata, bukan hanya unit test atau inspeksi database
+- verifikasi browser manual wajib dilakukan pada route nyata memakai `agent-browser` CLI melalui skill `agent-browser`, bukan hanya pemeriksaan non-browser atau inspeksi database
+- verifikasi browser tidak mensyaratkan pembuatan file test; gunakan checklist phase sebagai panduan manual yang dijalankan lewat `agent-browser` CLI
 - role guard, session guard, dan error state yang relevan wajib ikut selesai di phase tempat feature itu dikirim
 - setiap phase harus tetap menjaga acceptance rules utama di `docs/PRD.md`
 
@@ -35,10 +36,11 @@ Sebuah phase baru dianggap lulus jika semua poin ini terpenuhi:
 - `DATABASE_URL` dan env InsForge runtime sudah mengarah ke project yang sama dengan data seed
 - database yang dipakai tooling admin atau MCP tidak boleh diasumsikan identik dengan database runtime app; verifikasi harus selalu mengacu ke `DATABASE_URL` runtime
 - tersedia inbox email development untuk flow reset password
-- tersedia strategi browser test yang repeatable
-  - minimal: checklist manual browser
-  - direkomendasikan: Playwright untuk smoke test tiap phase
-- tersedia extension test harness khusus dev untuk phase Extension API karena validasi `Origin` extension tidak bisa diuji akurat dari tab browser biasa
+- tersedia strategi verifikasi browser manual yang dapat diulang memakai `agent-browser` CLI melalui skill `agent-browser`
+  - gunakan checklist browser pada setiap phase sebagai panduan verifikasi manual
+  - jangan membuat file test browser hanya untuk memenuhi gate phase, kecuali ada kebutuhan eksplisit terpisah
+  - alat browser lain hanya boleh dipakai jika `agent-browser` CLI terbatas untuk langkah tertentu, dan alasannya harus dicatat
+- tersedia extension dev harness khusus untuk phase Extension API karena validasi `Origin` extension tidak bisa diverifikasi akurat dari tab browser biasa
 - verifikasi baseline minimum setelah apply migration:
   - semua enum, tabel, trigger, view, dan helper function terbentuk
   - RLS aktif
@@ -46,7 +48,7 @@ Sebuah phase baru dianggap lulus jika semua poin ini terpenuhi:
   - helper RPC bisa dipanggil
 
 ## Akun Seed Browser
-Gunakan akun dari `migrations/041_dev_seed_loginable_users.sql` untuk verifikasi manual dan smoke test.
+Gunakan akun dari `migrations/041_dev_seed_loginable_users.sql` untuk verifikasi manual dan verifikasi dasar browser.
 
 Shared password:
 - `Devpass123`
@@ -84,7 +86,7 @@ Semua phase harus mematuhi rule teknis berikut agar hasil implementasi tetap ses
 ## Urutan Phase
 | Phase | Nama                             | Fokus Utama                                      |
 | ----- | -------------------------------- | ------------------------------------------------ |
-| 0     | Foundation                       | fondasi app, env, shell route, dan testability   |
+| 0     | Foundation                       | fondasi app, env, shell route, dan verifikasi    |
 | 1     | Auth                             | login, register, reset password, logout, session |
 | 2     | Admin Package                    | CRUD package dan entitlement                     |
 | 3     | Admin Asset                      | inventory asset dan operasional dasar            |
@@ -133,7 +135,7 @@ Scope wajib:
   - `src/app/(admin)/admin/page.tsx`
 - siapkan layout dasar untuk `(member)` dan `(admin)`
 - dokumentasikan cara reset data seed dan memulai dev server
-- siapkan baseline browser smoke test
+- siapkan baseline verifikasi dasar browser manual memakai `agent-browser` CLI melalui skill `agent-browser`
 
 Hasil minimal yang harus ada:
 - app bisa boot dengan struktur folder final
@@ -147,7 +149,7 @@ Hasil minimal yang harus ada:
   - desain `requestNonce`
   - source allowlist extension dan metadata IP/geo
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] buka `/login` dan pastikan halaman render tanpa runtime error
 - [ ] buka `/reset-password` dan pastikan halaman render tanpa runtime error
 - [ ] akses `/console` tanpa login harus diarahkan ke flow auth
@@ -161,7 +163,7 @@ Browser test wajib untuk lulus:
 - apply `041_dev_seed_loginable_users.sql`
 - pastikan `DATABASE_URL` runtime app mengarah ke database yang sama dengan data seed tersebut
 - jalankan `pnpm dev`
-- jalankan `pnpm test:e2e:smoke` untuk smoke verification repeatable
+- jalankan checklist browser phase secara manual memakai `agent-browser` CLI melalui skill `agent-browser` untuk verifikasi dasar yang dapat diulang
 - jika verifikasi manual memakai browser, selalu cek terhadap app runtime yang memakai `DATABASE_URL`, bukan database tooling admin/MCP yang kebetulan aktif
 
 ## Phase 1. Auth
@@ -194,7 +196,7 @@ Hasil minimal yang harus ada:
 - single-device login enforcement sudah aktif
 - banned state minimal sudah menghormati guard login bila mekanismenya sudah tersedia
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai `seed.active.browser@assetnext.dev` dengan password benar dan pastikan redirect ke `/console`
 - [ ] login sebagai `seed.admin.browser@assetnext.dev` dengan password benar dan pastikan redirect ke `/admin`
 - [ ] masukkan email baru di `/login`, lanjut register, lalu pastikan user auto login dan mendapat `app_session`
@@ -203,7 +205,7 @@ Browser test wajib untuk lulus:
 - [ ] lakukan 5 kali login gagal pada email yang sama dan pastikan CTA atau dialog reset password muncul
 - [ ] sebelum 5 kali gagal, pastikan CTA reset password belum tampil
 - [ ] setelah login berhasil pada email yang sama, pastikan failed counter reset dan CTA reset password hilang kembali
-- [ ] verifikasi reset counter berbasis 15 menit dengan test clock, seeded state, atau helper dev yang setara agar tidak perlu menunggu manual 15 menit di browser
+- [ ] verifikasi reset counter berbasis 15 menit dengan clock dev, seeded state, atau helper dev yang setara agar tidak perlu menunggu manual 15 menit di browser
 - [ ] jalankan flow `/reset-password` sampai set password baru berhasil lalu pastikan user diarahkan kembali ke shell yang benar
 - [ ] pada flow set password baru, coba simpan password kurang dari 6 karakter dan pastikan form ditolak
 - [ ] kirim request reset password untuk email yang tidak terdaftar dan pastikan UI tetap menampilkan pesan sukses generik yang sama
@@ -233,7 +235,7 @@ Hasil minimal yang harus ada:
 - data package yang dibuat pada phase ini siap dipakai phase 4, 5, dan 6
 - ringkasan package `private/share/mixed` hanya dipakai untuk badge, filter, dan reporting, bukan untuk otorisasi asset
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan buka `/admin/package`
 - [ ] buat package baru dengan kombinasi entitlement valid lalu pastikan row baru muncul di tabel setelah submit
 - [ ] coba simpan package dengan duplicate entitlement dan pastikan form ditolak dengan error yang jelas
@@ -266,7 +268,7 @@ Hasil minimal yang harus ada:
 - admin dapat mengelola inventory asset dari browser tanpa SQL manual
 - data asset siap dipakai phase subscription dan recovery
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan buka `/admin/assets`
 - [ ] buat asset `private` baru lalu pastikan row muncul di tabel
 - [ ] buat asset `share` baru lalu pastikan row muncul di tabel
@@ -314,7 +316,7 @@ Hasil minimal yang harus ada:
 - admin bisa membuat subscription baru atau mengganti subscription berjalan tanpa SQL
 - hasilnya langsung terlihat di tabel subscriber
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan buka `/admin/subscriber`
 - [ ] cari subscriber berdasarkan username, user ID, atau email lalu pastikan hasil tabel berubah sesuai query
 - [ ] filter subscriber berdasarkan asset type, subscription status, atau date range lalu pastikan hasil tabel berubah sesuai filter
@@ -356,7 +358,7 @@ Hasil minimal yang harus ada:
 - admin bisa menerbitkan CD-Key dari browser dan melihat hasilnya langsung di tabel
 - phase ini hanya menutup sisi admin issuance, bukan redeem member
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan buka `/admin/cdkey`
 - [ ] buat CD-Key baru dengan code manual lalu pastikan row baru muncul di tabel
 - [ ] buat CD-Key baru tanpa isi code lalu pastikan sistem meng-generate code unik otomatis
@@ -400,7 +402,7 @@ Hasil minimal yang harus ada:
 - member bisa menyelesaikan journey dari login sampai memiliki subscription dan akses asset dari browser
 - seed state `active`, `processed`, `expired`, `canceled`, dan `none` bisa diverifikasi jelas di `/console`
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai `seed.active.browser@assetnext.dev` dan pastikan `/console` menampilkan status aktif, package, tanggal berakhir, dan asset aktif
 - [ ] pastikan `/console` menampilkan `daysLeft` pada overview subscription
 - [ ] login sebagai `seed.processed.browser@assetnext.dev` dan pastikan `/console` menampilkan pesan bahwa akses masih parsial serta tetap menampilkan asset yang memang sudah berhasil di-assign
@@ -448,7 +450,7 @@ Hasil minimal yang harus ada:
 - admin bisa membuat dan mengelola user dari browser
 - interaksi ban dan password benar-benar memengaruhi flow auth
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan buka `/admin/users`
 - [ ] buat user baru dengan role `member` lalu pastikan row baru muncul di tabel
 - [ ] setelah admin membuat user baru, login dengan akun itu dari `/login` dan pastikan akun benar-benar bisa autentikasi
@@ -481,7 +483,7 @@ Hasil minimal yang harus ada:
 - admin dapat membaca histori login, histori extension, dan histori transaction dari browser
 - data dari phase-phase sebelumnya sudah muncul di halaman ini
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan buka `/admin/userlogs`
 - [ ] pastikan tab `Login History` memuat row seed dan dapat difilter berdasarkan user atau date range
 - [ ] pastikan tab `Login History` menampilkan kolom minimum `user`, `IP`, `browser`, `OS`, dan `login time`
@@ -523,7 +525,7 @@ Hasil minimal yang harus ada:
 - admin login kini mendarat di dashboard statistik final, bukan placeholder lagi
 - dashboard membaca data nyata dari package, subscription, transaction, asset, session, dan extension track
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan pastikan redirect menuju `/admin`
 - [ ] pastikan seluruh kartu statistik utama tampil tanpa error
 - [ ] saat dashboard pertama dibuka, pastikan default range statistik transaksi adalah 30 hari terakhir
@@ -550,7 +552,7 @@ Hasil minimal yang harus ada:
 - disable asset, expire asset, dan perubahan subscription tidak lagi meninggalkan data aktif yang salah di browser
 - recovery dan reconciliation bisa dibuktikan dari UI tanpa SQL manual di tengah flow
 
-Browser test wajib untuk lulus:
+Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin, disable asset yang sedang dipakai user aktif, lalu refresh `/console` user terkait dan pastikan asset lama langsung hilang dari read path aktif
 - [ ] jika replacement tersedia, pastikan user melihat asset pengganti setelah proses recovery selesai
 - [ ] jika replacement tidak tersedia, pastikan subscription user berubah menjadi `processed`
@@ -609,8 +611,8 @@ Hasil minimal yang harus ada:
 - track heartbeat extension muncul di admin logs
 - semua error utama mengembalikan kode baku yang benar
 
-Browser test wajib untuk lulus:
-- [ ] login ke web app sebagai user dengan subscription valid lalu panggil `GET /api/extension/session` dari extension test harness dan pastikan response sukses
+Checklist verifikasi browser manual untuk lulus:
+- [ ] login ke web app sebagai user dengan subscription valid lalu panggil `GET /api/extension/session` dari extension dev harness dan pastikan response sukses
 - [ ] pastikan response session memakai key `camelCase`, hanya memuat asset aktif yang masih valid di inventory aktif, dan tidak membocorkan raw `asset_json`
 - [ ] pastikan response session minimal memuat `user.id`, `user.username`, `subscription.status`, `subscription.packageName`, `subscription.endAt`, `subscription.daysLeft`, `subscription.assets`, dan `requestNonce`
 - [ ] login sebagai user `processed` lalu panggil endpoint extension dan pastikan hanya asset parsial yang memang sudah di-assign yang dikembalikan
@@ -633,7 +635,7 @@ Browser test wajib untuk lulus:
 - [ ] ban user lalu panggil endpoint extension dan pastikan error `USER_BANNED`
 
 ## Regression Gate Setelah Setiap Phase
-Setelah sebuah phase selesai, ulang minimal smoke test berikut sebelum pindah ke phase berikutnya:
+Setelah sebuah phase selesai, ulang minimal verifikasi dasar manual berikut memakai `agent-browser` CLI melalui skill `agent-browser` sebelum pindah ke phase berikutnya:
 - login admin masih berhasil
 - login member masih berhasil
 - logout masih berhasil
@@ -646,4 +648,4 @@ Setelah sebuah phase selesai, ulang minimal smoke test berikut sebelum pindah ke
 2. selesaikan dulu route yang sedang menjadi target phase
 3. pastikan write path dan readback phase itu benar sebelum menambah fitur sampingan
 4. tundukkan semua keputusan ke PRD, DB plan, dan folder structure
-5. jangan membuka phase baru sebelum checklist browser test phase saat ini lulus
+5. jangan membuka phase baru sebelum checklist verifikasi browser manual phase saat ini lulus

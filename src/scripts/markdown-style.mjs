@@ -14,6 +14,14 @@ const DEFAULT_IGNORED_DIRS = new Set([
   ".playwright-mcp",
   ".agents",
   ".docs",
+  ".worktrees",
+  ".codex",
+  ".gemini",
+  ".github",
+  ".opencode",
+  ".agent",
+  "docs/superpowers",
+  "docs/superpowers/plans",
 ]);
 
 const DEFAULT_IGNORED_FILES = new Set(["pnpm-lock.yaml"]);

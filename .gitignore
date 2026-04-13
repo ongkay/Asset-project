@@ -61,5 +61,9 @@ dist/
 .roo
 .trae
 .windsurf
+.codex
+.gemini
+.github
+.opencode
 
 .playwright-cli
