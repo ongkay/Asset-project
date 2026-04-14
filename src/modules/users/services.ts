@@ -2,14 +2,18 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
-import { touchActiveAppSessionLastSeen } from "@/modules/sessions/services";
+import {
+  revokeActiveAppSession,
+  touchActiveAppSessionLastSeen,
+  validateActiveAppSession,
+} from "@/modules/sessions/services";
 
 import { findUserProfileById } from "./repositories";
 
 import type { AuthenticatedAppUser } from "./types";
 
 export async function getAuthenticatedAppUser(): Promise<AuthenticatedAppUser | null> {
-  const activeSession = await touchActiveAppSessionLastSeen();
+  const activeSession = await validateActiveAppSession();
 
   if (!activeSession) {
     return null;
@@ -18,6 +22,7 @@ export async function getAuthenticatedAppUser(): Promise<AuthenticatedAppUser | 
   const profile = await findUserProfileById(activeSession.userId);
 
   if (!profile) {
+    await revokeActiveAppSession();
     return null;
   }
 
@@ -42,6 +47,8 @@ export async function requireMemberShellAccess(): Promise<AuthenticatedAppUser> 
     redirect("/admin");
   }
 
+  await touchActiveAppSessionLastSeen();
+
   return authenticatedUser;
 }
 
@@ -55,6 +62,8 @@ export async function requireAdminShellAccess(): Promise<AuthenticatedAppUser> {
   if (authenticatedUser.profile.isBanned || authenticatedUser.profile.role !== "admin") {
     redirect("/unauthorized");
   }
+
+  await touchActiveAppSessionLastSeen();
 
   return authenticatedUser;
 }

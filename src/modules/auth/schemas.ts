@@ -1,12 +1,27 @@
 import { z } from "zod";
 
-export const authEmailSchema = z.email("Email address must be valid.");
+export function normalizeEmailAddress(value: string) {
+  return value.trim().toLowerCase();
+}
+
+export const authEmailSchema = z
+  .string()
+  .trim()
+  .min(1, "Email is required.")
+  .transform(normalizeEmailAddress)
+  .pipe(z.email("Email address must be valid."));
 
 export const authPasswordSchema = z.string().min(6, "Password must be at least 6 characters.");
 
+export const signInPasswordSchema = z.string().trim().min(1, "Password is required.");
+
+export const checkAuthEmailInputSchema = z.object({
+  email: authEmailSchema,
+});
+
 export const signInInputSchema = z.object({
   email: authEmailSchema,
-  password: authPasswordSchema,
+  password: signInPasswordSchema,
 });
 
 export const signUpInputSchema = z
@@ -22,7 +37,6 @@ export const signUpInputSchema = z
 
 export const sendResetPasswordInputSchema = z.object({
   email: authEmailSchema,
-  redirectTo: z.url().optional(),
 });
 
 export const exchangeResetPasswordInputSchema = z.object({
@@ -34,6 +48,18 @@ export const resetPasswordInputSchema = z.object({
   otp: z.string().trim().min(1, "Reset token is required."),
   password: authPasswordSchema,
 });
+
+export const completeResetPasswordInputSchema = z
+  .object({
+    confirmPassword: authPasswordSchema,
+    email: authEmailSchema.optional(),
+    password: authPasswordSchema,
+    resetToken: z.string().trim().min(1, "Reset token is required."),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    message: "Password confirmation must match.",
+    path: ["confirmPassword"],
+  });
 
 export const authUserIdSchema = z.uuid("User ID must be a valid UUID.");
 
@@ -55,8 +81,10 @@ export const loginLogWriteInputSchema = z.object({
 
 export type SignInInput = z.infer<typeof signInInputSchema>;
 export type SignUpInput = z.infer<typeof signUpInputSchema>;
+export type CheckAuthEmailInput = z.infer<typeof checkAuthEmailInputSchema>;
 export type SendResetPasswordInput = z.infer<typeof sendResetPasswordInputSchema>;
 export type ExchangeResetPasswordInput = z.infer<typeof exchangeResetPasswordInputSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;
+export type CompleteResetPasswordInput = z.infer<typeof completeResetPasswordInputSchema>;
 export type AuthRequestMetadataInput = z.infer<typeof authRequestMetadataSchema>;
 export type LoginLogWriteInputSchema = z.infer<typeof loginLogWriteInputSchema>;

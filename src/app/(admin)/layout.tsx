@@ -4,11 +4,13 @@ import Link from "next/link";
 
 import { AlertCircle } from "lucide-react";
 
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { requireAdminShellAccess } from "@/modules/users/services";
 
 export default async function AdminLayout({ children }: Readonly<{ children: ReactNode }>) {
-  await requireAdminShellAccess();
+  const authenticatedUser = await requireAdminShellAccess();
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -17,14 +19,20 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
           <div>
             <p className="text-sm text-muted-foreground">Admin Shell</p>
             <h1 className="font-semibold text-2xl tracking-tight">Admin</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <Badge variant="outline">{authenticatedUser.profile.role}</Badge>
+              <span>{authenticatedUser.profile.username}</span>
+              <span>{authenticatedUser.profile.email}</span>
+            </div>
           </div>
-          <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+          <nav className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <Link href="/login" className="hover:text-foreground">
               Login
             </Link>
             <Link href="/console" className="hover:text-foreground">
               Console
             </Link>
+            <LogoutButton />
           </nav>
         </header>
         <main className="flex-1 py-8">{children}</main>
