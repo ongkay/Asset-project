@@ -80,7 +80,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton asChild>
               <Link prefetch={false} href="/dashboard/default">
                 <Command />
-                <span className="font-semibold text-base">{APP_CONFIG.name}</span>
+                <span className="font-semibold text-base">{APP_CONFIG.name}ff</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
