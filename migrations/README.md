@@ -38,7 +38,6 @@ Dokumen ini merangkum baseline migration yang sudah dipecah per domain agar lebi
 | File                               | Fungsi Singkat                                                                                       |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `030_rpc.sql`                      | helper RPC app + seed helper package dan CD-Key                                                      |
-| `031_activation_rpc.sql`           | helper RPC transaksional untuk aktivasi subscription lintas source                                   |
 | `040_dev_seed_full.sql`            | seed development lengkap untuk environment lokal/staging                                             |
 | `041_dev_seed_loginable_users.sql` | seed user browser-loginable lengkap untuk skenario manual login dan verifikasi `/console` / `/admin` |
 
@@ -57,9 +56,8 @@ Jalankan file SQL dengan urutan berikut:
 11. `024_views.sql`
 12. `025_table_grants.sql`
 13. `030_rpc.sql`
-14. `031_activation_rpc.sql`
-15. `040_dev_seed_full.sql` jika butuh data development lengkap
-16. `041_dev_seed_loginable_users.sql` jika butuh akun seed baru yang bisa login manual di browser
+14. `040_dev_seed_full.sql` jika butuh data development lengkap
+15. `041_dev_seed_loginable_users.sql` jika butuh akun seed baru yang bisa login manual di browser
 
 ## Kenapa Dipecah
 Tujuan split ini:

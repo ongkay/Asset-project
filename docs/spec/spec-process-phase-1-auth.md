@@ -2,7 +2,7 @@
 title: Phase 1 Auth Implementation Specification
 version: 1.0
 date_created: 2026-04-13
-last_updated: 2026-04-13
+last_updated: 2026-04-14
 owner: AssetProject
 tags: [process, auth, nextjs, insforge, phase-1]
 ---
@@ -40,6 +40,7 @@ The purpose of this specification is to provide an implementation-ready contract
 - Banned user rejection before a new `app_session` is created.
 - Guarded shell behavior for `/console` and `/admin`.
 - Manual browser verification using `agent-browser` CLI via skill `agent-browser`.
+- Backend invariant verification using read-only InsForge CLI.
 
 ### 1.3 Out of Scope
 - Final member console UI. It is Phase 6.
@@ -380,8 +381,8 @@ The exact language may be adjusted for the product tone, but the UI must convey 
 - **AC-022**: Given a logged-in user reloads the target shell, When the page reloads, Then the `app_session` is read successfully and the shell remains accessible.
 - **AC-026**: Given a logged-in admin opens `/console`, When the member shell guard runs, Then the user is redirected to `/admin`.
 
-### 5.2 Server-Side Correctness Invariants
-These invariants are mandatory for correctness, but they are not part of the manual browser checklist gate.
+### 5.2 Backend Invariant Verification
+These invariants are mandatory for Phase 1 completion. They are not part of the manual browser checklist, but they still must pass through read-only backend verification.
 - **INV-001**: Given login succeeds or fails, When server-side auth effects are verified, Then the corresponding `login_logs` row is written with email, IP, browser, OS, and failure reason as applicable.
 - **INV-002**: Given a session is created, When server-side session persistence is verified, Then only `token_hash` is stored in `app_sessions` and the raw token is not present in the database.
 - **INV-003**: Given an unregistered email is checked from `/login`, When the UI branches to register confirmation, Then no failed login log is written and the failed-login counter does not change.
@@ -425,8 +426,23 @@ Run available project gates relevant to the implementation:
 
 Do not claim a gate passed unless it was actually run and completed successfully.
 
-### 6.4 Server-Side Invariants To Verify Outside Manual Browser Gate
-The invariants in **Section 5.2** remain required for Phase 1 correctness, but they are not manual browser checklist items. Verify them through automated tests, a trusted server-side diagnostic path, or controlled development inspection. Do not treat ad-hoc raw SQL inspection as the primary browser gate for Phase 1 completion.
+### 6.4 Backend Invariant Verification Via InsForge CLI
+The invariants in **Section 5.2** remain required for Phase 1 completion. They are not manual browser checklist items, but they still must pass through read-only backend verification.
+
+Verification rules:
+- Start with `npx @insforge/cli whoami`.
+- Then run `npx @insforge/cli current`.
+- Prefer `npx @insforge/cli db rpc <fn>` when a baseline helper RPC exists and matches the verification need.
+- Use `npx @insforge/cli db query "<sql>" --json` only for read-only verification.
+- Do not use `insert`, `update`, `delete`, `import`, `seed`, or other mutating commands to make the phase appear correct.
+- Verify against the same runtime database referenced by `DATABASE_URL`.
+
+Required Phase 1 backend checks:
+- Verify successful login writes `login_logs` with `is_success = true`.
+- Verify failed login writes `login_logs` with `is_success = false` and a stable `failure_reason`.
+- Verify only one active row remains in `app_sessions` for the user after login success.
+- Verify the old session gets `revoked_at` after login from another browser context.
+- Verify a banned user does not create a new active `app_sessions` row.
 
 ## 7. Rationale & Context
 The PRD requires single-device login and extension compatibility through one shared cookie: `app_session`. This means the app cannot delegate all session behavior to a generic browser auth session alone. The Next.js server layer must own the app session lifecycle: revoke old app sessions, create an opaque session token, store only a hash, and validate through `app_sessions`.
@@ -451,7 +467,7 @@ The folder structure rules require `src/app/**` to remain thin and domain logic 
 
 ### Infrastructure Dependencies
 - **INF-001**: Database with `auth.users` schema. Plain local Postgres without `auth.users` is not sufficient.
-- **INF-002**: Applied migrations `001_extensions.sql` through `031_activation_rpc.sql`.
+- **INF-002**: Applied migrations `001_extensions.sql` through `030_rpc.sql`.
 - **INF-003**: Development seed `040_dev_seed_full.sql` and browser-loginable seed `041_dev_seed_loginable_users.sql` for manual browser verification.
 - **INF-004**: Development inbox for reset password email verification.
 - **INF-005**: Runtime `DATABASE_URL` must point to the same database used for seed verification.
@@ -573,6 +589,7 @@ Expected result: login is rejected, no new app_sessions row remains active, and 
 - **VAL-013**: Email normalization is identical for lookup, login logs, reset request, and failed-login counter.
 - **VAL-014**: Authenticated shell access touches `app_sessions.last_seen_at` through server-side session code.
 - **VAL-015**: `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `pnpm check` pass after implementation, unless an existing unrelated failure is documented.
+- **VAL-016**: Backend invariant verification is performed through read-only `npx @insforge/cli` commands against the same runtime database used by `DATABASE_URL`.
 
 ## 11. Related Specifications / Further Reading
 - `docs/PRD.md`

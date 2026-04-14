@@ -10,12 +10,13 @@ Dokumen source of truth yang harus selalu diikuti:
 ## Prinsip Delivery E2E
 - setiap phase harus punya `write path`, `read path`, dan `negative path`
 - hasil mutation harus bisa langsung dibaca kembali dari UI phase yang sama
-- phase tidak lulus jika masih butuh SQL manual untuk membuktikan hasilnya
+- phase tidak lulus jika pembuktiannya hanya mengandalkan browser tanpa invariant backend, atau hanya mengandalkan query backend tanpa flow browser nyata
 - verifikasi browser manual wajib dilakukan pada route nyata memakai `agent-browser` CLI melalui skill `agent-browser`, bukan hanya pemeriksaan non-browser atau inspeksi database
 - verifikasi browser tidak mensyaratkan pembuatan file test; gunakan checklist phase sebagai panduan manual yang dijalankan lewat `agent-browser` CLI
 - role guard, session guard, dan error state yang relevan wajib ikut selesai di phase tempat feature itu dikirim
 - setiap phase harus tetap menjaga acceptance rules utama di `docs/PRD.md`
-- invariant server-side yang tidak browser-visible tetap wajib benar, tetapi pembuktiannya harus lewat automated test, trusted server-side diagnostic path, atau mekanisme verifikasi terkontrol lain; jangan menjadikan SQL manual ad-hoc sebagai browser gate utama
+- invariant server-side yang tidak browser-visible tetap wajib benar, dan pembuktiannya harus lewat trusted server-side diagnostic path yang repeatable
+- untuk project ini, trusted server-side diagnostic path default adalah `npx @insforge/cli` dengan mode read-only
 
 ## Definition of Done per Phase
 Sebuah phase baru dianggap lulus jika semua poin ini terpenuhi:
@@ -24,15 +25,16 @@ Sebuah phase baru dianggap lulus jika semua poin ini terpenuhi:
 - hasil perubahan data bertahan setelah reload halaman
 - negative path utama menampilkan error state yang benar dan tidak merusak data
 - direct URL access ke route phase tetap aman dan tunduk pada role guard
+- backend invariant phase yang relevan lolos melalui verifikasi read-only memakai InsForge CLI
 - tidak ada langkah verifikasi yang bergantung pada edit database manual di tengah flow
 
 ## Prasyarat Global Sebelum Mulai
-- apply migration mengikuti urutan di `migrations/README.md`, dari `001` sampai `031`
+- apply migration mengikuti urutan di `migrations/README.md`, dari `001` sampai `030`
 - baseline migration hanya boleh dijalankan pada database yang sudah memiliki schema `auth.users`
 - plain local Postgres tanpa schema auth tidak cukup untuk baseline project ini
 - `040_dev_seed_full.sql` membutuhkan auth user development lebih dulu di `auth.users`
 - `041_dev_seed_loginable_users.sql` bergantung pada `040_dev_seed_full.sql` dan tidak boleh dijalankan sendiri pada database kosong
-- migration baseline `001` sampai `031`, `040`, dan `041` harus applied ke database InsForge yang benar-benar dipakai runtime app
+- migration baseline `001` sampai `030`, `040`, dan `041` harus applied ke database InsForge yang benar-benar dipakai runtime app
 - route app sudah dipindah mengikuti struktur `(public)`, `(member)`, `(admin)`, dan `api`
 - `DATABASE_URL` dan env InsForge runtime sudah mengarah ke project yang sama dengan data seed
 - database yang dipakai tooling admin atau MCP tidak boleh diasumsikan identik dengan database runtime app; verifikasi harus selalu mengacu ke `DATABASE_URL` runtime
@@ -84,6 +86,42 @@ Semua phase harus mematuhi rule teknis berikut agar hasil implementasi tetap ses
 - jika tabel admin menampilkan user, format tampilannya wajib `avatar + username + email`
 - jika avatar user kosong, UI wajib menampilkan fallback avatar dari inisial username dengan warna background acak tetapi konsisten per user
 
+## Backend Invariant Verification Via InsForge CLI
+Gunakan InsForge CLI untuk membuktikan side effect backend yang tidak terlihat langsung di browser.
+
+Aturan umum:
+- selalu gunakan `npx @insforge/cli`, jangan install global dan jangan memanggil binary global `insforge`
+- mulai sesi verifikasi dengan:
+  - `npx @insforge/cli whoami`
+  - `npx @insforge/cli current`
+- jika perlu memeriksa konfigurasi backend lebih luas, lanjutkan dengan `npx @insforge/cli metadata --json`
+- default output yang disarankan adalah `--json` bila command mendukungnya agar hasil mudah ditinjau agent
+- utamakan `npx @insforge/cli db rpc <fn>` bila baseline sudah menyediakan helper RPC yang relevan
+- gunakan `npx @insforge/cli db query "<sql>"` hanya untuk query read-only seperti `select`, `count`, `exists`, atau memeriksa row hasil side effect
+- untuk schedule, cron, atau eksekusi backend terjadwal, gunakan `npx @insforge/cli schedules *`, `npx @insforge/cli logs *`, atau `npx @insforge/cli diagnose *` bila relevan
+- verifikasi backend tidak boleh memakai `insert`, `update`, `delete`, `import`, `seed`, atau mutasi lain untuk membantu feature tampak lolos
+- verifikasi backend harus mengarah ke project yang sama dengan app runtime, bukan sekadar project yang sedang linked tetapi berbeda dari `DATABASE_URL` runtime
+
+Prinsip pembuktian:
+- browser manual membuktikan user journey
+- InsForge CLI membuktikan side effect server-side dan invariant data
+- jika invariant backend sudah browser-visible di phase yang sama, tetap boleh divalidasi dari browser; CLI dipakai untuk hal yang tidak cukup terlihat di UI
+
+Contoh pola command yang dianjurkan:
+```bash
+npx @insforge/cli whoami
+npx @insforge/cli current
+npx @insforge/cli metadata --json
+npx @insforge/cli db rpc get_admin_dashboard_stats --data '{"p_from":"2026-04-01T00:00:00Z","p_to":"2026-04-30T23:59:59Z"}'
+npx @insforge/cli db rpc get_user_console_snapshot --data '{"p_user_id":"<user-uuid>"}'
+npx @insforge/cli db query "select user_id, revoked_at, last_seen_at from public.app_sessions where user_id = '<user-uuid>' order by created_at desc" --json
+```
+
+Catatan pemakaian:
+- `db rpc` dipakai untuk helper runtime yang memang sudah tersedia di baseline SQL
+- `db query` dipakai untuk verifikasi read-only saat tidak ada helper RPC yang cocok
+- query verifikasi harus spesifik pada row yang baru dipengaruhi flow browser, bukan query lebar yang sulit diaudit
+
 ## Urutan Phase
 | Phase | Nama                             | Fokus Utama                                      |
 | ----- | -------------------------------- | ------------------------------------------------ |
@@ -124,6 +162,7 @@ Scope wajib:
   - tulis `login_logs`
   - activation flow `payment_dummy`, `cdkey`, dan `admin_manual`
 - tetapkan shared activation service tunggal di app layer yang dipakai bersama oleh `payment_dummy`, `cdkey`, dan `admin_manual`
+- phase 0 hanya perlu mengunci boundary dan kontrak service ini; jangan menghidupkan helper SQL aktivasi lintas source baru sebelum phase yang benar-benar membutuhkannya
 - tetapkan strategi update `app_sessions.last_seen_at` pada request atau page load terautentikasi agar `Live User` dapat berfungsi
 - tetapkan strategi `requestNonce` yang session-bound dan valid 60 detik untuk phase extension API
 - tetapkan sumber config extension allowlist dan sumber metadata jaringan:
@@ -157,8 +196,14 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] akses `/admin` tanpa login harus diarahkan ke flow auth
 - [ ] login sebagai admin atau member belum wajib sukses pada phase ini, tetapi shell route dan guard dasar harus siap untuk phase 1
 
+Backend invariant verification via InsForge CLI:
+- [ ] `npx @insforge/cli whoami` dan `npx @insforge/cli current` berhasil dan menunjuk ke project yang sama dengan runtime app
+- [ ] verifikasi baseline schema minimum tersedia melalui `npx @insforge/cli db tables`, `db policies`, `db triggers`, atau `metadata --json`
+- [ ] verifikasi helper runtime minimum tersedia, terutama `get_user_console_snapshot`, `get_user_asset_detail`, `get_admin_dashboard_stats`, `expire_subscriptions_job`, dan `reconcile_invalid_assets_job`
+- [ ] verifikasi akun seed browser ada pada data runtime yang benar sebelum masuk ke phase berikutnya
+
 ### Workflow Setup Browser Dev
-- apply migration `001_extensions.sql` sampai `031_activation_rpc.sql` secara berurutan
+- apply migration `001_extensions.sql` sampai `030_rpc.sql` secara berurutan
 - pastikan target database sudah memiliki schema `auth.users` sebelum apply baseline
 - apply `040_dev_seed_full.sql`
 - apply `041_dev_seed_loginable_users.sql`
@@ -217,6 +262,13 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] login pada browser normal lalu login lagi dengan user yang sama di incognito atau browser lain dan pastikan session lama langsung tidak valid
 - [ ] reload halaman setelah login dan pastikan session tetap terbaca dengan benar
 
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi login sukses menulis row `login_logs` dengan `is_success = true` untuk email yang dipakai
+- [ ] verifikasi login gagal menulis row `login_logs` dengan `is_success = false` dan `failure_reason` yang relevan
+- [ ] verifikasi setelah login sukses hanya ada satu row aktif di `app_sessions` untuk user tersebut
+- [ ] verifikasi saat login kedua pada browser lain, session lama mendapat `revoked_at` dan session baru menjadi satu-satunya row aktif
+- [ ] verifikasi akun banned tidak menghasilkan session aktif baru di `app_sessions`
+
 ## Phase 2. Admin Package
 Tujuan phase ini adalah menyelesaikan pengelolaan package sehingga package sudah siap dipakai oleh phase subscription, CD-Key, dan payment dummy.
 
@@ -247,6 +299,12 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] disable package dari tabel lalu pastikan status visual berubah dan data tetap ada
 - [ ] enable kembali package yang sama lalu pastikan bisa aktif lagi tanpa kehilangan history row
 - [ ] ubah pilihan kolom tabel, reload halaman, lalu pastikan preferensi kolom tetap tersimpan
+
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi package baru atau hasil edit benar-benar tersimpan di `public.packages`
+- [ ] verifikasi field penting `amount_rp`, `duration_days`, `is_extended`, `access_keys_json`, `checkout_url`, dan `is_active` sesuai hasil UI
+- [ ] verifikasi `access_keys_json` hanya berisi access key exact yang valid dan tidak mengandung duplikasi
+- [ ] verifikasi label ringkasan package konsisten dengan `public.get_package_summary(access_keys_json)` bila helper ini dipakai pada read model
 
 ## Phase 3. Admin Asset
 Tujuan phase ini adalah menyelesaikan inventory asset dan operasi dasar asset agar admin bisa menyiapkan bahan fulfillment subscription.
@@ -283,6 +341,13 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] delete asset yang tidak sedang dipakai dan pastikan row hilang dari inventory aktif
 - [ ] search asset berdasarkan platform, note, atau user pemakai dan pastikan hasil tabel berubah sesuai query
 - [ ] filter asset berdasarkan `asset_type` atau status dan pastikan hasil tabel berubah sesuai filter
+
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi asset baru atau hasil edit benar-benar tersimpan di `public.assets`
+- [ ] verifikasi field `platform`, `asset_type`, `account`, `note`, `proxy`, `asset_json`, `expires_at`, dan `disabled_at` sesuai aksi UI
+- [ ] verifikasi status turunan asset konsisten melalui `v_asset_status`
+- [ ] verifikasi disable asset mengisi `disabled_at` dan enable asset mengembalikannya ke kondisi aktif
+- [ ] verifikasi hard delete benar-benar menghapus row asset dari inventory aktif tanpa membuat data yatim yang melanggar constraint
 
 ## Phase 4. Admin Subscriptions
 Tujuan phase ini adalah menyelesaikan pengelolaan subscription manual oleh admin, termasuk assignment override dan pembentukan transaction `admin_manual`.
@@ -340,6 +405,13 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] edit subscriber yang sudah punya subscription berjalan dan pastikan sistem tidak membuat dua subscription berjalan aktif bersamaan
 - [ ] reload halaman lalu pastikan start date, expires at, package, dan status tetap konsisten
 
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi setiap aktivasi manual membuat row `transactions` dengan `source = 'admin_manual'` yang konsisten dengan row `subscriptions`
+- [ ] verifikasi user target tetap hanya memiliki satu subscription berjalan dengan status `active` atau `processed`
+- [ ] verifikasi `subscriptions.access_keys_json` dan `asset_assignments.access_key` hanya memakai tuple exact yang diizinkan package
+- [ ] verifikasi assignment aktif mengikuti rule `private` dan `share`, termasuk tidak ada lebih dari satu assignment aktif `share` per user per platform
+- [ ] verifikasi cancel subscription mengubah status menjadi `canceled` dan me-revoke assignment aktif terkait
+
 ## Phase 5. Admin CD-Key
 Tujuan phase ini adalah menyelesaikan issue dan pengelolaan CD-Key dari sisi admin. Flow redeem user memang baru final di Phase 6.
 
@@ -370,6 +442,12 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] filter data `used` dan `unused` lalu pastikan hasil tabel berubah sesuai filter
 - [ ] search berdasarkan code, package, atau `used by` lalu pastikan row yang dicari muncul
 - [ ] coba issue CD-Key untuk package disabled dan pastikan flow ditolak
+
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi row `cd_keys` baru tersimpan dengan snapshot `package_id`, `duration_days`, `is_extended`, `access_keys_json`, dan `amount_rp`
+- [ ] verifikasi key baru berstatus belum terpakai dengan `used_by is null` dan `used_at is null`
+- [ ] verifikasi key yang di-generate otomatis unik, uppercase, dan panjangnya sesuai rule
+- [ ] verifikasi issue key untuk package disabled tidak membuat row baru yang invalid
 
 ## Phase 6. Member Console dan Payment Dummy
 Tujuan phase ini adalah menyelesaikan seluruh flow member dari membaca status subscription sampai extend langganan, redeem code, dan simulasi bayar.
@@ -429,6 +507,13 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] buka detail asset dari tabel lalu pastikan raw asset tampil dan tombol `Copy JSON` berfungsi
 - [ ] reload `/console` setelah transaksi sukses lalu pastikan history transaction tetap konsisten
 
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi flow payment dummy membuat `transactions` berstatus `success` dan `source = 'payment_dummy'`
+- [ ] verifikasi flow redeem membuat `transactions` berstatus benar dan menghubungkan `cd_key_id` saat source `cdkey`
+- [ ] verifikasi subscription hasil payment dummy atau redeem mengikuti rule `is_extended` dan invariant satu subscription berjalan per user
+- [ ] verifikasi `cd_keys.used_by` dan `cd_keys.used_at` terisi setelah redeem sukses dan tidak berubah pada redeem gagal
+- [ ] verifikasi read path `/console` konsisten dengan helper RPC `get_user_console_snapshot` atau view aktif yang dipakai, sehingga asset invalid tidak muncul lagi
+
 ## Phase 7. User Management
 Tujuan phase ini adalah menyelesaikan operasional akun user dari sisi admin tanpa keluar ke tooling lain.
 
@@ -467,6 +552,12 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] ganti password user dari admin lalu pastikan password lama gagal dan password baru berhasil
 - [ ] filter user berdasarkan role, status subscription, atau ringkasan package aktif lalu pastikan tabel berubah sesuai filter
 
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi create user admin membuat row yang konsisten di `auth.users` dan `public.profiles`
+- [ ] verifikasi `username` dan `public_id` yang dihasilkan unik dan tersimpan benar di `profiles`
+- [ ] verifikasi ban atau unban mengubah state banned user di `profiles` tanpa merusak history user
+- [ ] verifikasi password change mempertahankan identitas auth user yang sama dan tidak membuat akun auth duplikat
+
 ## Phase 8. User Logs
 Tujuan phase ini adalah menyelesaikan halaman observability admin yang bersifat read-only untuk login, extension, dan transaksi.
 
@@ -498,6 +589,12 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] pastikan tab `Transactions` memuat transaksi dari payment dummy, admin manual, atau seed transaction
 - [ ] pastikan tab `Transactions` menampilkan kolom minimum `user`, `package`, `source`, `amount`, `status`, `created at`, dan `updated at`
 - [ ] ubah filter date range transaction lalu pastikan ringkasan revenue ikut berubah
+
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi tab `Login History` membaca data dari `login_logs` yang benar, bukan data turunan yang hilang detail pentingnya
+- [ ] verifikasi tab `Extension Track` membaca `extension_tracks` dengan identity unik `user_id + device_id + ip_address + extension_id`
+- [ ] verifikasi tab `Transactions` konsisten dengan `transactions` atau `v_transaction_list` untuk rentang data yang sama
+- [ ] verifikasi histori asset yang sudah dihapus tetap tersedia dari snapshot assignment bila detail itu ditampilkan di admin
 
 ## Phase 9. Admin Home
 Tujuan phase ini adalah menyelesaikan final dashboard `/admin` yang menampilkan statistik lintas domain, chart, dan live user.
@@ -537,6 +634,12 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] pastikan daftar `Live User` memakai timestamp terbaru dari `app_sessions` atau `extension_tracks`, maksimal menampilkan 50 member terbaru yang masih online dalam 10 menit terakhir
 - [ ] coba akses `/admin` sebagai non-admin dan pastikan akses ditolak
 
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi aggregate dashboard konsisten dengan `get_admin_dashboard_stats(from, to)` atau read model server-side yang dipakai
+- [ ] verifikasi definisi setiap metrik mengikuti PRD, terutama `total member`, `total subscription private/share/mixed`, `total asset`, dan `total transaksi sukses`
+- [ ] verifikasi `v_live_users` atau query live-user ekuivalen mengambil `last_seen_at` terbaru dari `app_sessions` atau `extension_tracks`
+- [ ] verifikasi touch `app_sessions.last_seen_at` benar-benar berjalan pada request terautentikasi agar dashboard live user tidak stale
+
 ## Phase 10. Cron and Recovery
 Tujuan phase ini adalah menyelesaikan seluruh mekanisme rekonsiliasi, recovery, dan invariant background yang tidak cukup dijaga oleh UI mutation biasa saja.
 
@@ -564,6 +667,12 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] pastikan subscription yang sudah `expired` tidak lagi memberi akses asset aktif pada member
 - [ ] pastikan endpoint extension untuk user dengan asset yang baru disabled atau expired langsung menolak atau tidak lagi mengembalikan asset tersebut walaupun cron belum sempat berjalan
 - [ ] pastikan browser user biasa tidak bisa mengeksekusi trusted cron route secara bebas
+
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi `expire_subscriptions_job()` mengubah subscription yang lewat waktu menjadi `expired` dan me-revoke assignment aktif terkait
+- [ ] verifikasi `reconcile_invalid_assets_job()` atau wiring equivalent menangani asset expired atau disabled sesuai rule replacement vs `processed`
+- [ ] verifikasi disable asset dari admin memicu `recheck_subscription_after_asset_change(asset_id)` atau flow baseline yang setara tanpa menunggu cron
+- [ ] bila schedule runtime dipakai, verifikasi konfigurasi dan log eksekusi melalui `npx @insforge/cli schedules list`, `schedules get`, dan `schedules logs`
 
 ## Phase 11. Extension API
 Tujuan phase ini adalah menyelesaikan integrasi akhir dengan Chrome Extension menggunakan session web yang sama dan kontrak API sesuai PRD.
@@ -637,6 +746,12 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai akun seed `expired`, `canceled`, atau `none` lalu panggil endpoint extension dan pastikan error `SUBSCRIPTION_EXPIRED`
 - [ ] ban user lalu panggil endpoint extension dan pastikan error `USER_BANNED`
 
+Backend invariant verification via InsForge CLI:
+- [ ] verifikasi `POST /api/extension/track` meng-upsert `extension_tracks` sesuai unique identity `user_id + device_id + ip_address + extension_id`
+- [ ] verifikasi `session_id`, `extension_version`, `ip_address`, `city`, `country`, `browser`, dan `os` tersimpan benar pada row track yang relevan
+- [ ] verifikasi asset yang boleh dipakai extension juga muncul pada `v_current_asset_access` atau read model aktif ekuivalen, sehingga API tidak mengembalikan asset yang sebenarnya sudah invalid
+- [ ] verifikasi session lama yang sudah direvoke memang masih tercatat pada `app_sessions`, tetapi tidak lagi dianggap valid oleh path verifikasi session extension
+
 ## Regression Gate Setelah Setiap Phase
 Setelah sebuah phase selesai, ulang minimal verifikasi dasar manual berikut memakai `agent-browser` CLI melalui skill `agent-browser` sebelum pindah ke phase berikutnya:
 - login admin masih berhasil
@@ -646,9 +761,14 @@ Setelah sebuah phase selesai, ulang minimal verifikasi dasar manual berikut mema
 - reload halaman utama feature sebelumnya tidak error
 - data yang dibuat pada phase sebelumnya masih terbaca benar
 
+Backend invariant regression gate via InsForge CLI:
+- verifikasi project yang sedang dicek masih project runtime yang benar lewat `whoami` dan `current`
+- verifikasi tidak ada invariant kritis yang rusak pada `app_sessions`, `subscriptions`, `asset_assignments`, `transactions`, `cd_keys`, dan `extension_tracks` untuk phase-phase yang sudah selesai
+- verifikasi read model utama yang sudah dipakai UI sebelumnya masih memberi hasil yang konsisten untuk sample data yang baru dibuat
+
 ## Prioritas Implementasi Saat Ragu
 1. pilih perubahan terkecil yang menutup flow browser end-to-end
 2. selesaikan dulu route yang sedang menjadi target phase
 3. pastikan write path dan readback phase itu benar sebelum menambah fitur sampingan
 4. tundukkan semua keputusan ke PRD, DB plan, dan folder structure
-5. jangan membuka phase baru sebelum checklist verifikasi browser manual phase saat ini lulus
+5. jangan membuka phase baru sebelum checklist verifikasi browser manual dan backend invariant verification phase saat ini sama-sama lulus

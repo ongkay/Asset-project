@@ -8,7 +8,7 @@ Setelah Phase 0 selesai:
 - root layout dan providers sudah siap dipakai feature nyata
 - adapter InsForge, safe action, dan react-query sudah tersedia
 - contract session `app_session` sudah terkunci di server-side layer
-- browser smoke test dasar sudah bisa dijalankan berulang
+- verifikasi browser manual dasar sudah bisa dijalankan berulang lewat `agent-browser`
 - repo tidak lagi bergantung pada tree demo `(main)` sebagai fondasi product code
 
 ## Batas Phase 0
@@ -19,7 +19,7 @@ Yang wajib selesai di phase ini:
 - fondasi provider app
 - fondasi adapter InsForge
 - fondasi server-side path untuk auth dan session
-- harness smoke test browser
+- workflow verifikasi browser manual dasar
 
 Yang belum wajib selesai di phase ini:
 - flow login, register, dan reset password penuh
@@ -79,8 +79,8 @@ Phase 0 tidak harus langsung menghapus semua legacy file di hari pertama. Namun,
 - [ ] `P0.6` Siapkan shared activation boundary untuk seluruh source subscription.
   Target: `src/modules/subscriptions/types.ts`, `src/modules/subscriptions/schemas.ts`, `src/modules/subscriptions/repositories.ts`, `src/modules/subscriptions/services.ts`, opsional `src/modules/transactions/{types.ts,repositories.ts,services.ts}`, opsional `src/modules/cdkeys/{types.ts,repositories.ts,services.ts}`.
   Depends on: `P0.4`.
-  Work: Phase 0 belum perlu menyelesaikan UI subscription, tetapi harus mengunci satu shared activation service server-side yang nanti dipakai bersama oleh `payment_dummy`, `cdkey`, dan `admin_manual`. Service ini harus menjadi tempat rule `is_extended`, one-running-subscription invariant, revoke-before-replace, dan konsistensi `transaction + subscription` dipusatkan. Hindari tiga implementasi terpisah per source karena itu akan mudah drift dari PRD.
-  Acceptance: ada satu boundary service yang jelas untuk aktivasi subscription lintas source, walau UI Phase 4 sampai 6 belum selesai.
+  Work: Phase 0 belum perlu menyelesaikan UI subscription, tetapi harus mengunci satu shared activation boundary server-side yang nanti dipakai bersama oleh `payment_dummy`, `cdkey`, dan `admin_manual`. Boundary ini harus menjadi rumah rule `is_extended`, one-running-subscription invariant, revoke-before-replace, dan konsistensi `transaction + subscription`. Hindari tiga implementasi terpisah per source karena itu akan mudah drift dari PRD. Phase 0 cukup mengunci desain boundary; jangan memperkenalkan migration atau RPC aktivasi lintas source baru sebelum ada consumer nyata pada phase subscription yang relevan.
+  Acceptance: ada keputusan boundary service yang jelas untuk aktivasi subscription lintas source, walau implementasi engine final ditunda sampai phase yang benar-benar membutuhkannya.
 
 - [ ] `P0.7` Siapkan read path foundation yang memanfaatkan baseline RPC yang sudah ada.
   Target: `src/modules/console/queries.ts`, `src/modules/console/types.ts`, `src/modules/admin/dashboard/queries.ts`, `src/modules/admin/dashboard/types.ts`.
@@ -106,16 +106,16 @@ Phase 0 tidak harus langsung menghapus semua legacy file di hari pertama. Namun,
   Work: helper cookie generik yang sekarang hidup di `src/server/server-actions.ts` harus dipindahkan ke rumah yang sesuai, misalnya `src/lib/cookies.ts`, agar Phase 1 dan seterusnya tidak menambah debt baru. Setelah route baru siap, legacy route demo harus diputus dari jalur utama implementasi. Jika belum dihapus, tandai jelas sebagai template legacy yang tidak lagi dipakai untuk product flow.
   Acceptance: product app tidak lagi bergantung pada helper dan route demo lama untuk bekerja.
 
-- [ ] `P0.11` Tambahkan harness E2E browser dasar.
-  Target: `package.json`, `playwright.config.ts`, `tests/e2e/phase-0-smoke.spec.ts`, opsional `tests/e2e/helpers/**`.
+- [ ] `P0.11` Tambahkan workflow verifikasi browser manual dasar.
+  Target: `docs/PHASE_0_FOUNDATION_BACKLOG.md`, `docs/IMPLEMENTATION_PLAN.md`, opsional helper atau command internal yang memang diperlukan untuk membuka app dev sebelum verifikasi.
   Depends on: `P0.1`, `P0.2`, `P0.8`.
-  Work: pasang Playwright sebagai harness smoke test minimal untuk Phase 0. Tambahkan script yang jelas di `package.json`, misalnya untuk smoke run headless dan UI mode lokal. Spec awal cukup memverifikasi bahwa `/login` dan `/reset-password` render, `/console` dan `/admin` menolak guest, dan route shell baru tidak error. Ini penting agar semua phase berikutnya bisa menambah test di jalur yang sama, bukan memulai dari nol di tengah project.
-  Acceptance: ada satu command yang dapat menjalankan browser smoke test dasar Phase 0 secara repeatable.
+  Work: dokumentasikan workflow verifikasi manual dengan `agent-browser` untuk Phase 0. Checklist awal cukup memverifikasi bahwa `/login` dan `/reset-password` render, `/console` dan `/admin` menolak guest, dan route shell baru tidak error. Jika diperlukan, tambahkan command lokal yang membantu menyalakan app dev, tetapi jangan membuat file test browser khusus hanya untuk memenuhi gate phase. Ini penting agar semua phase berikutnya punya pola verifikasi manual yang konsisten, bukan kembali ke browser checking ad-hoc.
+  Acceptance: ada langkah verifikasi manual yang jelas, repeatable, dan bisa dijalankan ulang lewat `agent-browser` tanpa file smoke test terpisah.
 
 - [ ] `P0.12` Dokumentasikan workflow setup yang benar untuk dev browser testing.
   Target: `docs/PHASE_0_FOUNDATION_BACKLOG.md`, `README.md`, `docs/IMPLEMENTATION_PLAN.md`.
   Depends on: `P0.1`, `P0.11`.
-  Work: tulis langkah real setup untuk developer: apply migration `001-031`, pastikan `auth.users` tersedia, apply `040`, apply `041`, jalankan app dengan `DATABASE_URL` runtime yang benar, dan jalankan smoke test browser. Catat juga bahwa verifikasi browser harus mengacu ke database runtime app, bukan database tooling yang kebetulan aktif.
+  Work: tulis langkah real setup untuk developer: apply migration `001-030`, pastikan `auth.users` tersedia, apply `040`, apply `041`, jalankan app dengan `DATABASE_URL` runtime yang benar, lalu jalankan checklist verifikasi browser manual lewat `agent-browser`. Catat juga bahwa verifikasi browser harus mengacu ke database runtime app, bukan database tooling yang kebetulan aktif.
   Acceptance: developer baru dapat menyiapkan baseline browser-loginable environment tanpa menebak urutan seed atau target database.
 
 ## Suggested Execution Order
@@ -129,7 +129,7 @@ Phase 0 tidak harus langsung menghapus semua legacy file di hari pertama. Namun,
 8. `P0.8` Bangun guard server-side
 9. `P0.9` Putuskan strategi `last_seen_at` dan `requestNonce`
 10. `P0.10` Matikan dependensi ke helper dan route demo lama
-11. `P0.11` Tambahkan harness E2E browser dasar
+11. `P0.11` Tambahkan workflow verifikasi browser manual dasar
 12. `P0.12` Dokumentasikan workflow setup developer
 
 ## Exit Gate Phase 0
@@ -141,7 +141,7 @@ Phase 0 baru dianggap lulus jika seluruh kondisi ini sudah benar:
 - root layout baru sudah memuat provider yang akan dipakai app final
 - session contract `app_session` sudah jelas, hash-based, dan siap diimplementasikan pada Phase 1
 - jalur trusted server-side untuk auth/session tidak bertentangan dengan baseline RLS
-- Playwright smoke test dasar bisa dijalankan berulang
+- checklist verifikasi browser manual dasar bisa dijalankan berulang lewat `agent-browser`
 
 ## Browser Smoke Checklist
 - [ ] buka `/login` dan pastikan tidak ada runtime error
@@ -152,12 +152,12 @@ Phase 0 baru dianggap lulus jika seluruh kondisi ini sudah benar:
 
 ## Setup Workflow Reference
 Urutan setup dev browser testing yang benar:
-1. apply migration `001_extensions.sql` sampai `031_activation_rpc.sql`
+1. apply migration `001_extensions.sql` sampai `030_rpc.sql`
 2. pastikan target database sudah memiliki `auth.users`
 3. apply `040_dev_seed_full.sql`
 4. apply `041_dev_seed_loginable_users.sql`
 5. jalankan app dengan `DATABASE_URL` runtime yang benar
-6. jalankan `pnpm test:e2e:smoke`
+6. jalankan checklist verifikasi browser manual lewat `agent-browser`
 
 Catatan:
 - verifikasi browser harus selalu mengacu ke database runtime app
