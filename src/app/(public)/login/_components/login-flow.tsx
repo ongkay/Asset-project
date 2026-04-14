@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Mail, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Mail } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { Controller, useForm } from "react-hook-form";
 
@@ -22,12 +22,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+
 import { Spinner } from "@/components/ui/spinner";
 import { checkAuthEmailAction, loginAction, registerAction } from "@/modules/auth/actions";
 import {
@@ -192,29 +192,29 @@ export function LoginFlow({ initialEmail = "", notice }: LoginFlowProps) {
     setAuthMessage(result.data?.message ?? "Account could not be created right now.");
   }
 
+  const headerContents = {
+    email: {
+      title: "Welcome back",
+      description: "Enter your email to sign in or create an account",
+    },
+    password: {
+      title: "Enter your password",
+      description: "Sign in to your account with your password",
+    },
+    register: {
+      title: "Create an account",
+      description: "It looks like you don't have an account yet. Let's create one.",
+    },
+  };
+
+  const currentHeaderContent = headerContents[activeStep];
+
   return (
     <>
       <Card className="w-full max-w-xl border-border/60 shadow-sm">
-        <CardHeader className="space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-2">
-              <Badge variant="outline">Phase 1 Auth</Badge>
-              <CardTitle className="text-2xl">Sign in with one flow</CardTitle>
-              <CardDescription>
-                Start with your email. Existing accounts continue to password, while new emails continue to inline
-                register on the same route.
-              </CardDescription>
-            </div>
-            <div className="rounded-xl border border-border/60 bg-muted/40 p-3 text-muted-foreground">
-              <ShieldCheck className="size-5" />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <Badge variant={activeStep === "email" ? "default" : "outline"}>1. Email</Badge>
-            <Badge variant={activeStep === "password" ? "default" : "outline"}>2. Password</Badge>
-            <Badge variant={activeStep === "register" ? "default" : "outline"}>3. Register</Badge>
-          </div>
+        <CardHeader className="space-y-2 text-center pb-6">
+          <CardTitle className="text-3xl font-semibold tracking-tight">{currentHeaderContent.title}</CardTitle>
+          <CardDescription>{currentHeaderContent.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {notice ? (
@@ -249,7 +249,6 @@ export function LoginFlow({ initialEmail = "", notice }: LoginFlowProps) {
                         placeholder="you@example.com"
                         type="email"
                       />
-                      <FieldDescription>We will decide whether to continue to password or register.</FieldDescription>
                       {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                     </Field>
                   )}
@@ -271,9 +270,6 @@ export function LoginFlow({ initialEmail = "", notice }: LoginFlowProps) {
                 <Field className="gap-1.5">
                   <FieldLabel htmlFor="selected-login-email">Selected email</FieldLabel>
                   <Input autoComplete="email" id="selected-login-email" readOnly type="email" value={selectedEmail} />
-                  <FieldDescription>
-                    Change email to restart the branch check with a different account.
-                  </FieldDescription>
                 </Field>
 
                 <Controller
@@ -382,13 +378,6 @@ export function LoginFlow({ initialEmail = "", notice }: LoginFlowProps) {
               </div>
             </form>
           ) : null}
-
-          <Separator />
-
-          <p className="text-sm text-muted-foreground">
-            Successful sign in replaces the previous active device session. Reset password guidance appears only after
-            the failed-login threshold is reached.
-          </p>
         </CardContent>
       </Card>
 

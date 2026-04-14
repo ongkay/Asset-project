@@ -13,13 +13,13 @@ import { z } from "zod";
 
 import { PasswordInput } from "@/components/auth/password-input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+
 import { Spinner } from "@/components/ui/spinner";
 import { completePasswordResetAction, requestPasswordResetAction } from "@/modules/auth/actions";
 import { authPasswordSchema, checkAuthEmailInputSchema, type CheckAuthEmailInput } from "@/modules/auth/schemas";
@@ -80,20 +80,19 @@ export function ResetPasswordFlow({
     resolver: zodResolver(resetFormSchema),
   });
 
-  const cardBadge = useMemo(() => {
-    if (currentView === "reset") {
-      return "Reset Ready";
+  const headerDescription = useMemo(() => {
+    switch (currentView) {
+      case "request":
+        return "Enter your email address and we will send you a link to reset your password.";
+      case "request-sent":
+        return "Check your email for the reset link we just sent.";
+      case "reset":
+        return "Enter your new password below to regain access to your account.";
+      case "invalid":
+        return "Your reset link has expired or is invalid.";
+      default:
+        return "Reset your password";
     }
-
-    if (currentView === "request-sent") {
-      return "Instructions Sent";
-    }
-
-    if (currentView === "invalid") {
-      return "Invalid Link";
-    }
-
-    return "Reset Password";
   }, [currentView]);
 
   async function onSubmitRequest(values: CheckAuthEmailInput) {
@@ -148,15 +147,9 @@ export function ResetPasswordFlow({
 
   return (
     <Card className="w-full max-w-xl border-border/60 shadow-sm">
-      <CardHeader className="space-y-4">
-        <Badge variant="outline">{cardBadge}</Badge>
-        <div className="space-y-2">
-          <CardTitle className="text-2xl">Reset your password</CardTitle>
-          <CardDescription>
-            Request reset instructions with a privacy-safe response, or finish replacing your password when the reset
-            link is valid.
-          </CardDescription>
-        </div>
+      <CardHeader className="space-y-2 text-center pb-6">
+        <CardTitle className="text-3xl font-semibold tracking-tight">Reset your password</CardTitle>
+        <CardDescription>{headerDescription}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {feedbackMessage ? (
@@ -183,9 +176,6 @@ export function ResetPasswordFlow({
                       placeholder="you@example.com"
                       type="email"
                     />
-                    <FieldDescription>
-                      We always show the same success state whether the email is registered or not.
-                    </FieldDescription>
                     {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                   </Field>
                 )}
@@ -209,7 +199,7 @@ export function ResetPasswordFlow({
             <Alert>
               <AlertTitle>Instructions sent if possible</AlertTitle>
               <AlertDescription>
-                Check your development inbox and continue with the reset link when it arrives.
+                If an account exists with that email, we have sent password reset instructions. Please check your inbox.
               </AlertDescription>
             </Alert>
 
@@ -289,7 +279,7 @@ export function ResetPasswordFlow({
               </EmptyMedia>
               <EmptyTitle>Reset link is invalid or expired</EmptyTitle>
               <EmptyDescription>
-                Request a fresh reset link and continue from the same route without exposing whether the email exists.
+                Your password reset link is invalid or has expired. Please request a new one.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -304,13 +294,6 @@ export function ResetPasswordFlow({
             </EmptyContent>
           </Empty>
         ) : null}
-
-        <Separator />
-
-        <p className="text-sm text-muted-foreground">
-          This route uses the InsForge reset-link contract: the backend redirect provides a ready `token` when the link
-          is valid.
-        </p>
       </CardContent>
     </Card>
   );
