@@ -67,3 +67,5 @@ dist/
 .opencode
 
 .playwright-cli
+test-results/
+test-results

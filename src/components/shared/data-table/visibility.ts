@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 
 import { getLocalStorageValue, setLocalStorageValue } from "@/lib/local-storage.client";
 
@@ -44,13 +44,57 @@ function normalizeColumnVisibility<TColumnKey extends string>(
   }
 }
 
-export function useAdminColumnVisibility<TColumnKey extends string>(input: UseAdminColumnVisibilityInput<TColumnKey>) {
-  const [visibleColumns, setVisibleColumns] = useState<AdminColumnVisibility<TColumnKey>>(() =>
-    normalizeColumnVisibility(getLocalStorageValue(input.storageKey), input),
+function subscribeToLocalStorageChanges(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener("local-storage", callback);
+
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("local-storage", callback);
+  };
+}
+
+export function useAdminColumnVisibility<TColumnKey extends string>({
+  columnKeys,
+  defaultVisibility,
+  lockedVisibleKeys,
+  storageKey,
+}: UseAdminColumnVisibilityInput<TColumnKey>) {
+  const visibleColumnsSnapshotRef = useRef<{
+    normalized: AdminColumnVisibility<TColumnKey>;
+    rawValue: string | null;
+  } | null>(null);
+
+  const getVisibleColumnsSnapshot = useCallback(() => {
+    const rawValue = getLocalStorageValue(storageKey);
+
+    if (visibleColumnsSnapshotRef.current?.rawValue === rawValue) {
+      return visibleColumnsSnapshotRef.current.normalized;
+    }
+
+    const normalized = normalizeColumnVisibility(rawValue, {
+      columnKeys,
+      defaultVisibility,
+      lockedVisibleKeys,
+      storageKey,
+    });
+
+    visibleColumnsSnapshotRef.current = {
+      normalized,
+      rawValue,
+    };
+
+    return normalized;
+  }, [columnKeys, defaultVisibility, lockedVisibleKeys, storageKey]);
+
+  const visibleColumns = useSyncExternalStore(
+    subscribeToLocalStorageChanges,
+    getVisibleColumnsSnapshot,
+    () => defaultVisibility,
   );
 
   function handleToggleColumn(columnKey: TColumnKey, nextVisible: boolean) {
-    if (input.lockedVisibleKeys?.includes(columnKey)) {
+    if (lockedVisibleKeys?.includes(columnKey)) {
       return;
     }
 
@@ -59,12 +103,11 @@ export function useAdminColumnVisibility<TColumnKey extends string>(input: UseAd
       [columnKey]: nextVisible,
     };
 
-    for (const lockedKey of input.lockedVisibleKeys ?? []) {
+    for (const lockedKey of lockedVisibleKeys ?? []) {
       nextVisibility[lockedKey] = true;
     }
 
-    setVisibleColumns(nextVisibility);
-    setLocalStorageValue(input.storageKey, JSON.stringify(nextVisibility));
+    setLocalStorageValue(storageKey, JSON.stringify(nextVisibility));
   }
 
   return {

@@ -12,6 +12,7 @@ import type { PackageTableFilters } from "@/modules/admin/packages/types";
 import type { PackageSummary, PackageTableSortKey } from "@/modules/packages/types";
 
 const COLUMN_VISIBILITY_STORAGE_KEY = "admin.package.columns.v1";
+const LOCKED_PACKAGE_COLUMN_KEYS = ["actions"] as const;
 
 export const DEFAULT_PACKAGE_COLUMN_VISIBILITY: AdminPackageColumnVisibility = {
   actions: true,
@@ -60,7 +61,7 @@ export function usePackageTableState(initialFilters: PackageTableFilters) {
   const { handleToggleColumn, visibleColumns } = useAdminColumnVisibility({
     columnKeys: PACKAGE_TABLE_COLUMN_KEYS,
     defaultVisibility: DEFAULT_PACKAGE_COLUMN_VISIBILITY,
-    lockedVisibleKeys: ["actions"],
+    lockedVisibleKeys: LOCKED_PACKAGE_COLUMN_KEYS,
     storageKey: COLUMN_VISIBILITY_STORAGE_KEY,
   });
 
