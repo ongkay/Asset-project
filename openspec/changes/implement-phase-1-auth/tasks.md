@@ -31,7 +31,7 @@
 
 ## 5. Verification and quality gates
 
-- [ ] 5.1 Manually verify the Phase 1 browser checklist with `agent-browser`, including member login, admin login, inline register, reset request, reset completion, logout, single-device invalidation, and guarded route behavior.
+- [x] 5.1 Manually verify the Phase 1 browser checklist with `agent-browser`, including member login, admin login, inline register, reset request, reset completion, logout, single-device invalidation, and guarded route behavior.
 - [x] 5.2 Verify the failed-login threshold behavior, including hidden CTA before five failures, visible CTA on the fifth failure, reset after successful login, and reset after the 15-minute window using a development-safe verification strategy.
 - [ ] 5.3 Verify required server-side auth invariants through automated tests, trusted diagnostics, or controlled development verification: `app_sessions` stores only `token_hash`, unregistered email check has no auth side effect, success and failure `login_logs` are written, `last_seen_at` is touched, and banned or profile-missing login does not leave an active session.
 - [x] 5.4 Run `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `pnpm check`, then record any unrelated failures instead of claiming a green gate that was not achieved.

@@ -120,10 +120,10 @@ Contoh entitlement package:
 
 Contoh:
 ```md
-## Phase `P01` - Auth and Session
-> Deskripsi singkat phase.
+## Milestone `M01` - Auth and Session
+> Deskripsi singkat milestone.
 > **goal**: hasil utama yang ingin dicapai.
-> **scope**: area kerja phase.
+> **scope**: area kerja milestone.
 ```
 
 ## Aturan Praktis

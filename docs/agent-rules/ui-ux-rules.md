@@ -7,13 +7,13 @@ Fokusnya adalah membuat hasil yang terasa siap produksi, konsisten dengan design
 ## Skills Wajib
 Gunakan skill berikut sesuai konteks kerja.
 
-| Skill | Wajib Dipakai Untuk |
-| --- | --- |
-| `ui-ux-pro-max` | Semua desain, review, refactor, layout, motion, accessibility, dan keputusan visual/UX |
+| Skill                 | Wajib Dipakai Untuk                                                                                            |
+| --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `ui-ux-pro-max`       | Semua desain, review, refactor, layout, motion, accessibility, dan keputusan visual/UX                         |
 | `next-best-practices` | Semua perubahan Next.js App Router, layout, page, loading, error, metadata, dan RSC boundary yang menyentuh UI |
-| `shadcn` | Semua pemilihan, penggunaan, penyesuaian, dan debugging komponen shadcn/ui atau primitive UI yang sudah ada |
-| `agent-browser` | Verifikasi browser manual, visual QA, responsive check, dan pembuktian flow end-to-end |
-| `find-docs` | Saat UI bergantung pada API/library pihak ketiga dan perlu verifikasi dokumentasi terbaru |
+| `shadcn`              | Semua pemilihan, penggunaan, penyesuaian, dan debugging komponen shadcn/ui atau primitive UI yang sudah ada    |
+| `agent-browser`       | Verifikasi browser manual, visual QA, responsive check, dan pembuktian flow end-to-end                         |
+| `find-docs`           | Saat UI bergantung pada API/library pihak ketiga dan perlu verifikasi dokumentasi terbaru                      |
 
 ## Prinsip Utama
 - UI harus terasa seperti produk nyata, bukan demo.

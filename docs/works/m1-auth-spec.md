@@ -1,21 +1,21 @@
 ---
-title: Phase 1 Auth Implementation Specification
+title: Milestone 1 Auth Implementation Specification
 version: 1.0
 date_created: 2026-04-13
 last_updated: 2026-04-14
 owner: AssetProject
-tags: [process, auth, nextjs, insforge, phase-1]
+tags: [process, auth, nextjs, insforge, milestone-1]
 ---
 
 # Introduction
-This specification defines the complete Phase 1 Auth implementation contract for AssetProject. It is written for AI coding agents that will implement the phase later. It consolidates requirements from `docs/PRD.md`, `docs/user-flow/auth-flow.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/DB.md`, `docs/agent-rules/folder-structure.md`, and `migrations/*.sql`.
+This specification defines the complete Milestone 1 Auth implementation contract for AssetProject. It is written for AI coding agents that will implement the milestone later. It consolidates requirements from `docs/PRD.md`, `docs/user-flow/auth-flow.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/DB.md`, `docs/agent-rules/folder-structure.md`, and `migrations/*.sql`.
 
-Phase 1 is complete only when authentication can be executed end-to-end from a real browser route: login, register, reset password, logout, role redirect, session creation, session revocation, failed-login counter, login logging, and guarded shell access.
+Milestone 1 is complete only when authentication can be executed end-to-end from a real browser route: login, register, reset password, logout, role redirect, session creation, session revocation, failed-login counter, login logging, and guarded shell access.
 
 ## 1. Purpose & Scope
 
 ### 1.1 Purpose
-The purpose of this specification is to provide an implementation-ready contract for Phase 1 Auth so an AI agent can implement the feature without inventing new behavior or conflicting with the project source of truth.
+The purpose of this specification is to provide an implementation-ready contract for Milestone 1 Auth so an AI agent can implement the feature without inventing new behavior or conflicting with the project source of truth.
 
 ### 1.2 In Scope
 - `/login` email-first flow.
@@ -43,16 +43,16 @@ The purpose of this specification is to provide an implementation-ready contract
 - Backend invariant verification using read-only InsForge CLI.
 
 ### 1.3 Out of Scope
-- Final member console UI. It is Phase 6.
-- Final admin dashboard UI. It is Phase 9.
+- Final member console UI. It is Milestone 6.
+- Final admin dashboard UI. It is Milestone 9.
 - Payment dummy, CD-Key, package, asset, subscription, and extension API features.
 - OAuth, OTP, magic link, phone auth, Google login, and multi-provider auth.
 - Multi-device active session support.
-- Creating browser test files only to satisfy Phase 1 verification.
+- Creating browser test files only to satisfy Milestone 1 verification.
 - Public REST endpoints for web UI auth. Web UI mutations must use Server Actions.
 
 ### 1.4 Preconditions
-- Phase 0 foundation is available, including final route groups `(public)`, `(member)`, `(admin)`, shared InsForge adapters, session helpers, guarded shell routes, and `next-safe-action` setup.
+- Milestone 0 foundation is available, including final route groups `(public)`, `(member)`, `(admin)`, shared InsForge adapters, session helpers, guarded shell routes, and `next-safe-action` setup.
 - Runtime database has schema `auth.users`.
 - Migrations are applied in the order defined by `migrations/README.md`.
 - For manual browser verification, `040_dev_seed_full.sql` and `041_dev_seed_loginable_users.sql` are applied to the same database used by runtime `DATABASE_URL`.
@@ -82,7 +82,7 @@ The purpose of this specification is to provide an implementation-ready contract
 ### 3.1 Source of Truth
 - **REQ-001**: Business rules must follow `docs/PRD.md`.
 - **REQ-002**: UI flow must follow `docs/user-flow/auth-flow.md`.
-- **REQ-003**: Phase scope and gate must follow Phase 1 in `docs/IMPLEMENTATION_PLAN.md`.
+- **REQ-003**: Milestone scope and gate must follow Milestone 1 in `docs/IMPLEMENTATION_PLAN.md`.
 - **REQ-004**: Schema, RLS, triggers, RPC, and seed behavior must follow `docs/DB.md` and `migrations/*.sql`.
 - **REQ-005**: File placement and import boundaries must follow `docs/agent-rules/folder-structure.md`.
 - **REQ-006**: If `docs/user-flow/auth-flow.md` uses `/console` as a simplified member success target but `docs/PRD.md` and `docs/IMPLEMENTATION_PLAN.md` require role redirect, public self-register must go to `/console`, while existing-user login and reset completion must use role redirect.
@@ -200,7 +200,7 @@ The purpose of this specification is to provide an implementation-ready contract
 - **CON-011**: Do not import server-only code into client components.
 - **CON-012**: Do not write `app_sessions` or `login_logs` directly from browser code.
 - **CON-013**: Do not store raw passwords or reset tokens in app database.
-- **CON-014**: Do not create browser test files just to satisfy Phase 1 verification.
+- **CON-014**: Do not create browser test files just to satisfy Milestone 1 verification.
 
 ### 3.11 File Placement Requirements
 - **PAT-001**: `src/app/(public)/login/page.tsx` must remain route composition only.
@@ -256,7 +256,7 @@ Email normalization must be identical for email check, login, register, reset re
 ### 4.4 Session Data Contract
 `app_sessions` table contract from `migrations/010_profiles_and_auth_tables.sql`:
 
-| Column         | Required | Phase 1 Use                                |
+| Column         | Required | Milestone 1 Use                            |
 | -------------- | -------- | ------------------------------------------ |
 | `id`           | yes      | Session identifier used server-side only.  |
 | `user_id`      | yes      | Owner profile.                             |
@@ -273,7 +273,7 @@ Required indexes and constraints:
 ### 4.5 Login Log Data Contract
 `login_logs` table contract from `migrations/010_profiles_and_auth_tables.sql`:
 
-| Column           | Required | Phase 1 Use                          |
+| Column           | Required | Milestone 1 Use                      |
 | ---------------- | -------- | ------------------------------------ |
 | `id`             | yes      | Generated by DB.                     |
 | `user_id`        | no       | Null if user was not resolved.       |
@@ -291,7 +291,7 @@ Required indexes:
 - `login_logs_success_created_at_idx`
 
 ### 4.6 Profile Contract
-`profiles` fields required for Phase 1:
+`profiles` fields required for Milestone 1:
 
 | Field        | Register default / rule                                                 |
 | ------------ | ----------------------------------------------------------------------- |
@@ -304,7 +304,7 @@ Required indexes:
 | `ban_reason` | `null` for public self-register.                                        |
 | `avatar_url` | Nullable. Use `null` for public self-register.                          |
 
-Phase 1 must treat `profiles.role` as the app role source of truth and `profiles.is_banned` as the app ban source of truth. `avatar_url` is nullable at DB level; UI that displays a user identity must render a fallback avatar when it is null.
+Milestone 1 must treat `profiles.role` as the app role source of truth and `profiles.is_banned` as the app ban source of truth. `avatar_url` is nullable at DB level; UI that displays a user identity must render a fallback avatar when it is null.
 
 The baseline migrations do not include a trigger that creates `profiles` automatically after `auth.users` insert. Public self-register therefore must upsert the profile from trusted server-side code after InsForge Auth creates the user. The browser must never insert or update `profiles.email`, `profiles.role`, `profiles.is_banned`, `profiles.ban_reason`, or `profiles.public_id` directly.
 
@@ -382,7 +382,7 @@ The exact language may be adjusted for the product tone, but the UI must convey 
 - **AC-026**: Given a logged-in admin opens `/console`, When the member shell guard runs, Then the user is redirected to `/admin`.
 
 ### 5.2 Backend Invariant Verification
-These invariants are mandatory for Phase 1 completion. They are not part of the manual browser checklist, but they still must pass through read-only backend verification.
+These invariants are mandatory for Milestone 1 completion. They are not part of the manual browser checklist, but they still must pass through read-only backend verification.
 - **INV-001**: Given login succeeds or fails, When server-side auth effects are verified, Then the corresponding `login_logs` row is written with email, IP, browser, OS, and failure reason as applicable.
 - **INV-002**: Given a session is created, When server-side session persistence is verified, Then only `token_hash` is stored in `app_sessions` and the raw token is not present in the database.
 - **INV-003**: Given an unregistered email is checked from `/login`, When the UI branches to register confirmation, Then no failed login log is written and the failed-login counter does not change.
@@ -393,8 +393,8 @@ These invariants are mandatory for Phase 1 completion. They are not part of the 
 
 ### 6.1 Browser Verification
 - **VER-001**: Use manual browser verification with `agent-browser` CLI through skill `agent-browser`.
-- **VER-002**: Use the Phase 1 checklist in `docs/IMPLEMENTATION_PLAN.md` as the browser verification checklist.
-- **VER-003**: Do not create browser test files just to satisfy the Phase 1 gate.
+- **VER-002**: Use the Milestone 1 checklist in `docs/IMPLEMENTATION_PLAN.md` as the browser verification checklist.
+- **VER-003**: Do not create browser test files just to satisfy the Milestone 1 gate.
 - **VER-004**: Do not switch to another browser tool by default. If a concrete `agent-browser` CLI limitation blocks a required step, document that limitation and use another browser tool only for that blocked step.
 - **VER-005**: Verification must run against the app runtime database referenced by `DATABASE_URL`, not an unrelated admin or MCP database.
 
@@ -427,17 +427,17 @@ Run available project gates relevant to the implementation:
 Do not claim a gate passed unless it was actually run and completed successfully.
 
 ### 6.4 Backend Invariant Verification Via InsForge CLI
-The invariants in **Section 5.2** remain required for Phase 1 completion. They are not manual browser checklist items, but they still must pass through read-only backend verification.
+The invariants in **Section 5.2** remain required for Milestone 1 completion. They are not manual browser checklist items, but they still must pass through read-only backend verification.
 
 Verification rules:
 - Start with `npx @insforge/cli whoami`.
 - Then run `npx @insforge/cli current`.
 - Prefer `npx @insforge/cli db rpc <fn>` when a baseline helper RPC exists and matches the verification need.
 - Use `npx @insforge/cli db query "<sql>" --json` only for read-only verification.
-- Do not use `insert`, `update`, `delete`, `import`, `seed`, or other mutating commands to make the phase appear correct.
+- Do not use `insert`, `update`, `delete`, `import`, `seed`, or other mutating commands to make the milestone appear correct.
 - Verify against the same runtime database referenced by `DATABASE_URL`.
 
-Required Phase 1 backend checks:
+Required Milestone 1 backend checks:
 - Verify successful login writes `login_logs` with `is_success = true`.
 - Verify failed login writes `login_logs` with `is_success = false` and a stable `failure_reason`.
 - Verify only one active row remains in `app_sessions` for the user after login success.
@@ -453,11 +453,11 @@ Reset password must not disclose account existence. This is why reset request ou
 
 Baseline migrations do not auto-create `profiles` from `auth.users`, and RLS does not provide a normal member insert path for a profile that does not exist yet. Public register therefore needs a trusted server-side profile upsert immediately after auth user creation.
 
-Baseline RLS also does not make `app_sessions` and `login_logs` normal browser-writable tables. Phase 1 must use trusted server-side writes for auth session lifecycle and login logging.
+Baseline RLS also does not make `app_sessions` and `login_logs` normal browser-writable tables. Milestone 1 must use trusted server-side writes for auth session lifecycle and login logging.
 
 Where the UI flow document describes register redirecting to `/console`, that remains the rule for public self-register. Existing-user login and reset completion use PRD role redirect because existing users may be admins.
 
-The folder structure rules require `src/app/**` to remain thin and domain logic to live in `src/modules/**`. Phase 1 must follow that boundary so later phases can reuse auth, session, and guard behavior without copying logic into UI components.
+The folder structure rules require `src/app/**` to remain thin and domain logic to live in `src/modules/**`. Milestone 1 must follow that boundary so later milestones can reuse auth, session, and guard behavior without copying logic into UI components.
 
 ## 8. Dependencies & External Integrations
 
@@ -481,7 +481,7 @@ The folder structure rules require `src/app/**` to remain thin and domain logic 
 - **PLT-006**: Package manager `pnpm`.
 
 ### Dependency Addition Policy
-- **DEP-001**: Phase 1 Auth does not require new npm dependencies by default.
+- **DEP-001**: Milestone 1 Auth does not require new npm dependencies by default.
 - **DEP-002**: Use existing dependencies for the auth implementation:
   - `@insforge/sdk` for InsForge Auth and Database integration through `src/lib/insforge/**`.
   - `next-safe-action` for web UI mutations.
@@ -491,7 +491,7 @@ The folder structure rules require `src/app/**` to remain thin and domain logic 
   - built-in Next.js request/cookie APIs and existing `src/lib/cookies.ts` for cookie handling.
   - Node `crypto` APIs for opaque token generation and token hashing.
 - **DEP-003**: Do not add `uuid`; use `crypto.randomUUID()` or database-generated UUIDs where appropriate.
-- **DEP-004**: Do not add password hashing libraries for Phase 1; raw password lifecycle is handled by InsForge Auth and must not be stored in app DB.
+- **DEP-004**: Do not add password hashing libraries for Milestone 1; raw password lifecycle is handled by InsForge Auth and must not be stored in app DB.
 - **DEP-005**: Do not add a user-agent parsing dependency by default. If browser/OS metadata quality becomes a real blocker, propose a small dependency such as `ua-parser-js` separately, verify its current documentation before use, and document why a local parser is insufficient.
 
 ### Data Dependencies
@@ -582,7 +582,7 @@ Expected result: login is rejected, no new app_sessions row remains active, and 
 - **VAL-006**: `/login` contains login and register in one route.
 - **VAL-007**: `/reset-password` supports request, valid token, and invalid token states.
 - **VAL-008**: No internal web UI auth REST endpoint is added.
-- **VAL-009**: No browser test file is added solely for Phase 1 verification.
+- **VAL-009**: No browser test file is added solely for Milestone 1 verification.
 - **VAL-010**: Browser verification is performed manually with `agent-browser` CLI; any fallback tool use is limited to a documented concrete `agent-browser` limitation.
 - **VAL-011**: Implementation respects import boundaries from `docs/agent-rules/folder-structure.md`.
 - **VAL-012**: Public self-register provisions exactly one `profiles` row with `role = 'member'`, `is_banned = false`, and nullable `avatar_url`.
@@ -596,7 +596,7 @@ Expected result: login is rejected, no new app_sessions row remains active, and 
 - `docs/user-flow/auth-flow.md`
 - `docs/IMPLEMENTATION_PLAN.md`
 - `docs/DB.md`
-- `docs/PHASE_0_FOUNDATION_BACKLOG.md`
+- `docs/m0-foundation-backlog.md`
 - `docs/agent-rules/folder-structure.md`
 - `migrations/README.md`
 - `migrations/003_core_helpers.sql`

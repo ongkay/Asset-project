@@ -1,5 +1,4 @@
 # Agent Rules
-
 Catatan penting:
 - repo ini masih membawa sisa template dashboard. Jangan jadikan struktur `(main)` atau halaman demo lama sebagai source of truth product
 - untuk build product baru, arahkan implementasi ke route group `(public)`, `(member)`, `(admin)`, dan `api` sesuai dokumen struktur folder

@@ -1,6 +1,6 @@
 # E2E Implementation Plan
 ## Tujuan
-Dokumen ini menjadi rencana implementasi delivery project secara bertahap dengan prinsip vertical slice E2E. Setiap phase harus selesai end-to-end, bisa diuji langsung dari browser, dan tidak dianggap lulus jika baru selesai di level UI saja atau backend saja.
+Dokumen ini menjadi rencana implementasi delivery project secara bertahap dengan prinsip vertical slice E2E. Setiap milestone harus selesai end-to-end, bisa diuji langsung dari browser, dan tidak dianggap lulus jika baru selesai di level UI saja atau backend saja.
 
 Dokumen source of truth yang harus selalu diikuti:
 - `docs/PRD.md` untuk business rules, flow, dan kontrak API
@@ -8,24 +8,24 @@ Dokumen source of truth yang harus selalu diikuti:
 - `docs/agent-rules/folder-structure.md` untuk struktur folder implementasi
 
 ## Prinsip Delivery E2E
-- setiap phase harus punya `write path`, `read path`, dan `negative path`
-- hasil mutation harus bisa langsung dibaca kembali dari UI phase yang sama
-- phase tidak lulus jika pembuktiannya hanya mengandalkan browser tanpa invariant backend, atau hanya mengandalkan query backend tanpa flow browser nyata
+- setiap milestone harus punya `write path`, `read path`, dan `negative path`
+- hasil mutation harus bisa langsung dibaca kembali dari UI milestone yang sama
+- milestone tidak lulus jika pembuktiannya hanya mengandalkan browser tanpa invariant backend, atau hanya mengandalkan query backend tanpa flow browser nyata
 - verifikasi browser manual wajib dilakukan pada route nyata memakai `agent-browser` CLI melalui skill `agent-browser`, bukan hanya pemeriksaan non-browser atau inspeksi database
-- verifikasi browser tidak mensyaratkan pembuatan file test; gunakan checklist phase sebagai panduan manual yang dijalankan lewat `agent-browser` CLI
-- role guard, session guard, dan error state yang relevan wajib ikut selesai di phase tempat feature itu dikirim
-- setiap phase harus tetap menjaga acceptance rules utama di `docs/PRD.md`
+- verifikasi browser tidak mensyaratkan pembuatan file test; gunakan checklist milestone sebagai panduan manual yang dijalankan lewat `agent-browser` CLI
+- role guard, session guard, dan error state yang relevan wajib ikut selesai di milestone tempat feature itu dikirim
+- setiap milestone harus tetap menjaga acceptance rules utama di `docs/PRD.md`
 - invariant server-side yang tidak browser-visible tetap wajib benar, dan pembuktiannya harus lewat trusted server-side diagnostic path yang repeatable
 - untuk project ini, trusted server-side diagnostic path default adalah `npx @insforge/cli` dengan mode read-only
 
-## Definition of Done per Phase
-Sebuah phase baru dianggap lulus jika semua poin ini terpenuhi:
-- route utama phase dapat dibuka langsung dari browser tanpa runtime error
-- flow utama phase bisa dijalankan sampai selesai dari UI
+## Definition of Done per Milestone
+Sebuah milestone baru dianggap lulus jika semua poin ini terpenuhi:
+- route utama milestone dapat dibuka langsung dari browser tanpa runtime error
+- flow utama milestone bisa dijalankan sampai selesai dari UI
 - hasil perubahan data bertahan setelah reload halaman
 - negative path utama menampilkan error state yang benar dan tidak merusak data
-- direct URL access ke route phase tetap aman dan tunduk pada role guard
-- backend invariant phase yang relevan lolos melalui verifikasi read-only memakai InsForge CLI
+- direct URL access ke route milestone tetap aman dan tunduk pada role guard
+- backend invariant milestone yang relevan lolos melalui verifikasi read-only memakai InsForge CLI
 - tidak ada langkah verifikasi yang bergantung pada edit database manual di tengah flow
 
 ## Prasyarat Global Sebelum Mulai
@@ -40,10 +40,10 @@ Sebuah phase baru dianggap lulus jika semua poin ini terpenuhi:
 - database yang dipakai tooling admin atau MCP tidak boleh diasumsikan identik dengan database runtime app; verifikasi harus selalu mengacu ke `DATABASE_URL` runtime
 - tersedia inbox email development untuk flow reset password
 - tersedia strategi verifikasi browser manual yang dapat diulang memakai `agent-browser` CLI melalui skill `agent-browser`
-  - gunakan checklist browser pada setiap phase sebagai panduan verifikasi manual
-  - jangan membuat file test browser hanya untuk memenuhi gate phase, kecuali ada kebutuhan eksplisit terpisah
+  - gunakan checklist browser pada setiap milestone sebagai panduan verifikasi manual
+  - jangan membuat file test browser hanya untuk memenuhi gate milestone, kecuali ada kebutuhan eksplisit terpisah
   - alat browser lain hanya boleh dipakai jika `agent-browser` CLI terbatas untuk langkah tertentu, dan alasannya harus dicatat
-- tersedia extension dev harness khusus untuk phase Extension API karena validasi `Origin` extension tidak bisa diverifikasi akurat dari tab browser biasa
+- tersedia extension dev harness khusus untuk milestone Extension API karena validasi `Origin` extension tidak bisa diverifikasi akurat dari tab browser biasa
 - verifikasi baseline minimum setelah apply migration:
   - semua enum, tabel, trigger, view, dan helper function terbentuk
   - RLS aktif
@@ -51,13 +51,15 @@ Sebuah phase baru dianggap lulus jika semua poin ini terpenuhi:
   - helper RPC bisa dipanggil
 
 ## Akun Seed Browser
-Gunakan akun dari `migrations/041_dev_seed_loginable_users.sql` untuk verifikasi manual dan verifikasi dasar browser.
+Gunakan akun dari `migrations/041_dev_seed_loginable_users.sql` dan `042_dev_seed_admin_users` untuk verifikasi manual dan verifikasi dasar browser.
 
 Shared password:
 - `Devpass123`
 
 Akun utama:
 - `seed.admin.browser@assetnext.dev`
+- `seed.admin.2.browser@assetnext.dev`
+- `seed.admin.3.browser@assetnext.dev`
 - `seed.active.browser@assetnext.dev`
 - `seed.processed.browser@assetnext.dev`
 - `seed.expired.browser@assetnext.dev`
@@ -65,14 +67,14 @@ Akun utama:
 - `seed.none.browser@assetnext.dev`
 
 ## Catatan Khusus `/admin` dan `/console`
-- final dashboard statistik `/admin` sengaja ditunda ke Phase 9
-- namun route `/admin` tetap harus sudah ada sejak Phase 1 sebagai guarded admin shell
-- pada Phase 1 sampai Phase 8, `/admin` boleh berupa placeholder atau hub admin minimal yang berisi link ke feature admin yang sudah selesai
-- final dashboard member `/console` baru dianggap selesai di Phase 6
-- namun route `/console` tetap harus sudah ada sejak Phase 1 sebagai guarded member shell agar redirect auth tetap konsisten dengan PRD
+- final dashboard statistik `/admin` sengaja ditunda ke Milestone 9
+- namun route `/admin` tetap harus sudah ada sejak Milestone 1 sebagai guarded admin shell
+- pada Milestone 1 sampai Milestone 8, `/admin` boleh berupa placeholder atau hub admin minimal yang berisi link ke feature admin yang sudah selesai
+- final dashboard member `/console` baru dianggap selesai di Milestone 6
+- namun route `/console` tetap harus sudah ada sejak Milestone 1 sebagai guarded member shell agar redirect auth tetap konsisten dengan PRD
 
 ## Guardrail Teknis Global
-Semua phase harus mematuhi rule teknis berikut agar hasil implementasi tetap sesuai PRD:
+Semua milestone harus mematuhi rule teknis berikut agar hasil implementasi tetap sesuai PRD:
 - UI web internal tidak boleh membuka REST endpoint publik baru selain `/api/extension/*` dan endpoint cron tepercaya
 - mutation UI web harus memakai Server Actions atau server-side layer internal
 - query dan mutation admin harus berjalan server-side dengan session user admin biasa
@@ -105,7 +107,7 @@ Aturan umum:
 Prinsip pembuktian:
 - browser manual membuktikan user journey
 - InsForge CLI membuktikan side effect server-side dan invariant data
-- jika invariant backend sudah browser-visible di phase yang sama, tetap boleh divalidasi dari browser; CLI dipakai untuk hal yang tidak cukup terlihat di UI
+- jika invariant backend sudah browser-visible di milestone yang sama, tetap boleh divalidasi dari browser; CLI dipakai untuk hal yang tidak cukup terlihat di UI
 
 Contoh pola command yang dianjurkan:
 ```bash
@@ -122,26 +124,26 @@ Catatan pemakaian:
 - `db query` dipakai untuk verifikasi read-only saat tidak ada helper RPC yang cocok
 - query verifikasi harus spesifik pada row yang baru dipengaruhi flow browser, bukan query lebar yang sulit diaudit
 
-## Urutan Phase
-| Phase | Nama                             | Fokus Utama                                      |
-| ----- | -------------------------------- | ------------------------------------------------ |
-| 0     | Foundation                       | fondasi app, env, shell route, dan verifikasi    |
-| 1     | Auth                             | login, register, reset password, logout, session |
-| 2     | Admin Package                    | CRUD package dan entitlement                     |
-| 3     | Admin Asset                      | inventory asset dan operasional dasar            |
-| 4     | Admin Subscriptions              | manual subscription dan assignment override      |
-| 5     | Admin CD-Key                     | issue dan kelola CD-Key                          |
-| 6     | Member Console dan Payment Dummy | console member, extend, redeem, payment dummy    |
-| 7     | User Management                  | create user, ban, password, detail user          |
-| 8     | User Logs                        | login history, extension track, transaction logs |
-| 9     | Admin Home                       | statistik `/admin`, chart, live user             |
-| 10    | Cron and Recovery                | reconciliation job dan recovery flow             |
-| 11    | Extension API                    | session, asset detail, track, standard error     |
+## Urutan Milestone
+| Milestone | Nama                             | Fokus Utama                                      |
+| --------- | -------------------------------- | ------------------------------------------------ |
+| 0         | Foundation                       | fondasi app, env, shell route, dan verifikasi    |
+| 1         | Auth                             | login, register, reset password, logout, session |
+| 2         | Admin Package                    | CRUD package dan entitlement                     |
+| 3         | Admin Asset                      | inventory asset dan operasional dasar            |
+| 4         | Admin Subscriptions              | manual subscription dan assignment override      |
+| 5         | Admin CD-Key                     | issue dan kelola CD-Key                          |
+| 6         | Member Console dan Payment Dummy | console member, extend, redeem, payment dummy    |
+| 7         | User Management                  | create user, ban, password, detail user          |
+| 8         | User Logs                        | login history, extension track, transaction logs |
+| 9         | Admin Home                       | statistik `/admin`, chart, live user             |
+| 10        | Cron and Recovery                | reconciliation job dan recovery flow             |
+| 11        | Extension API                    | session, asset detail, track, standard error     |
 
-## Phase 0. Foundation
-Tujuan phase ini adalah menyiapkan fondasi agar phase selanjutnya benar-benar bisa dikerjakan dan diuji secara E2E tanpa bolak-balik merombak infrastruktur.
+## Milestone 0. Foundation
+Tujuan milestone ini adalah menyiapkan fondasi agar milestone selanjutnya benar-benar bisa dikerjakan dan diuji secara E2E tanpa bolak-balik merombak infrastruktur.
 
-Backlog rinci untuk phase ini ada di `docs/PHASE_0_FOUNDATION_BACKLOG.md`.
+Backlog rinci untuk milestone ini ada di `docs/m0-foundation-backlog.md`.
 
 Scope wajib:
 - setup env runtime dan koneksi InsForge
@@ -162,9 +164,9 @@ Scope wajib:
   - tulis `login_logs`
   - activation flow `payment_dummy`, `cdkey`, dan `admin_manual`
 - tetapkan shared activation service tunggal di app layer yang dipakai bersama oleh `payment_dummy`, `cdkey`, dan `admin_manual`
-- phase 0 hanya perlu mengunci boundary dan kontrak service ini; jangan menghidupkan helper SQL aktivasi lintas source baru sebelum phase yang benar-benar membutuhkannya
+- milestone 0 hanya perlu mengunci boundary dan kontrak service ini; jangan menghidupkan helper SQL aktivasi lintas source baru sebelum milestone yang benar-benar membutuhkannya
 - tetapkan strategi update `app_sessions.last_seen_at` pada request atau page load terautentikasi agar `Live User` dapat berfungsi
-- tetapkan strategi `requestNonce` yang session-bound dan valid 60 detik untuk phase extension API
+- tetapkan strategi `requestNonce` yang session-bound dan valid 60 detik untuk milestone Extension API
 - tetapkan sumber config extension allowlist dan sumber metadata jaringan:
   - allowlist `x-extension-id` dan `Origin`
   - trusted source untuk `ip`, `city`, dan `country`
@@ -181,8 +183,8 @@ Hasil minimal yang harus ada:
 - app bisa boot dengan struktur folder final
 - route auth, member shell, dan admin shell sudah bisa dibuka
 - role guard dasar sudah bekerja
-- seed account bisa dipakai pada phase auth berikutnya
-- keputusan runtime yang memengaruhi semua phase berikutnya sudah terkunci:
+- seed account bisa dipakai pada milestone auth berikutnya
+- keputusan runtime yang memengaruhi semua milestone berikutnya sudah terkunci:
   - contract `app_session`
   - shared activation service
   - touch `last_seen_at`
@@ -194,13 +196,13 @@ Checklist verifikasi browser manual untuk lulus:
 - [ ] buka `/reset-password` dan pastikan halaman render tanpa runtime error
 - [ ] akses `/console` tanpa login harus diarahkan ke flow auth
 - [ ] akses `/admin` tanpa login harus diarahkan ke flow auth
-- [ ] login sebagai admin atau member belum wajib sukses pada phase ini, tetapi shell route dan guard dasar harus siap untuk phase 1
+- [ ] login sebagai admin atau member belum wajib sukses pada milestone ini, tetapi shell route dan guard dasar harus siap untuk milestone 1
 
 Backend invariant verification via InsForge CLI:
 - [ ] `npx @insforge/cli whoami` dan `npx @insforge/cli current` berhasil dan menunjuk ke project yang sama dengan runtime app
 - [ ] verifikasi baseline schema minimum tersedia melalui `npx @insforge/cli db tables`, `db policies`, `db triggers`, atau `metadata --json`
 - [ ] verifikasi helper runtime minimum tersedia, terutama `get_user_console_snapshot`, `get_user_asset_detail`, `get_admin_dashboard_stats`, `expire_subscriptions_job`, dan `reconcile_invalid_assets_job`
-- [ ] verifikasi akun seed browser ada pada data runtime yang benar sebelum masuk ke phase berikutnya
+- [ ] verifikasi akun seed browser ada pada data runtime yang benar sebelum masuk ke milestone berikutnya
 
 ### Workflow Setup Browser Dev
 - apply migration `001_extensions.sql` sampai `030_rpc.sql` secara berurutan
@@ -209,11 +211,11 @@ Backend invariant verification via InsForge CLI:
 - apply `041_dev_seed_loginable_users.sql`
 - pastikan `DATABASE_URL` runtime app mengarah ke database yang sama dengan data seed tersebut
 - jalankan `pnpm dev`
-- jalankan checklist browser phase secara manual memakai `agent-browser` CLI melalui skill `agent-browser` untuk verifikasi dasar yang dapat diulang
+- jalankan checklist browser milestone secara manual memakai `agent-browser` CLI melalui skill `agent-browser` untuk verifikasi dasar yang dapat diulang
 - jika verifikasi manual memakai browser, selalu cek terhadap app runtime yang memakai `DATABASE_URL`, bukan database tooling admin/MCP yang kebetulan aktif
 
-## Phase 1. Auth
-Tujuan phase ini adalah menyelesaikan seluruh flow autentikasi sampai user benar-benar bisa masuk, keluar, dan mengganti password dari browser.
+## Milestone 1. Auth
+Tujuan milestone ini adalah menyelesaikan seluruh flow autentikasi sampai user benar-benar bisa masuk, keluar, dan mengganti password dari browser.
 
 Scope wajib:
 - `/login` dengan email step, password step, dan register step dalam satu flow
@@ -269,8 +271,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi saat login kedua pada browser lain, session lama mendapat `revoked_at` dan session baru menjadi satu-satunya row aktif
 - [ ] verifikasi akun banned tidak menghasilkan session aktif baru di `app_sessions`
 
-## Phase 2. Admin Package
-Tujuan phase ini adalah menyelesaikan pengelolaan package sehingga package sudah siap dipakai oleh phase subscription, CD-Key, dan payment dummy.
+## Milestone 2. Admin Package
+Tujuan milestone ini adalah menyelesaikan pengelolaan package sehingga package sudah siap dipakai oleh milestone subscription, CD-Key, dan payment dummy.
 
 Scope wajib:
 - route `/admin/package`
@@ -287,7 +289,7 @@ Scope wajib:
 
 Hasil minimal yang harus ada:
 - package aktif dan nonaktif bisa dibedakan jelas di UI
-- data package yang dibuat pada phase ini siap dipakai phase 4, 5, dan 6
+- data package yang dibuat pada milestone ini siap dipakai milestone 4, 5, dan 6
 - ringkasan package `private/share/mixed` hanya dipakai untuk badge, filter, dan reporting, bukan untuk otorisasi asset
 
 Checklist verifikasi browser manual untuk lulus:
@@ -306,8 +308,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi `access_keys_json` hanya berisi access key exact yang valid dan tidak mengandung duplikasi
 - [ ] verifikasi label ringkasan package konsisten dengan `public.get_package_summary(access_keys_json)` bila helper ini dipakai pada read model
 
-## Phase 3. Admin Asset
-Tujuan phase ini adalah menyelesaikan inventory asset dan operasi dasar asset agar admin bisa menyiapkan bahan fulfillment subscription.
+## Milestone 3. Admin Asset
+Tujuan milestone ini adalah menyelesaikan inventory asset dan operasi dasar asset agar admin bisa menyiapkan bahan fulfillment subscription.
 
 Scope wajib:
 - route `/admin/assets`
@@ -327,7 +329,7 @@ Scope wajib:
 
 Hasil minimal yang harus ada:
 - admin dapat mengelola inventory asset dari browser tanpa SQL manual
-- data asset siap dipakai phase subscription dan recovery
+- data asset siap dipakai milestone subscription dan recovery
 
 Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan buka `/admin/assets`
@@ -349,8 +351,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi disable asset mengisi `disabled_at` dan enable asset mengembalikannya ke kondisi aktif
 - [ ] verifikasi hard delete benar-benar menghapus row asset dari inventory aktif tanpa membuat data yatim yang melanggar constraint
 
-## Phase 4. Admin Subscriptions
-Tujuan phase ini adalah menyelesaikan pengelolaan subscription manual oleh admin, termasuk assignment override dan pembentukan transaction `admin_manual`.
+## Milestone 4. Admin Subscriptions
+Tujuan milestone ini adalah menyelesaikan pengelolaan subscription manual oleh admin, termasuk assignment override dan pembentukan transaction `admin_manual`.
 
 Scope wajib:
 - route `/admin/subscriber`
@@ -412,8 +414,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi assignment aktif mengikuti rule `private` dan `share`, termasuk tidak ada lebih dari satu assignment aktif `share` per user per platform
 - [ ] verifikasi cancel subscription mengubah status menjadi `canceled` dan me-revoke assignment aktif terkait
 
-## Phase 5. Admin CD-Key
-Tujuan phase ini adalah menyelesaikan issue dan pengelolaan CD-Key dari sisi admin. Flow redeem user memang baru final di Phase 6.
+## Milestone 5. Admin CD-Key
+Tujuan milestone ini adalah menyelesaikan issue dan pengelolaan CD-Key dari sisi admin. Flow redeem user memang baru final di Milestone 6.
 
 Scope wajib:
 - route `/admin/cdkey`
@@ -431,7 +433,7 @@ Scope wajib:
 
 Hasil minimal yang harus ada:
 - admin bisa menerbitkan CD-Key dari browser dan melihat hasilnya langsung di tabel
-- phase ini hanya menutup sisi admin issuance, bukan redeem member
+- milestone ini hanya menutup sisi admin issuance, bukan redeem member
 
 Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan buka `/admin/cdkey`
@@ -449,8 +451,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi key yang di-generate otomatis unik, uppercase, dan panjangnya sesuai rule
 - [ ] verifikasi issue key untuk package disabled tidak membuat row baru yang invalid
 
-## Phase 6. Member Console dan Payment Dummy
-Tujuan phase ini adalah menyelesaikan seluruh flow member dari membaca status subscription sampai extend langganan, redeem code, dan simulasi bayar.
+## Milestone 6. Member Console dan Payment Dummy
+Tujuan milestone ini adalah menyelesaikan seluruh flow member dari membaca status subscription sampai extend langganan, redeem code, dan simulasi bayar.
 
 Scope wajib:
 - route `/console`
@@ -514,8 +516,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi `cd_keys.used_by` dan `cd_keys.used_at` terisi setelah redeem sukses dan tidak berubah pada redeem gagal
 - [ ] verifikasi read path `/console` konsisten dengan helper RPC `get_user_console_snapshot` atau view aktif yang dipakai, sehingga asset invalid tidak muncul lagi
 
-## Phase 7. User Management
-Tujuan phase ini adalah menyelesaikan operasional akun user dari sisi admin tanpa keluar ke tooling lain.
+## Milestone 7. User Management
+Tujuan milestone ini adalah menyelesaikan operasional akun user dari sisi admin tanpa keluar ke tooling lain.
 
 Scope wajib:
 - route `/admin/users`
@@ -558,8 +560,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi ban atau unban mengubah state banned user di `profiles` tanpa merusak history user
 - [ ] verifikasi password change mempertahankan identitas auth user yang sama dan tidak membuat akun auth duplikat
 
-## Phase 8. User Logs
-Tujuan phase ini adalah menyelesaikan halaman observability admin yang bersifat read-only untuk login, extension, dan transaksi.
+## Milestone 8. User Logs
+Tujuan milestone ini adalah menyelesaikan halaman observability admin yang bersifat read-only untuk login, extension, dan transaksi.
 
 Scope wajib:
 - route `/admin/userlogs`
@@ -575,7 +577,7 @@ Scope wajib:
 
 Hasil minimal yang harus ada:
 - admin dapat membaca histori login, histori extension, dan histori transaction dari browser
-- data dari phase-phase sebelumnya sudah muncul di halaman ini
+- data dari milestone-milestone sebelumnya sudah muncul di halaman ini
 
 Checklist verifikasi browser manual untuk lulus:
 - [ ] login sebagai admin dan buka `/admin/userlogs`
@@ -596,8 +598,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi tab `Transactions` konsisten dengan `transactions` atau `v_transaction_list` untuk rentang data yang sama
 - [ ] verifikasi histori asset yang sudah dihapus tetap tersedia dari snapshot assignment bila detail itu ditampilkan di admin
 
-## Phase 9. Admin Home
-Tujuan phase ini adalah menyelesaikan final dashboard `/admin` yang menampilkan statistik lintas domain, chart, dan live user.
+## Milestone 9. Admin Home
+Tujuan milestone ini adalah menyelesaikan final dashboard `/admin` yang menampilkan statistik lintas domain, chart, dan live user.
 
 Scope wajib:
 - final route `/admin`
@@ -640,8 +642,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi `v_live_users` atau query live-user ekuivalen mengambil `last_seen_at` terbaru dari `app_sessions` atau `extension_tracks`
 - [ ] verifikasi touch `app_sessions.last_seen_at` benar-benar berjalan pada request terautentikasi agar dashboard live user tidak stale
 
-## Phase 10. Cron and Recovery
-Tujuan phase ini adalah menyelesaikan seluruh mekanisme rekonsiliasi, recovery, dan invariant background yang tidak cukup dijaga oleh UI mutation biasa saja.
+## Milestone 10. Cron and Recovery
+Tujuan milestone ini adalah menyelesaikan seluruh mekanisme rekonsiliasi, recovery, dan invariant background yang tidak cukup dijaga oleh UI mutation biasa saja.
 
 Scope wajib:
 - trusted cron trigger untuk `expire_subscriptions_job()`
@@ -674,8 +676,8 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi disable asset dari admin memicu `recheck_subscription_after_asset_change(asset_id)` atau flow baseline yang setara tanpa menunggu cron
 - [ ] bila schedule runtime dipakai, verifikasi konfigurasi dan log eksekusi melalui `npx @insforge/cli schedules list`, `schedules get`, dan `schedules logs`
 
-## Phase 11. Extension API
-Tujuan phase ini adalah menyelesaikan integrasi akhir dengan Chrome Extension menggunakan session web yang sama dan kontrak API sesuai PRD.
+## Milestone 11. Extension API
+Tujuan milestone ini adalah menyelesaikan integrasi akhir dengan Chrome Extension menggunakan session web yang sama dan kontrak API sesuai PRD.
 
 Scope wajib:
 - `GET /api/extension/session`
@@ -752,23 +754,23 @@ Backend invariant verification via InsForge CLI:
 - [ ] verifikasi asset yang boleh dipakai extension juga muncul pada `v_current_asset_access` atau read model aktif ekuivalen, sehingga API tidak mengembalikan asset yang sebenarnya sudah invalid
 - [ ] verifikasi session lama yang sudah direvoke memang masih tercatat pada `app_sessions`, tetapi tidak lagi dianggap valid oleh path verifikasi session extension
 
-## Regression Gate Setelah Setiap Phase
-Setelah sebuah phase selesai, ulang minimal verifikasi dasar manual berikut memakai `agent-browser` CLI melalui skill `agent-browser` sebelum pindah ke phase berikutnya:
+## Regression Gate Setelah Setiap Milestone
+Setelah sebuah milestone selesai, ulang minimal verifikasi dasar manual berikut memakai `agent-browser` CLI melalui skill `agent-browser` sebelum pindah ke milestone berikutnya:
 - login admin masih berhasil
 - login member masih berhasil
 - logout masih berhasil
 - route feature yang sudah selesai sebelumnya tetap bisa dibuka
 - reload halaman utama feature sebelumnya tidak error
-- data yang dibuat pada phase sebelumnya masih terbaca benar
+- data yang dibuat pada milestone sebelumnya masih terbaca benar
 
 Backend invariant regression gate via InsForge CLI:
 - verifikasi project yang sedang dicek masih project runtime yang benar lewat `whoami` dan `current`
-- verifikasi tidak ada invariant kritis yang rusak pada `app_sessions`, `subscriptions`, `asset_assignments`, `transactions`, `cd_keys`, dan `extension_tracks` untuk phase-phase yang sudah selesai
+- verifikasi tidak ada invariant kritis yang rusak pada `app_sessions`, `subscriptions`, `asset_assignments`, `transactions`, `cd_keys`, dan `extension_tracks` untuk milestone-milestone yang sudah selesai
 - verifikasi read model utama yang sudah dipakai UI sebelumnya masih memberi hasil yang konsisten untuk sample data yang baru dibuat
 
 ## Prioritas Implementasi Saat Ragu
 1. pilih perubahan terkecil yang menutup flow browser end-to-end
-2. selesaikan dulu route yang sedang menjadi target phase
-3. pastikan write path dan readback phase itu benar sebelum menambah fitur sampingan
+2. selesaikan dulu route yang sedang menjadi target milestone
+3. pastikan write path dan readback milestone itu benar sebelum menambah fitur sampingan
 4. tundukkan semua keputusan ke PRD, DB plan, dan folder structure
-5. jangan membuka phase baru sebelum checklist verifikasi browser manual dan backend invariant verification phase saat ini sama-sama lulus
+5. jangan membuka milestone baru sebelum checklist verifikasi browser manual dan backend invariant verification milestone saat ini sama-sama lulus

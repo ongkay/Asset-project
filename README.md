@@ -47,19 +47,9 @@ pnpm start
 pnpm lint
 pnpm typecheck
 pnpm check
-pnpm markdown:check
-pnpm test:e2e:smoke
-pnpm test:e2e:smoke:ui
 ```
 
-## Phase 0 Smoke Test
-Jalankan smoke test browser dasar dengan:
-
-```bash
-pnpm test:e2e:smoke
-```
-
-Spec Phase 0 memverifikasi:
+Spec Milestone 0 memverifikasi:
 - `/login` render
 - `/reset-password` render
 - guest ditolak dari `/console`
@@ -84,5 +74,4 @@ pnpm lint
 pnpm typecheck
 pnpm build
 pnpm markdown:check
-pnpm test:e2e:smoke
 ```
