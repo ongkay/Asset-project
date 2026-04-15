@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { AdminSortableHeader } from "@/components/shared/data-table/sortable-header";
+import type { AdminTableColumnOption } from "@/components/shared/data-table/types";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 import type { PackageAdminRow, PackageTableSortKey, PackageTableSortOrder } from "@/modules/packages/types";
 
@@ -12,7 +12,7 @@ import { AdminPackageRowActions } from "./package-table-row-actions";
 
 import type { AdminPackageTableColumnKey } from "../package-page-types";
 
-export type AdminPackageColumnDefinition = {
+export type AdminPackageColumnDefinition = AdminTableColumnOption<AdminPackageTableColumnKey> & {
   key: AdminPackageTableColumnKey;
   label: string;
   renderCell?: (row: PackageAdminRow) => ReactNode;
@@ -40,37 +40,6 @@ function formatDateTime(value: string) {
     month: "short",
     year: "numeric",
   }).format(date);
-}
-
-function SortableHeader({
-  children,
-  sortKey,
-  sortOrder,
-  sortValue,
-  onSortChange,
-}: {
-  children: string;
-  sortKey: PackageTableSortKey;
-  sortOrder: PackageTableSortOrder | null;
-  sortValue: PackageTableSortKey | null;
-  onSortChange: (sortKey: PackageTableSortKey) => void;
-}) {
-  const isActive = sortValue === sortKey;
-  const SortIcon = !isActive ? ArrowUpDownIcon : sortOrder === "asc" ? ArrowUpIcon : ArrowDownIcon;
-
-  return (
-    <Button
-      className="-ml-2 h-8 px-2 text-muted-foreground data-[active=true]:text-foreground"
-      data-active={isActive ? "true" : undefined}
-      onClick={() => onSortChange(sortKey)}
-      size="sm"
-      type="button"
-      variant="ghost"
-    >
-      {children}
-      <SortIcon data-icon="inline-end" />
-    </Button>
-  );
 }
 
 const SUMMARY_LABEL_BY_VALUE: Record<PackageAdminRow["summary"], string> = {
@@ -129,6 +98,7 @@ export const ADMIN_PACKAGE_TABLE_COLUMNS: AdminPackageColumnDefinition[] = [
     renderCell: (row) => <span>{formatDateTime(row.updatedAt)}</span>,
   },
   {
+    canHide: false,
     key: "actions",
     label: "Actions",
   },
@@ -159,9 +129,9 @@ export function createAdminPackageTableColumns({
       return {
         id: column.key,
         header: () => (
-          <SortableHeader onSortChange={onSortChange} sortKey="status" sortOrder={sortOrder} sortValue={sortValue}>
+          <AdminSortableHeader onSortChange={onSortChange} sortKey="status" sortOrder={sortOrder} sortValue={sortValue}>
             {column.label}
-          </SortableHeader>
+          </AdminSortableHeader>
         ),
         cell: ({ row }) => column.renderCell?.(row.original) ?? "-",
       };
@@ -171,9 +141,14 @@ export function createAdminPackageTableColumns({
       return {
         id: column.key,
         header: () => (
-          <SortableHeader onSortChange={onSortChange} sortKey="updatedAt" sortOrder={sortOrder} sortValue={sortValue}>
+          <AdminSortableHeader
+            onSortChange={onSortChange}
+            sortKey="updatedAt"
+            sortOrder={sortOrder}
+            sortValue={sortValue}
+          >
             {column.label}
-          </SortableHeader>
+          </AdminSortableHeader>
         ),
         cell: ({ row }) => column.renderCell?.(row.original) ?? "-",
       };

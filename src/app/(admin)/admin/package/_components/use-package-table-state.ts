@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 
 import { usePathname } from "next/navigation";
 
-import { getLocalStorageValue, setLocalStorageValue } from "@/lib/local-storage.client";
+import { useAdminColumnVisibility } from "@/components/shared/data-table/visibility";
 
 import { PACKAGE_TABLE_COLUMN_KEYS } from "./package-page-types";
-import type { AdminPackageColumnVisibility, AdminPackageTableColumnKey } from "./package-page-types";
+import type { AdminPackageColumnVisibility } from "./package-page-types";
 import type { PackageTableFilters } from "@/modules/admin/packages/types";
 import type { PackageSummary, PackageTableSortKey } from "@/modules/packages/types";
 
@@ -23,32 +23,6 @@ export const DEFAULT_PACKAGE_COLUMN_VISIBILITY: AdminPackageColumnVisibility = {
   totalUsed: true,
   updatedAt: true,
 };
-
-function parseColumnVisibility(value: string | null): AdminPackageColumnVisibility {
-  if (!value) {
-    return DEFAULT_PACKAGE_COLUMN_VISIBILITY;
-  }
-
-  try {
-    const parsedValue = JSON.parse(value) as Partial<Record<AdminPackageTableColumnKey, unknown>>;
-
-    const normalizedVisibility = PACKAGE_TABLE_COLUMN_KEYS.reduce<AdminPackageColumnVisibility>(
-      (accumulator, columnKey) => {
-        accumulator[columnKey] =
-          typeof parsedValue[columnKey] === "boolean"
-            ? (parsedValue[columnKey] as boolean)
-            : DEFAULT_PACKAGE_COLUMN_VISIBILITY[columnKey];
-        return accumulator;
-      },
-      { ...DEFAULT_PACKAGE_COLUMN_VISIBILITY },
-    );
-
-    normalizedVisibility.actions = true;
-    return normalizedVisibility;
-  } catch {
-    return DEFAULT_PACKAGE_COLUMN_VISIBILITY;
-  }
-}
 
 function buildPackageTableUrl(pathname: string, filters: PackageTableFilters) {
   const nextSearchParams = new URLSearchParams();
@@ -83,9 +57,12 @@ export function usePackageTableState(initialFilters: PackageTableFilters) {
   const [tableFilters, setTableFilters] = useState(initialFilters);
   const [searchInput, setSearchInput] = useState(initialFilters.search ?? "");
   const [summaryFilter, setSummaryFilter] = useState<PackageSummary | null>(initialFilters.summary);
-  const [visibleColumns, setVisibleColumns] = useState<AdminPackageColumnVisibility>(() =>
-    parseColumnVisibility(getLocalStorageValue(COLUMN_VISIBILITY_STORAGE_KEY)),
-  );
+  const { handleToggleColumn, visibleColumns } = useAdminColumnVisibility({
+    columnKeys: PACKAGE_TABLE_COLUMN_KEYS,
+    defaultVisibility: DEFAULT_PACKAGE_COLUMN_VISIBILITY,
+    lockedVisibleKeys: ["actions"],
+    storageKey: COLUMN_VISIBILITY_STORAGE_KEY,
+  });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -154,21 +131,6 @@ export function usePackageTableState(initialFilters: PackageTableFilters) {
         sort: null,
       };
     });
-  }
-
-  function handleToggleColumn(columnKey: AdminPackageTableColumnKey, nextVisible: boolean) {
-    if (columnKey === "actions") {
-      return;
-    }
-
-    const nextVisibility = {
-      ...visibleColumns,
-      [columnKey]: nextVisible,
-      actions: true,
-    };
-
-    setVisibleColumns(nextVisibility);
-    setLocalStorageValue(COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(nextVisibility));
   }
 
   return {
