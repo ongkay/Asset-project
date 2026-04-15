@@ -15,8 +15,8 @@ import {
   type PackageSummary,
   type PackageTableResult,
   type PackageTableSortKey,
-  type PackageToggleInput,
   type PackageTableSortOrder,
+  type PackageToggleInput,
 } from "./types";
 
 type PackageDatabaseRow = {
@@ -140,7 +140,7 @@ function mapPackageDatabaseRow(data: PackageDatabaseRow): PackageRow {
   };
 }
 
-function sortPackageRows(
+function sortPackageDatabaseRows(
   rows: PackageDatabaseRow[],
   input: {
     order: PackageTableSortOrder | null;
@@ -180,16 +180,9 @@ function applyPackageSort<TQuery extends { order: (column: string, options?: { a
   return query.order("created_at", { ascending: false });
 }
 
-async function listPackagesBySearch(input: {
-  order: PackageTableSortOrder | null;
-  search: string | null;
-  sort: PackageTableSortKey | null;
-}) {
+async function listPackagesBySearch(input: { search: string | null }) {
   const database = createPackagesRepositoryDatabase();
-  let query = applyPackageSort(database.from("packages").select(PACKAGE_BASE_SELECT_FIELDS), {
-    order: input.order,
-    sort: input.sort,
-  });
+  let query = database.from("packages").select(PACKAGE_BASE_SELECT_FIELDS).order("created_at", { ascending: false });
 
   if (input.search) {
     query = query.ilike("name", `%${input.search}%`);
@@ -241,9 +234,7 @@ export async function listPackages(input: PackageListInput): Promise<PackageTabl
   }
 
   const allCandidateRows = await listPackagesBySearch({
-    order: input.order,
     search: input.search,
-    sort: input.sort,
   });
 
   const summaryByPackageId = allCandidateRows.map((candidateRow) => ({
@@ -257,7 +248,7 @@ export async function listPackages(input: PackageListInput): Promise<PackageTabl
       .map((candidate) => candidate.packageId),
   );
 
-  const filteredRows = sortPackageRows(
+  const filteredRows = sortPackageDatabaseRows(
     allCandidateRows.filter((candidateRow) => matchedIds.has(candidateRow.id)),
     {
       order: input.order,

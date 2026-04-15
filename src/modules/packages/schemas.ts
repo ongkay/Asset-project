@@ -4,19 +4,12 @@ import {
   PACKAGE_ACCESS_KEYS,
   sortPackageAccessKeysCanonical,
   type PackageFormInput,
-  type PackageSummary,
-  type PackageTableSortKey,
-  type PackageTableSortOrder,
   type PackageToggleInput,
 } from "./types";
 
 const packageAccessKeySchema = z.enum(PACKAGE_ACCESS_KEYS, {
   error: "Access key is invalid.",
 });
-
-const packageSummarySchema = z.enum(["private", "share", "mixed"]);
-const packageTableSortKeySchema = z.enum(["status", "updatedAt"]);
-const packageTableSortOrderSchema = z.enum(["asc", "desc"]);
 
 function normalizeCheckoutUrl(value: string | null | undefined): string | null {
   if (value === null || value === undefined) {
@@ -77,32 +70,7 @@ export const packageFormSchema = z
     accessKeys: sortPackageAccessKeysCanonical(parsedInput.accessKeys),
   })) satisfies z.ZodType<PackageFormInput>;
 
-export const packageTableFilterSchema = z.object({
-  page: z.number({ error: "Page must be a number." }).int().min(1).default(1),
-  pageSize: z.number({ error: "Page size must be a number." }).int().min(1).max(100).default(10),
-  search: z
-    .string()
-    .trim()
-    .transform((searchValue) => (searchValue.length > 0 ? searchValue : null))
-    .nullable()
-    .optional()
-    .default(null),
-  summary: packageSummarySchema.nullable().optional().default(null),
-  sort: packageTableSortKeySchema.nullable().optional().default(null),
-  order: packageTableSortOrderSchema.nullable().optional().default(null),
-});
-
 export const packageToggleSchema = z.object({
   id: z.uuid("Package ID must be a valid UUID."),
   isActive: z.boolean({ error: "Package active flag is required." }),
 }) satisfies z.ZodType<PackageToggleInput>;
-
-export type PackageTableFilterInput = z.input<typeof packageTableFilterSchema>;
-export type PackageTableFilter = {
-  page: number;
-  pageSize: number;
-  order: PackageTableSortOrder | null;
-  search: string | null;
-  sort: PackageTableSortKey | null;
-  summary: PackageSummary | null;
-};

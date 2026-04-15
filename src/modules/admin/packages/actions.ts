@@ -3,9 +3,9 @@
 import { z } from "zod";
 
 import { adminActionClient } from "@/modules/auth/action-client";
-import { packageTableFilterSchema } from "@/modules/packages/schemas";
 
 import { getPackageEditorData, getPackageTablePage } from "./queries";
+import { packageTableFilterSchema } from "./schemas";
 
 const packageEditorDataInputSchema = z.object({
   id: z.uuid("Package ID must be a valid UUID."),

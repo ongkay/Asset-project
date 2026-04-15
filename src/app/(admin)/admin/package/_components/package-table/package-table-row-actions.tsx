@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { togglePackageActiveAction } from "@/modules/packages/actions";
-import { ADMIN_PACKAGE_QUERY_KEY } from "./package-types";
+import { ADMIN_PACKAGE_QUERY_KEY } from "../package-query";
 import type { PackageAdminRow } from "@/modules/packages/types";
 
 type AdminPackageRowActionsProps = {

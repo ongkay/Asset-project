@@ -13,10 +13,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { ADMIN_PACKAGE_TABLE_COLUMNS } from "./columns";
-import { AdminPackageFilterBar } from "./package-filter-bar";
+import { ADMIN_PACKAGE_TABLE_COLUMNS } from "./package-table-columns";
+import { AdminPackageFilterBar } from "./package-table-filter-bar";
 
-import type { AdminPackageColumnVisibility } from "./package-types";
+import type { AdminPackageColumnVisibility } from "../package-page-types";
 import type { PackageSummary } from "@/modules/packages/types";
 
 type AdminPackageToolbarProps = {

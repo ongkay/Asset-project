@@ -1,6 +1,5 @@
 import "server-only";
 
-import { packageTableFilterSchema } from "@/modules/packages/schemas";
 import {
   getPackageEditorData as getPackageEditorDataFromRepository,
   listCurrentSubscriptionsByPackageIds,
@@ -8,6 +7,7 @@ import {
 } from "@/modules/packages/repositories";
 import { derivePackageSummaryFromAccessKeys, sortPackageAccessKeysCanonical } from "@/modules/packages/types";
 
+import { packageTableFilterSchema } from "./schemas";
 import type { PackageEditorPrefill, PackageTablePage } from "./types";
 
 function requirePackageSummaryFromAccessKeys(accessKeys: Parameters<typeof derivePackageSummaryFromAccessKeys>[0]) {

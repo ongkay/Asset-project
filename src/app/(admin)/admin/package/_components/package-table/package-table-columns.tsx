@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 
 import type { PackageAdminRow, PackageTableSortKey, PackageTableSortOrder } from "@/modules/packages/types";
 
-import { AdminPackageRowActions } from "./package-row-actions";
+import { AdminPackageRowActions } from "./package-table-row-actions";
 
-import type { AdminPackageTableColumnKey } from "./package-types";
+import type { AdminPackageTableColumnKey } from "../package-page-types";
 
 export type AdminPackageColumnDefinition = {
   key: AdminPackageTableColumnKey;

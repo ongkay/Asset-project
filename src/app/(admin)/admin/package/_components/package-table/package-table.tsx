@@ -13,11 +13,11 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { createAdminPackageTableColumns } from "./columns";
+import { createAdminPackageTableColumns } from "./package-table-columns";
 
 import type { PackageTablePage } from "@/modules/admin/packages/types";
 import type { PackageTableSortKey, PackageTableSortOrder } from "@/modules/packages/types";
-import type { AdminPackageColumnVisibility } from "./package-types";
+import type { AdminPackageColumnVisibility } from "../package-page-types";
 
 type AdminPackageTableProps = {
   isFetching: boolean;
