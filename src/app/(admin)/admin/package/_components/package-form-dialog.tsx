@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo } from "react";
 
-import { useRouter } from "next/navigation";
-
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { BadgeDollarSign, CalendarDays, CopyIcon, LinkIcon, Package } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -29,11 +29,13 @@ import {
   FieldSet,
   FieldLegend,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
 import { createPackageAction, updatePackageAction } from "@/modules/packages/actions";
 import { packageFormSchema } from "@/modules/packages/schemas";
 import { PACKAGE_ACCESS_KEYS, sortPackageAccessKeysCanonical, type PackageAccessKey } from "@/modules/packages/types";
+
+import { ADMIN_PACKAGE_QUERY_KEY } from "./package-types";
 
 import type { PackageEditorPrefill } from "@/modules/admin/packages/types";
 import type { AdminPackageDialogState } from "./package-types";
@@ -43,6 +45,7 @@ type PackageFormDialogValues = PackageFormDialogSubmitValues;
 
 type AdminPackageFormDialogProps = {
   dialogState: AdminPackageDialogState;
+  onPackageSaved: () => void;
   onOpenChange: (open: boolean) => void;
   prefillById: Record<string, PackageEditorPrefill>;
 };
@@ -87,8 +90,53 @@ function getActionFormError(result: {
   return result.validationErrors?.formErrors?.[0] ?? result.serverError ?? null;
 }
 
-export function AdminPackageFormDialog({ dialogState, onOpenChange, prefillById }: AdminPackageFormDialogProps) {
-  const router = useRouter();
+async function copyPackageMetadata(label: string, value: string | null | undefined) {
+  if (!value) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(value);
+    toast.success(`${label} copied.`);
+  } catch {
+    toast.error(`Failed to copy ${label}.`);
+  }
+}
+
+function PackageMetadataValue({ label, value }: { label: string; value: string | null | undefined }) {
+  const displayValue = value ?? "-";
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
+      <div className="min-w-0">
+        <p className="font-medium text-sm">{label}</p>
+        <p className="truncate text-muted-foreground text-xs" title={displayValue}>
+          {displayValue}
+        </p>
+      </div>
+      <Button
+        aria-label={`Copy ${label}`}
+        disabled={!value}
+        onClick={() => {
+          void copyPackageMetadata(label, value);
+        }}
+        size="icon-xs"
+        type="button"
+        variant="ghost"
+      >
+        <CopyIcon />
+      </Button>
+    </div>
+  );
+}
+
+export function AdminPackageFormDialog({
+  dialogState,
+  onOpenChange,
+  onPackageSaved,
+  prefillById,
+}: AdminPackageFormDialogProps) {
+  const queryClient = useQueryClient();
   const createMutation = useAction(createPackageAction);
   const updateMutation = useAction(updatePackageAction);
 
@@ -149,8 +197,9 @@ export function AdminPackageFormDialog({ dialogState, onOpenChange, prefillById 
     }
 
     toast.success(isEditMode ? "Package updated." : "Package created.");
+    await queryClient.invalidateQueries({ queryKey: ADMIN_PACKAGE_QUERY_KEY });
+    onPackageSaved();
     onOpenChange(false);
-    router.refresh();
   }
 
   return (
@@ -167,16 +216,10 @@ export function AdminPackageFormDialog({ dialogState, onOpenChange, prefillById 
 
         <form className="space-y-5" noValidate onSubmit={form.handleSubmit(handleSubmitPackage)}>
           {isEditMode ? (
-            <FieldGroup className="gap-4">
-              <Field>
-                <FieldLabel htmlFor="package-id-readonly">Package ID</FieldLabel>
-                <Input id="package-id-readonly" readOnly value={activePrefill?.id ?? "-"} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="package-code-readonly">Package Code</FieldLabel>
-                <Input id="package-code-readonly" readOnly value={activePrefill?.code ?? "-"} />
-              </Field>
-            </FieldGroup>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <PackageMetadataValue label="Package ID" value={activePrefill?.id} />
+              <PackageMetadataValue label="Package Code" value={activePrefill?.code} />
+            </div>
           ) : null}
 
           <FieldGroup className="gap-4">
@@ -186,7 +229,17 @@ export function AdminPackageFormDialog({ dialogState, onOpenChange, prefillById 
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="package-name">Package Name</FieldLabel>
-                  <Input {...field} id="package-name" placeholder="Pro Trader" />
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <Package />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      {...field}
+                      aria-invalid={fieldState.invalid}
+                      id="package-name"
+                      placeholder="Pro Trader"
+                    />
+                  </InputGroup>
                   {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                 </Field>
               )}
@@ -199,17 +252,23 @@ export function AdminPackageFormDialog({ dialogState, onOpenChange, prefillById 
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="package-amount-rp">Amount (Rp)</FieldLabel>
-                    <Input
-                      id="package-amount-rp"
-                      inputMode="numeric"
-                      min={0}
-                      onChange={(event) => {
-                        const nextValue = Number.isNaN(event.target.valueAsNumber) ? 0 : event.target.valueAsNumber;
-                        field.onChange(nextValue);
-                      }}
-                      type="number"
-                      value={field.value}
-                    />
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <BadgeDollarSign />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        aria-invalid={fieldState.invalid}
+                        id="package-amount-rp"
+                        inputMode="numeric"
+                        min={0}
+                        onChange={(event) => {
+                          const nextValue = Number.isNaN(event.target.valueAsNumber) ? 0 : event.target.valueAsNumber;
+                          field.onChange(nextValue);
+                        }}
+                        type="number"
+                        value={field.value}
+                      />
+                    </InputGroup>
                     {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                   </Field>
                 )}
@@ -221,17 +280,23 @@ export function AdminPackageFormDialog({ dialogState, onOpenChange, prefillById 
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="package-duration-days">Duration (days)</FieldLabel>
-                    <Input
-                      id="package-duration-days"
-                      inputMode="numeric"
-                      min={1}
-                      onChange={(event) => {
-                        const nextValue = Number.isNaN(event.target.valueAsNumber) ? 1 : event.target.valueAsNumber;
-                        field.onChange(nextValue);
-                      }}
-                      type="number"
-                      value={field.value}
-                    />
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <CalendarDays />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        aria-invalid={fieldState.invalid}
+                        id="package-duration-days"
+                        inputMode="numeric"
+                        min={1}
+                        onChange={(event) => {
+                          const nextValue = Number.isNaN(event.target.valueAsNumber) ? 1 : event.target.valueAsNumber;
+                          field.onChange(nextValue);
+                        }}
+                        type="number"
+                        value={field.value}
+                      />
+                    </InputGroup>
                     {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                   </Field>
                 )}
@@ -244,12 +309,18 @@ export function AdminPackageFormDialog({ dialogState, onOpenChange, prefillById 
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="package-checkout-url">Checkout URL</FieldLabel>
-                  <Input
-                    {...field}
-                    id="package-checkout-url"
-                    placeholder="https://checkout.example.com/plan"
-                    value={field.value ?? ""}
-                  />
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <LinkIcon />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      {...field}
+                      aria-invalid={fieldState.invalid}
+                      id="package-checkout-url"
+                      placeholder="https://checkout.example.com/plan"
+                      value={field.value ?? ""}
+                    />
+                  </InputGroup>
                   <FieldDescription>Leave blank to store null checkout URL.</FieldDescription>
                   {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                 </Field>

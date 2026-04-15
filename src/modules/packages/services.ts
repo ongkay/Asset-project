@@ -88,6 +88,7 @@ export async function buildPackageAdminRow(packageRow: PackageRow): Promise<Pack
   ]);
 
   return {
+    accessKeys: packageRow.accessKeys,
     amountRp: packageRow.amountRp,
     checkoutUrl: packageRow.checkoutUrl,
     code: packageRow.code,

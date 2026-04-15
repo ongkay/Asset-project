@@ -5,6 +5,8 @@ import {
   sortPackageAccessKeysCanonical,
   type PackageFormInput,
   type PackageSummary,
+  type PackageTableSortKey,
+  type PackageTableSortOrder,
   type PackageToggleInput,
 } from "./types";
 
@@ -13,6 +15,8 @@ const packageAccessKeySchema = z.enum(PACKAGE_ACCESS_KEYS, {
 });
 
 const packageSummarySchema = z.enum(["private", "share", "mixed"]);
+const packageTableSortKeySchema = z.enum(["status", "updatedAt"]);
+const packageTableSortOrderSchema = z.enum(["asc", "desc"]);
 
 function normalizeCheckoutUrl(value: string | null | undefined): string | null {
   if (value === null || value === undefined) {
@@ -84,6 +88,8 @@ export const packageTableFilterSchema = z.object({
     .optional()
     .default(null),
   summary: packageSummarySchema.nullable().optional().default(null),
+  sort: packageTableSortKeySchema.nullable().optional().default(null),
+  order: packageTableSortOrderSchema.nullable().optional().default(null),
 });
 
 export const packageToggleSchema = z.object({
@@ -95,6 +101,8 @@ export type PackageTableFilterInput = z.input<typeof packageTableFilterSchema>;
 export type PackageTableFilter = {
   page: number;
   pageSize: number;
+  order: PackageTableSortOrder | null;
   search: string | null;
+  sort: PackageTableSortKey | null;
   summary: PackageSummary | null;
 };

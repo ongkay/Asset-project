@@ -1,8 +1,14 @@
 import type { ReactNode } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 
-import type { PackageAdminRow } from "@/modules/packages/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+import type { PackageAdminRow, PackageTableSortKey, PackageTableSortOrder } from "@/modules/packages/types";
+
+import { AdminPackageRowActions } from "./package-row-actions";
 
 import type { AdminPackageTableColumnKey } from "./package-types";
 
@@ -36,6 +42,37 @@ function formatDateTime(value: string) {
   }).format(date);
 }
 
+function SortableHeader({
+  children,
+  sortKey,
+  sortOrder,
+  sortValue,
+  onSortChange,
+}: {
+  children: string;
+  sortKey: PackageTableSortKey;
+  sortOrder: PackageTableSortOrder | null;
+  sortValue: PackageTableSortKey | null;
+  onSortChange: (sortKey: PackageTableSortKey) => void;
+}) {
+  const isActive = sortValue === sortKey;
+  const SortIcon = !isActive ? ArrowUpDownIcon : sortOrder === "asc" ? ArrowUpIcon : ArrowDownIcon;
+
+  return (
+    <Button
+      className="-ml-2 h-8 px-2 text-muted-foreground data-[active=true]:text-foreground"
+      data-active={isActive ? "true" : undefined}
+      onClick={() => onSortChange(sortKey)}
+      size="sm"
+      type="button"
+      variant="ghost"
+    >
+      {children}
+      <SortIcon data-icon="inline-end" />
+    </Button>
+  );
+}
+
 const SUMMARY_LABEL_BY_VALUE: Record<PackageAdminRow["summary"], string> = {
   mixed: "Mixed",
   private: "Private",
@@ -47,9 +84,11 @@ export const ADMIN_PACKAGE_TABLE_COLUMNS: AdminPackageColumnDefinition[] = [
     key: "name",
     label: "Package",
     renderCell: (row) => (
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 max-w-72 flex-col gap-1">
         <span className="truncate font-medium">{row.name}</span>
-        <span className="text-xs text-muted-foreground">{row.code}</span>
+        <span className="truncate text-muted-foreground text-xs" title={row.accessKeys.join(", ")}>
+          {row.accessKeys.join(", ")}
+        </span>
       </div>
     ),
   },
@@ -94,3 +133,56 @@ export const ADMIN_PACKAGE_TABLE_COLUMNS: AdminPackageColumnDefinition[] = [
     label: "Actions",
   },
 ];
+
+export function createAdminPackageTableColumns({
+  onEditPackage,
+  onSortChange,
+  sortOrder,
+  sortValue,
+}: {
+  onEditPackage: (packageId: string) => void;
+  onSortChange: (sortKey: PackageTableSortKey) => void;
+  sortOrder: PackageTableSortOrder | null;
+  sortValue: PackageTableSortKey | null;
+}): ColumnDef<PackageAdminRow>[] {
+  return ADMIN_PACKAGE_TABLE_COLUMNS.map((column) => {
+    if (column.key === "actions") {
+      return {
+        id: column.key,
+        header: column.label,
+        cell: ({ row }) => <AdminPackageRowActions onEditPackage={onEditPackage} row={row.original} />,
+        enableHiding: false,
+      };
+    }
+
+    if (column.key === "status") {
+      return {
+        id: column.key,
+        header: () => (
+          <SortableHeader onSortChange={onSortChange} sortKey="status" sortOrder={sortOrder} sortValue={sortValue}>
+            {column.label}
+          </SortableHeader>
+        ),
+        cell: ({ row }) => column.renderCell?.(row.original) ?? "-",
+      };
+    }
+
+    if (column.key === "updatedAt") {
+      return {
+        id: column.key,
+        header: () => (
+          <SortableHeader onSortChange={onSortChange} sortKey="updatedAt" sortOrder={sortOrder} sortValue={sortValue}>
+            {column.label}
+          </SortableHeader>
+        ),
+        cell: ({ row }) => column.renderCell?.(row.original) ?? "-",
+      };
+    }
+
+    return {
+      id: column.key,
+      header: column.label,
+      cell: ({ row }) => column.renderCell?.(row.original) ?? "-",
+    };
+  });
+}

@@ -1,5 +1,7 @@
 import type { PackageEditorPrefill, PackageTableFilters, PackageTablePage } from "@/modules/admin/packages/types";
 
+export const ADMIN_PACKAGE_QUERY_KEY = ["admin-packages"] as const;
+
 export const PACKAGE_TABLE_COLUMN_KEYS = [
   "name",
   "summary",

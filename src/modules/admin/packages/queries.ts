@@ -21,16 +21,20 @@ function requirePackageSummaryFromAccessKeys(accessKeys: Parameters<typeof deriv
 }
 
 export async function getPackageTablePage(input: {
+  order?: "asc" | "desc" | null;
   page?: number;
   pageSize?: number;
   search?: string | null;
+  sort?: "status" | "updatedAt" | null;
   summary?: "private" | "share" | "mixed" | null;
 }): Promise<PackageTablePage> {
   const parsedFilters = packageTableFilterSchema.parse(input);
   const packageRows = await listPackages({
+    order: parsedFilters.order,
     page: parsedFilters.page,
     pageSize: parsedFilters.pageSize,
     search: parsedFilters.search,
+    sort: parsedFilters.sort,
     summary: parsedFilters.summary,
   });
 
@@ -50,6 +54,7 @@ export async function getPackageTablePage(input: {
   }, {});
 
   const packageItems = packageRows.items.map((packageRow) => ({
+    accessKeys: packageRow.accessKeys,
     amountRp: packageRow.amountRp,
     checkoutUrl: packageRow.checkoutUrl,
     code: packageRow.code,

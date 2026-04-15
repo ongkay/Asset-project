@@ -14,7 +14,9 @@ import {
   type PackageRow,
   type PackageSummary,
   type PackageTableResult,
+  type PackageTableSortKey,
   type PackageToggleInput,
+  type PackageTableSortOrder,
 } from "./types";
 
 type PackageDatabaseRow = {
@@ -56,9 +58,11 @@ type CurrentSubscriptionRow = {
 };
 
 type PackageListInput = {
+  order: PackageTableSortOrder | null;
   page: number;
   pageSize: number;
   search: string | null;
+  sort: PackageTableSortKey | null;
   summary: PackageSummary | null;
 };
 
@@ -136,9 +140,56 @@ function mapPackageDatabaseRow(data: PackageDatabaseRow): PackageRow {
   };
 }
 
-async function listPackagesBySearch(input: { search: string | null }) {
+function sortPackageRows(
+  rows: PackageDatabaseRow[],
+  input: {
+    order: PackageTableSortOrder | null;
+    sort: PackageTableSortKey | null;
+  },
+) {
+  if (!input.sort || !input.order) {
+    return rows;
+  }
+
+  const direction = input.order === "asc" ? 1 : -1;
+
+  return [...rows].sort((leftRow, rightRow) => {
+    if (input.sort === "status") {
+      return (Number(leftRow.is_active) - Number(rightRow.is_active)) * direction;
+    }
+
+    return (new Date(leftRow.updated_at).getTime() - new Date(rightRow.updated_at).getTime()) * direction;
+  });
+}
+
+function applyPackageSort<TQuery extends { order: (column: string, options?: { ascending?: boolean }) => TQuery }>(
+  query: TQuery,
+  input: {
+    order: PackageTableSortOrder | null;
+    sort: PackageTableSortKey | null;
+  },
+) {
+  if (input.sort === "status" && input.order) {
+    return query.order("is_active", { ascending: input.order === "asc" });
+  }
+
+  if (input.sort === "updatedAt" && input.order) {
+    return query.order("updated_at", { ascending: input.order === "asc" });
+  }
+
+  return query.order("created_at", { ascending: false });
+}
+
+async function listPackagesBySearch(input: {
+  order: PackageTableSortOrder | null;
+  search: string | null;
+  sort: PackageTableSortKey | null;
+}) {
   const database = createPackagesRepositoryDatabase();
-  let query = database.from("packages").select(PACKAGE_BASE_SELECT_FIELDS).order("created_at", { ascending: false });
+  let query = applyPackageSort(database.from("packages").select(PACKAGE_BASE_SELECT_FIELDS), {
+    order: input.order,
+    sort: input.sort,
+  });
 
   if (input.search) {
     query = query.ilike("name", `%${input.search}%`);
@@ -159,13 +210,15 @@ export async function listPackages(input: PackageListInput): Promise<PackageTabl
   const endIndex = startIndex + input.pageSize - 1;
 
   if (!input.summary) {
-    let query = database
-      .from("packages")
-      .select(PACKAGE_BASE_SELECT_FIELDS, {
+    let query = applyPackageSort(
+      database.from("packages").select(PACKAGE_BASE_SELECT_FIELDS, {
         count: "exact",
-      })
-      .order("created_at", { ascending: false })
-      .range(startIndex, endIndex);
+      }),
+      {
+        order: input.order,
+        sort: input.sort,
+      },
+    ).range(startIndex, endIndex);
 
     if (input.search) {
       query = query.ilike("name", `%${input.search}%`);
@@ -188,7 +241,9 @@ export async function listPackages(input: PackageListInput): Promise<PackageTabl
   }
 
   const allCandidateRows = await listPackagesBySearch({
+    order: input.order,
     search: input.search,
+    sort: input.sort,
   });
 
   const summaryByPackageId = allCandidateRows.map((candidateRow) => ({
@@ -202,7 +257,13 @@ export async function listPackages(input: PackageListInput): Promise<PackageTabl
       .map((candidate) => candidate.packageId),
   );
 
-  const filteredRows = allCandidateRows.filter((candidateRow) => matchedIds.has(candidateRow.id));
+  const filteredRows = sortPackageRows(
+    allCandidateRows.filter((candidateRow) => matchedIds.has(candidateRow.id)),
+    {
+      order: input.order,
+      sort: input.sort,
+    },
+  );
   const pagedRows = filteredRows.slice(startIndex, startIndex + input.pageSize).map(mapPackageDatabaseRow);
 
   return {

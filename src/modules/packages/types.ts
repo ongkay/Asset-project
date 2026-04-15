@@ -10,6 +10,8 @@ export const PACKAGE_ACCESS_KEYS = [
 export type PackageAccessKey = (typeof PACKAGE_ACCESS_KEYS)[number];
 
 export type PackageSummary = "private" | "share" | "mixed";
+export type PackageTableSortKey = "status" | "updatedAt";
+export type PackageTableSortOrder = "asc" | "desc";
 
 const packageAccessKeyOrderMap: ReadonlyMap<PackageAccessKey, number> = new Map(
   PACKAGE_ACCESS_KEYS.map((accessKey, index) => [accessKey, index]),
@@ -84,6 +86,7 @@ export type PackageEditorData = {
 };
 
 export type PackageAdminRow = {
+  accessKeys: PackageAccessKey[];
   amountRp: number;
   checkoutUrl: string | null;
   code: string;

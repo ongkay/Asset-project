@@ -1,9 +1,8 @@
 "use client";
 
-import { X } from "lucide-react";
+import { ListFilter, Search, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -17,19 +16,15 @@ import {
 import type { PackageSummary } from "@/modules/packages/types";
 
 type AdminPackageFilterBarProps = {
-  onPageSizeChange: (pageSize: number) => void;
   onSearchChange: (search: string) => void;
   onSummaryChange: (summary: PackageSummary | null) => void;
-  pageSizeValue: number;
   searchValue: string;
   summaryValue: PackageSummary | null;
 };
 
 export function AdminPackageFilterBar({
-  pageSizeValue,
   searchValue,
   summaryValue,
-  onPageSizeChange,
   onSearchChange,
   onSummaryChange,
 }: AdminPackageFilterBarProps) {
@@ -42,32 +37,31 @@ export function AdminPackageFilterBar({
   }
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <div className="relative w-full max-w-lg">
-        <Input
+    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center @3xl/main:max-w-2xl">
+      <InputGroup className="w-full sm:min-w-72">
+        <InputGroupAddon>
+          <Search />
+        </InputGroupAddon>
+        <InputGroupInput
           aria-label="Search package by name"
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search package name"
           value={searchValue}
         />
         {searchValue ? (
-          <Button
-            aria-label="Clear search"
-            className="absolute top-1 right-1"
-            onClick={() => onSearchChange("")}
-            size="icon-xs"
-            type="button"
-            variant="ghost"
-          >
-            <X />
-          </Button>
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton aria-label="Clear search" onClick={() => onSearchChange("")} size="icon-xs">
+              <X />
+            </InputGroupButton>
+          </InputGroupAddon>
         ) : null}
-      </div>
+      </InputGroup>
       <Select
         onValueChange={(value) => onSummaryChange(value === "all" ? null : parseSummaryValue(value))}
         value={summaryValue ?? "all"}
       >
-        <SelectTrigger aria-label="Filter package summary" className="w-full sm:w-44">
+        <SelectTrigger aria-label="Filter package summary" className="w-full sm:w-44" size="sm">
+          <ListFilter />
           <SelectValue placeholder="Summary" />
         </SelectTrigger>
         <SelectContent>
@@ -77,20 +71,6 @@ export function AdminPackageFilterBar({
             <SelectItem value="private">Private</SelectItem>
             <SelectItem value="share">Share</SelectItem>
             <SelectItem value="mixed">Mixed</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-
-      <Select onValueChange={(value) => onPageSizeChange(Number.parseInt(value, 10))} value={String(pageSizeValue)}>
-        <SelectTrigger aria-label="Rows per page" className="w-full sm:w-36">
-          <SelectValue placeholder="Rows" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectLabel>Rows</SelectLabel>
-            <SelectItem value="10">10</SelectItem>
-            <SelectItem value="20">20</SelectItem>
-            <SelectItem value="50">50</SelectItem>
           </SelectGroup>
         </SelectContent>
       </Select>

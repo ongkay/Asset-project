@@ -1,8 +1,7 @@
 "use client";
 
-import { Columns3, Plus } from "lucide-react";
+import { ChevronDownIcon, PlusIcon, Settings2 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,77 +21,63 @@ import type { PackageSummary } from "@/modules/packages/types";
 
 type AdminPackageToolbarProps = {
   onCreatePackage: () => void;
-  onPageSizeChange: (pageSize: number) => void;
   onSearchChange: (search: string) => void;
   onSummaryChange: (summary: PackageSummary | null) => void;
   onToggleColumn: (columnKey: keyof AdminPackageColumnVisibility, nextVisible: boolean) => void;
-  pageSizeValue: number;
   searchValue: string;
   summaryValue: PackageSummary | null;
-  totalCount: number;
   visibleColumns: AdminPackageColumnVisibility;
 };
 
 export function AdminPackageToolbar({
-  totalCount,
   onCreatePackage,
-  onPageSizeChange,
   onSearchChange,
   onSummaryChange,
   onToggleColumn,
-  pageSizeValue,
   searchValue,
   summaryValue,
   visibleColumns,
 }: AdminPackageToolbarProps) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">Package Management</Badge>
-          <Badge variant="secondary">{totalCount} total</Badge>
-        </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" type="button" variant="outline">
-                <Columns3 data-icon="inline-start" />
-                Columns
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel>Visible Columns</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                {ADMIN_PACKAGE_TABLE_COLUMNS.filter((column) => column.key !== "actions").map((column) => (
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns[column.key]}
-                    key={column.key}
-                    onCheckedChange={(checked) => onToggleColumn(column.key, Boolean(checked))}
-                    onSelect={(event) => event.preventDefault()}
-                  >
-                    {column.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button onClick={onCreatePackage} size="sm" type="button">
-            <Plus data-icon="inline-start" />
-            Add Package
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center @3xl/main:justify-between">
       <AdminPackageFilterBar
-        onPageSizeChange={onPageSizeChange}
         onSearchChange={onSearchChange}
         onSummaryChange={onSummaryChange}
-        pageSizeValue={pageSizeValue}
         searchValue={searchValue}
         summaryValue={summaryValue}
       />
+      <div className="flex w-full items-center gap-2 @3xl/main:w-auto @3xl/main:justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="flex-1 @3xl/main:flex-none" size="sm" type="button" variant="outline">
+              <Settings2 data-icon="inline-start" />
+              View
+              <ChevronDownIcon data-icon="inline-end" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel>Visible Columns</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {ADMIN_PACKAGE_TABLE_COLUMNS.filter((column) => column.key !== "actions").map((column) => (
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns[column.key]}
+                  key={column.key}
+                  onCheckedChange={(checked) => onToggleColumn(column.key, Boolean(checked))}
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  {column.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button className="flex-1 @3xl/main:flex-none" onClick={onCreatePackage} size="sm" type="button">
+          <PlusIcon data-icon="inline-start" />
+          Add Package
+        </Button>
+      </div>
     </div>
   );
 }

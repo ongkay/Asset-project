@@ -1,9 +1,18 @@
-import type { PackageAdminRow, PackageEditorData, PackageSummary, PackageTableResult } from "@/modules/packages/types";
+import type {
+  PackageAdminRow,
+  PackageEditorData,
+  PackageSummary,
+  PackageTableResult,
+  PackageTableSortKey,
+  PackageTableSortOrder,
+} from "@/modules/packages/types";
 
 export type PackageTableFilters = {
   page: number;
   pageSize: number;
+  order: PackageTableSortOrder | null;
   search: string | null;
+  sort: PackageTableSortKey | null;
   summary: PackageSummary | null;
 };
 

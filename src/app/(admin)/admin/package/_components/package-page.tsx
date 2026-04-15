@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
+import { useQuery } from "@tanstack/react-query";
+import { PackageCheck, ToggleLeft, Users } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getLocalStorageValue, setLocalStorageValue } from "@/lib/local-storage.client";
-import { getPackageEditorDataAction } from "@/modules/admin/packages/actions";
+import { getPackageEditorDataAction, getPackageTablePageAction } from "@/modules/admin/packages/actions";
 
 import { AdminPackageFormDialog } from "./package-form-dialog";
 import { AdminPackageTable } from "./package-table";
 import { AdminPackageToolbar } from "./package-toolbar";
-import { PACKAGE_TABLE_COLUMN_KEYS } from "./package-types";
+import { ADMIN_PACKAGE_QUERY_KEY, PACKAGE_TABLE_COLUMN_KEYS } from "./package-types";
 
 import type {
   AdminPackageColumnVisibility,
@@ -19,8 +23,9 @@ import type {
   AdminPackagePageProps,
   AdminPackageTableColumnKey,
 } from "./package-types";
-import type { PackageSummary } from "@/modules/packages/types";
+import type { PackageSummary, PackageTableSortKey, PackageTableSortOrder } from "@/modules/packages/types";
 import type { PackageEditorPrefill } from "@/modules/admin/packages/types";
+import type { PackageTablePage } from "@/modules/admin/packages/types";
 
 const COLUMN_VISIBILITY_STORAGE_KEY = "admin.package.columns.v1";
 
@@ -72,22 +77,84 @@ function useDebouncedValue<TValue>(value: TValue, delayMs: number) {
   return debouncedValue;
 }
 
-export function AdminPackagePage({ tablePage, tableError, filters, initialEditorPrefillById }: AdminPackagePageProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+async function fetchPackageTablePage(input: {
+  order: PackageTableSortOrder | null;
+  page: number;
+  pageSize: number;
+  search: string | null;
+  sort: PackageTableSortKey | null;
+  summary: PackageSummary | null;
+}) {
+  const result = await getPackageTablePageAction(input);
 
-  const [isRefreshing, startTransition] = useTransition();
+  if (result?.data?.ok) {
+    return result.data.tablePage;
+  }
+
+  const validationError = result?.validationErrors?.formErrors?.[0];
+  const message = validationError ?? result?.data?.message ?? "Failed to load package table.";
+
+  throw new Error(message);
+}
+
+function getPackagePageStats(tablePage: PackageTablePage) {
+  const activePackages = tablePage.items.filter((packageRow) => packageRow.isActive).length;
+  const currentPageUses = tablePage.items.reduce((totalUses, packageRow) => totalUses + packageRow.totalUsed, 0);
+
+  return {
+    activePackages,
+    currentPageUses,
+    inactivePackages: tablePage.items.length - activePackages,
+    totalPackages: tablePage.totalCount,
+  };
+}
+
+export function AdminPackagePage({
+  tablePage: initialTablePage,
+  tableError,
+  filters,
+  initialEditorPrefillById,
+}: AdminPackagePageProps) {
+  const pathname = usePathname();
+
   const editRequestCounterRef = useRef(0);
   const [dialogState, setDialogState] = useState<AdminPackageDialogState>({ mode: null, open: false });
   const [editorPrefillById, setEditorPrefillById] =
     useState<Record<string, PackageEditorPrefill>>(initialEditorPrefillById);
+  const [tableFilters, setTableFilters] = useState(filters);
   const [searchInput, setSearchInput] = useState(filters.search ?? "");
   const [summaryFilter, setSummaryFilter] = useState<PackageSummary | null>(filters.summary);
-  const [pageSize, setPageSize] = useState<number>(filters.pageSize);
   const [visibleColumns, setVisibleColumns] = useState<AdminPackageColumnVisibility>(DEFAULT_COLUMN_VISIBILITY);
 
   const debouncedSearch = useDebouncedValue(searchInput, 300);
+  const isInitialQueryFilters =
+    tableFilters.page === filters.page &&
+    tableFilters.pageSize === filters.pageSize &&
+    tableFilters.order === filters.order &&
+    tableFilters.search === filters.search &&
+    tableFilters.sort === filters.sort &&
+    tableFilters.summary === filters.summary;
+  const packageTableQuery = useQuery({
+    queryKey: [
+      ...ADMIN_PACKAGE_QUERY_KEY,
+      {
+        page: tableFilters.page,
+        pageSize: tableFilters.pageSize,
+        order: tableFilters.order,
+        search: tableFilters.search,
+        sort: tableFilters.sort,
+        summary: tableFilters.summary,
+      },
+    ],
+    queryFn: () => fetchPackageTablePage(tableFilters),
+    initialData: !tableError && isInitialQueryFilters ? initialTablePage : undefined,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const tablePage = packageTableQuery.data ?? initialTablePage;
+  const queryError = packageTableQuery.error instanceof Error ? packageTableQuery.error.message : null;
+  const tableErrorMessage = queryError ?? tableError;
+  const pageStats = getPackagePageStats(tablePage);
 
   useEffect(() => {
     setVisibleColumns(parseColumnVisibility(getLocalStorageValue(COLUMN_VISIBILITY_STORAGE_KEY)));
@@ -95,70 +162,93 @@ export function AdminPackagePage({ tablePage, tableError, filters, initialEditor
 
   useEffect(() => {
     const normalizedSearch = debouncedSearch.trim();
-    const currentSearch = filters.search ?? "";
+    const nextSearch = normalizedSearch.length > 0 ? normalizedSearch : null;
 
-    if (normalizedSearch === currentSearch && summaryFilter === filters.summary && pageSize === filters.pageSize) {
-      return;
-    }
-
-    const nextSearchParams = new URLSearchParams(searchParams.toString());
-
-    if (normalizedSearch.length === 0) {
-      nextSearchParams.delete("search");
-    } else {
-      nextSearchParams.set("search", normalizedSearch);
-    }
-
-    if (!summaryFilter) {
-      nextSearchParams.delete("summary");
-    } else {
-      nextSearchParams.set("summary", summaryFilter);
-    }
-
-    if (pageSize === 10) {
-      nextSearchParams.delete("pageSize");
-    } else {
-      nextSearchParams.set("pageSize", String(pageSize));
-    }
-
-    nextSearchParams.set("page", "1");
-
-    startTransition(() => {
-      router.replace(`${pathname}?${nextSearchParams.toString()}`);
-    });
-  }, [
-    debouncedSearch,
-    filters.pageSize,
-    filters.search,
-    filters.summary,
-    pageSize,
-    pathname,
-    router,
-    searchParams,
-    summaryFilter,
-  ]);
-
-  const hasAnyTableData = tablePage.items.length > 0;
-  const hasError = Boolean(tableError);
-  const isTableLoading = isRefreshing && !hasError && !hasAnyTableData;
-
-  const canGoToPage = useMemo(
-    () => (page: number) => {
-      const nextPage = page < 1 ? 1 : page;
-      const nextSearchParams = new URLSearchParams(searchParams.toString());
-
-      if (nextPage <= 1) {
-        nextSearchParams.delete("page");
-      } else {
-        nextSearchParams.set("page", String(nextPage));
+    setTableFilters((currentFilters) => {
+      if (currentFilters.search === nextSearch && currentFilters.summary === summaryFilter) {
+        return currentFilters;
       }
 
-      startTransition(() => {
-        router.replace(`${pathname}?${nextSearchParams.toString()}`);
-      });
-    },
-    [pathname, router, searchParams],
-  );
+      return {
+        ...currentFilters,
+        page: 1,
+        search: nextSearch,
+        summary: summaryFilter,
+      };
+    });
+  }, [debouncedSearch, summaryFilter]);
+
+  useEffect(() => {
+    const nextSearchParams = new URLSearchParams();
+
+    if (tableFilters.search) {
+      nextSearchParams.set("search", tableFilters.search);
+    }
+
+    if (tableFilters.summary) {
+      nextSearchParams.set("summary", tableFilters.summary);
+    }
+
+    if (tableFilters.page > 1) {
+      nextSearchParams.set("page", String(tableFilters.page));
+    }
+
+    if (tableFilters.pageSize !== 10) {
+      nextSearchParams.set("pageSize", String(tableFilters.pageSize));
+    }
+
+    if (tableFilters.sort && tableFilters.order) {
+      nextSearchParams.set("sort", tableFilters.sort);
+      nextSearchParams.set("order", tableFilters.order);
+    }
+
+    const nextQueryString = nextSearchParams.toString();
+    const nextUrl = nextQueryString ? `${pathname}?${nextQueryString}` : pathname;
+    window.history.replaceState(null, "", nextUrl);
+  }, [pathname, tableFilters]);
+
+  function handlePageChange(page: number) {
+    setTableFilters((currentFilters) => ({
+      ...currentFilters,
+      page: Math.max(1, page),
+    }));
+  }
+
+  function handlePageSizeChange(pageSize: number) {
+    setTableFilters((currentFilters) => ({
+      ...currentFilters,
+      page: 1,
+      pageSize,
+    }));
+  }
+
+  function handleSortChange(sort: PackageTableSortKey) {
+    setTableFilters((currentFilters) => {
+      if (currentFilters.sort !== sort) {
+        return {
+          ...currentFilters,
+          order: "asc",
+          page: 1,
+          sort,
+        };
+      }
+
+      if (currentFilters.order === "asc") {
+        return {
+          ...currentFilters,
+          order: "desc",
+          page: 1,
+        };
+      }
+
+      return {
+        ...currentFilters,
+        order: null,
+        page: 1,
+        sort: null,
+      };
+    });
+  }
 
   useEffect(() => {
     setEditorPrefillById(initialEditorPrefillById);
@@ -216,42 +306,88 @@ export function AdminPackagePage({ tablePage, tableError, filters, initialEditor
 
   return (
     <>
-      <Card className="border-border/60 shadow-xs">
-        <CardHeader className="space-y-1">
-          <CardTitle>Package Management</CardTitle>
-          <CardDescription>
-            Manage package pricing, access bundles, and activation status with server-side filtered table state.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <AdminPackageToolbar
-            onCreatePackage={() => setDialogState({ mode: "create", open: true })}
-            onPageSizeChange={(nextPageSize) => setPageSize(nextPageSize)}
-            onSearchChange={setSearchInput}
-            onSummaryChange={setSummaryFilter}
-            onToggleColumn={handleToggleColumn}
-            pageSizeValue={pageSize}
-            searchValue={searchInput}
-            summaryValue={summaryFilter}
-            totalCount={tablePage.totalCount}
-            visibleColumns={visibleColumns}
-          />
+      <div className="@container/main flex flex-col gap-4 md:gap-6">
+        <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs dark:*:data-[slot=card]:bg-card @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+          <Card className="@container/card">
+            <CardHeader>
+              <CardDescription>Total Packages</CardDescription>
+              <CardTitle className="font-semibold text-2xl tabular-nums @[250px]/card:text-3xl">
+                {pageStats.totalPackages}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="@container/card">
+            <CardHeader>
+              <CardDescription>Active on This Page</CardDescription>
+              <CardTitle className="font-semibold text-2xl tabular-nums @[250px]/card:text-3xl">
+                {pageStats.activePackages}
+              </CardTitle>
+              <Badge variant="outline">
+                <PackageCheck />
+                Active
+              </Badge>
+            </CardHeader>
+          </Card>
+          <Card className="@container/card">
+            <CardHeader>
+              <CardDescription>Inactive on This Page</CardDescription>
+              <CardTitle className="font-semibold text-2xl tabular-nums @[250px]/card:text-3xl">
+                {pageStats.inactivePackages}
+              </CardTitle>
+              <Badge variant="outline">
+                <ToggleLeft />
+                Paused
+              </Badge>
+            </CardHeader>
+          </Card>
+          <Card className="@container/card">
+            <CardHeader>
+              <CardDescription>Active Uses on This Page</CardDescription>
+              <CardTitle className="font-semibold text-2xl tabular-nums @[250px]/card:text-3xl">
+                {pageStats.currentPageUses}
+              </CardTitle>
+              <Badge variant="outline">
+                <Users />
+                Uses
+              </Badge>
+            </CardHeader>
+          </Card>
+        </div>
 
-          <AdminPackageTable
-            isLoading={isTableLoading}
-            onEditPackage={(packageId) => {
-              void handleOpenEditPackage(packageId);
-            }}
-            onPageChange={(page) => canGoToPage(page)}
-            tableError={tableError}
-            tablePage={tablePage}
-            visibleColumns={visibleColumns}
-          />
-        </CardContent>
-      </Card>
+        <Card className="border-border/60 py-4 shadow-xs">
+          <CardContent className="flex flex-col gap-5 px-4 lg:px-6">
+            <AdminPackageToolbar
+              onCreatePackage={() => setDialogState({ mode: "create", open: true })}
+              onSearchChange={setSearchInput}
+              onSummaryChange={setSummaryFilter}
+              onToggleColumn={handleToggleColumn}
+              searchValue={searchInput}
+              summaryValue={summaryFilter}
+              visibleColumns={visibleColumns}
+            />
+
+            <AdminPackageTable
+              isFetching={packageTableQuery.isFetching}
+              isLoading={packageTableQuery.isLoading && !packageTableQuery.data}
+              onEditPackage={(packageId) => {
+                void handleOpenEditPackage(packageId);
+              }}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+              onSortChange={handleSortChange}
+              sortOrder={tableFilters.order}
+              sortValue={tableFilters.sort}
+              tableError={tableErrorMessage}
+              tablePage={tablePage}
+              visibleColumns={visibleColumns}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       <AdminPackageFormDialog
         dialogState={dialogState}
+        onPackageSaved={() => setEditorPrefillById({})}
         onOpenChange={(open) => {
           if (!open) {
             setDialogState({ mode: null, open: false });

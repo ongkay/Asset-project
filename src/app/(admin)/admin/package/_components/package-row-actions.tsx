@@ -1,9 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 import { MoreHorizontal } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { togglePackageActiveAction } from "@/modules/packages/actions";
+import { ADMIN_PACKAGE_QUERY_KEY } from "./package-types";
 import type { PackageAdminRow } from "@/modules/packages/types";
 
 type AdminPackageRowActionsProps = {
@@ -24,7 +24,7 @@ type AdminPackageRowActionsProps = {
 };
 
 export function AdminPackageRowActions({ row, onEditPackage }: AdminPackageRowActionsProps) {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const toggleMutation = useAction(togglePackageActiveAction);
 
   const isToggling = toggleMutation.isPending;
@@ -46,7 +46,7 @@ export function AdminPackageRowActions({ row, onEditPackage }: AdminPackageRowAc
     }
 
     toast.success(`Package ${result.data.row.isActive ? "enabled" : "disabled"}.`);
-    router.refresh();
+    await queryClient.invalidateQueries({ queryKey: ADMIN_PACKAGE_QUERY_KEY });
   }
 
   return (
