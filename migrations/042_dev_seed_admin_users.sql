@@ -67,11 +67,11 @@ begin
     is_project_admin,
     is_anonymous
   ) values
-    ('91000000-0000-4000-8000-000000000007', 'seed.admin.2.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '7 days', now(), jsonb_build_object('name', 'Seed Browser Admin 2'), jsonb_build_object('seed', true, 'kind', 'browser_admin_2'), true, false),
-    ('91000000-0000-4000-8000-000000000008', 'seed.admin.3.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '6 days', now(), jsonb_build_object('name', 'Seed Browser Admin 3'), jsonb_build_object('seed', true, 'kind', 'browser_admin_3'), true, false),
-    ('91000000-0000-4000-8000-000000000009', 'seed.admin.4.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '5 days', now(), jsonb_build_object('name', 'Seed Browser Admin 4'), jsonb_build_object('seed', true, 'kind', 'browser_admin_4'), true, false),
-    ('91000000-0000-4000-8000-000000000010', 'seed.admin.5.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '4 days', now(), jsonb_build_object('name', 'Seed Browser Admin 5'), jsonb_build_object('seed', true, 'kind', 'browser_admin_5'), true, false),
-    ('91000000-0000-4000-8000-000000000011', 'seed.admin.6.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '3 days', now(), jsonb_build_object('name', 'Seed Browser Admin 6'), jsonb_build_object('seed', true, 'kind', 'browser_admin_6'), true, false);
+    ('91000000-0000-4000-8000-000000000007', 'seed.admin.2.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '7 days', now(), jsonb_build_object('name', 'Seed Browser Admin 2'), jsonb_build_object('seed', true, 'kind', 'browser_admin_2'), false, false),
+    ('91000000-0000-4000-8000-000000000008', 'seed.admin.3.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '6 days', now(), jsonb_build_object('name', 'Seed Browser Admin 3'), jsonb_build_object('seed', true, 'kind', 'browser_admin_3'), false, false),
+    ('91000000-0000-4000-8000-000000000009', 'seed.admin.4.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '5 days', now(), jsonb_build_object('name', 'Seed Browser Admin 4'), jsonb_build_object('seed', true, 'kind', 'browser_admin_4'), false, false),
+    ('91000000-0000-4000-8000-000000000010', 'seed.admin.5.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '4 days', now(), jsonb_build_object('name', 'Seed Browser Admin 5'), jsonb_build_object('seed', true, 'kind', 'browser_admin_5'), false, false),
+    ('91000000-0000-4000-8000-000000000011', 'seed.admin.6.browser@assetnext.dev', v_shared_password_hash, true, now() - interval '3 days', now(), jsonb_build_object('name', 'Seed Browser Admin 6'), jsonb_build_object('seed', true, 'kind', 'browser_admin_6'), false, false);
 
   insert into public.profiles (
     user_id,
