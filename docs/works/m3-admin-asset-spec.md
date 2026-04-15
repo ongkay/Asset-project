@@ -46,7 +46,7 @@ The purpose of this specification is to provide a machine-readable contract for 
 - Baseline migrations from `migrations/001_extensions.sql` through `migrations/030_rpc.sql` are applied to the runtime database.
 - The runtime database contains the seed and admin fixtures required for browser verification.
 - The implementation follows the folder rules in `docs/agent-rules/folder-structure.md`.
-- The implementation should reuse the required admin-table stack for this milestone, including `@tanstack/react-query`, `@tanstack/react-table`, and shared UI or state primitives under `src/components/shared/**` and `src/lib/**` when they are already present; if a minimal helper is missing, it should be added in those allowed folders instead of introducing a new stack.
+- The implementation should reuse the required admin-table stack for this milestone, including `@tanstack/react-query` for client read state, `@tanstack/react-table` for table rendering, and shared UI or state primitives under `src/components/shared/**` and `src/lib/**` when they are already present; if a minimal helper is missing, it should be added in those allowed folders instead of introducing a new stack.
 
 ## 2. Definitions
 | Term                          | Definition                                                                                                                                                 |
@@ -80,6 +80,8 @@ The purpose of this specification is to provide a machine-readable contract for 
 - **SEC-002**: All asset mutations must execute on the server.
 - **SEC-003**: The implementation must not add a new public REST endpoint for internal web UI asset management.
 - **SEC-004**: Raw `account`, `proxy`, and `asset_json` data must never be exposed in the asset-list read model, asset-list response payload, asset-list column options, or asset-list URL state.
+- **SEC-005**: Every admin asset Server Action and browser-callable read or detail transport must enforce admin access at its own boundary before reading or mutating asset data.
+- **SEC-006**: Server-side admin asset data access must be reachable only from current app admin session boundaries: `requireAdminShellAccess()` for page loads and `adminActionClient` for browser-callable read or mutation actions. After that guard, repositories must use only the repo-approved server-only InsForge database adapter, never a browser database credential.
 
 ### 3.3 Asset Data Rules
 - **REQ-020**: Asset create and edit UI flows must accept `platform`, `assetType`, `account`, `note`, `proxy`, `assetJsonText`, and `expiresAt`.
@@ -89,7 +91,7 @@ The purpose of this specification is to provide a machine-readable contract for 
 - **REQ-024**: `note` must be optional and must normalize trimmed blank input to `null`.
 - **REQ-025**: `proxy` must be optional and must normalize trimmed blank input to `null`.
 - **REQ-026**: `assetJsonText` must be required in the form, must parse successfully to JSON on the server boundary, and the parsed `assetJson` value must have top-level type `array` or `object`.
-- **REQ-027**: `expiresAt` must be required and must persist to `public.assets.expires_at` as a timestamp.
+- **REQ-027**: `expiresAt` must be required as an ISO-8601 datetime string with timezone, must be parsed server-side, and must persist to `public.assets.expires_at` as a UTC timestamp.
 - **REQ-028**: Create asset must default `expiresAt` to `now + 30 days` before the admin submits the form.
 - **REQ-029**: The server must not accept manual input for derived status.
 - **REQ-030**: The server must not accept manual input for `disabledAt`; enable and disable actions own that field.
@@ -108,7 +110,7 @@ The purpose of this specification is to provide a machine-readable contract for 
 - **REQ-043**: The asset list must support filter by derived status.
 - **REQ-044**: The asset list must support an expiry date range filter.
 - **REQ-045**: The date range filter must target `expires_at` and must use `yyyy-MM-dd` values in search params because the shared date-range component already serializes that format.
-- **REQ-046**: The asset list must support server-side pagination.
+- **REQ-046**: The asset list must support server-side pagination with stable default ordering by `created_at desc, id desc`.
 - **REQ-047**: The asset list must support persisted column visibility preferences.
 - **REQ-048**: The minimum table columns are `platform`, `expires at`, `note`, `asset type`, `status`, `total used`, `created at`, `updated at`, and `actions`.
 - **REQ-049**: `status` in the table must be computed from the server-side read model, not guessed in the client.
@@ -131,7 +133,7 @@ The purpose of this specification is to provide a machine-readable contract for 
 - **REQ-064**: For `private` assets, the current-user list must not display more than one actively using user.
 - **REQ-065**: For `share` assets, the current-user list may display multiple actively using users.
 - **REQ-066**: The current-user list must read only currently active usage and must not render purely historical revoked assignment rows in the default detail view.
-- **REQ-067**: The current-user list, active-user search predicate, and `totalUsed` computation must all use the same active-assignment predicate; optional subscription fields are enrichment only and must not add a different activity filter.
+- **REQ-067**: The current-user list, active-user search predicate, and `totalUsed` computation must all use the same active-assignment predicate as `public.v_asset_status.active_use`: `asset_assignments.asset_id = assets.id` and `asset_assignments.revoked_at is null`. Optional subscription fields are enrichment only and must not add a different activity filter unless the baseline status view changes.
 
 ### 3.6 Mutation Behavior
 - **REQ-070**: Create asset must create exactly one `public.assets` row.
@@ -142,7 +144,7 @@ The purpose of this specification is to provide a machine-readable contract for 
 - **REQ-075**: Delete asset must call `public.delete_asset_safely(asset_id)` or an equivalent server-side wrapper over the same baseline function.
 - **REQ-076**: Delete asset must remove the row from `public.assets` and must preserve assignment snapshots in `public.asset_assignments`.
 - **REQ-077**: Delete asset must not leave orphan data that violates the baseline constraints.
-- **REQ-078**: Admin create, edit, toggle, and delete entrypoints must use `next-safe-action`.
+- **REQ-078**: Admin browser-callable read, create, edit, toggle, and delete entrypoints must use `next-safe-action` through `adminActionClient`.
 - **REQ-079**: Server-side validation must reject payloads that bypass UI constraints.
 - **REQ-080**: Asset detail edit must prefill from server data and must not rely on stale client-only row data for sensitive fields.
 - **REQ-081**: Disable asset must, in the same trusted server-side flow, call `public.recheck_subscription_after_asset_change(asset_id)` or an equivalent wrapper after setting `disabled_at` so impacted assignments are revoked and affected subscriptions are re-evaluated immediately.
@@ -156,7 +158,7 @@ The purpose of this specification is to provide a machine-readable contract for 
 - **CON-002**: Keep `src/app/**` thin; route files must only compose UI, session guards, redirects, and route-local components.
 - **CON-003**: Put core asset business logic in `src/modules/assets`.
 - **CON-004**: Put admin asset read-model logic in `src/modules/admin/assets`.
-- **CON-005**: Reuse the existing repo admin-table stack with `@tanstack/react-query`, `@tanstack/react-table`, and shared primitives under `src/components/shared/**` and `src/lib/**` when those pieces fit the milestone requirements.
+- **CON-005**: Reuse the existing repo admin-table stack with `@tanstack/react-query` for client read state, `@tanstack/react-table` for table rendering, and shared primitives under `src/components/shared/**` and `src/lib/**` when those pieces fit the milestone requirements.
 - **CON-006**: Reuse existing UI primitives before adding new primitives.
 - **CON-007**: Do not introduce HeroUI.
 - **CON-008**: Do not put asset mutation logic in route files or client components.
@@ -174,10 +176,10 @@ The purpose of this specification is to provide a machine-readable contract for 
 - **PAT-001**: `src/app/(admin)/admin/assets/page.tsx` must remain route composition only.
 - **PAT-002**: Route-local UI may live in `src/app/(admin)/admin/assets/_components/**`.
 - **PAT-003**: `src/modules/assets/services.ts`, `repositories.ts`, `schemas.ts`, and `types.ts` are the canonical domain files for asset rules, persistence, and data contracts.
-- **PAT-004**: `src/modules/admin/assets/actions.ts` is the canonical admin mutation entrypoint for the `/admin/assets` route and must delegate to `src/modules/assets/services.ts`.
+- **PAT-004**: `src/modules/admin/assets/actions.ts` is the canonical admin read-action entrypoint for `/admin/assets` and must delegate to `src/modules/admin/assets/queries.ts`; `src/modules/assets/actions.ts` is the canonical admin-guarded asset mutation entrypoint and must delegate to `src/modules/assets/services.ts`.
 - **PAT-005**: `src/modules/admin/assets/queries.ts`, `schemas.ts`, and `types.ts` are the canonical admin read-model boundary for the asset table and detail-prefill flows.
 - **PAT-006**: Table-specific UI state such as column visibility, search input debounce, date-range filter state, and dialog state must stay in the route-local UI layer or client state, not in domain services.
-- **PAT-007**: If client-side React Query needs a browser-callable fetcher, a route-local query adapter may delegate to `src/modules/admin/assets/queries.ts`, but that adapter is transport-only, must not become the canonical read-model home, and must not introduce a new `/api/*` endpoint.
+- **PAT-007**: `src/app/(admin)/admin/assets/_components/assets-query.ts` is the route-local React Query adapter for table refreshes and on-demand detail prefill; it must call admin read actions from `src/modules/admin/assets/actions.ts`, must remain transport-only, must not become the canonical read-model home, and must not introduce a new `/api/*` endpoint or route-local server transport.
 
 ## 4. Interfaces & Data Contracts
 
@@ -187,49 +189,57 @@ The purpose of this specification is to provide a machine-readable contract for 
 | `/admin/assets` | Admin page | Displays asset inventory table, create control, filter controls, detail control, enable or disable actions, and delete action. |
 
 ### 4.2 Read Model Contract
-| Name                 | Fields                                                                                                                                                            | Notes                                                             |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `AssetAdminRow`      | `id`, `platform`, `assetType`, `note`, `expiresAt`, `disabledAt`, `status`, `totalUsed`, `createdAt`, `updatedAt`                                                 | Main table row. Sensitive fields are intentionally excluded.      |
-| `AssetTableFilters`  | `search`, `assetType`, `status`, `expiresFrom`, `expiresTo`, `page`, `pageSize`                                                                                   | `expiresFrom` and `expiresTo` are `yyyy-MM-dd` strings or `null`. |
-| `AssetFormValues`    | `platform`, `assetType`, `account`, `note`, `proxy`, `assetJsonText`, `expiresAt`                                                                                 | UI form contract before parsing and normalization.                |
-| `AssetFormInput`     | `platform`, `assetType`, `account`, `note`, `proxy`, `assetJson`, `expiresAt`                                                                                     | Domain write contract after parsing and normalization.            |
-| `AssetEditorData`    | `id`, `platform`, `assetType`, `account`, `note`, `proxy`, `assetJson`, `expiresAt`, `disabledAt`, `status`, `totalUsed`, `createdAt`, `updatedAt`, `activeUsers` | Used to prefill the detail dialog.                                |
-| `AssetActiveUserRow` | `userId`, `username`, `email`, `avatarUrl`, `accessKey`, `subscriptionId`, `subscriptionStatus`, `assignedAt`                                                     | Admin-visible current-user data.                                  |
-| `AssetTableResult`   | `items`, `page`, `pageSize`, `totalCount`                                                                                                                         | Returned by the server-side list query.                           |
-| `AssetToggleInput`   | `id`, `disabled`                                                                                                                                                  | `disabled = true` means disable, `false` means enable.            |
-| `AssetDeleteInput`   | `id`                                                                                                                                                              | Used by the safe delete action.                                   |
+| Name                 | Fields                                                                                                                                                            | Notes                                                                                                           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `AssetAdminRow`      | `id`, `platform`, `assetType`, `note`, `expiresAt`, `disabledAt`, `status`, `totalUsed`, `createdAt`, `updatedAt`                                                 | Main table row. Sensitive fields are intentionally excluded.                                                    |
+| `AssetTableFilters`  | `search`, `assetType`, `status`, `expiresFrom`, `expiresTo`, `page`, `pageSize`                                                                                   | `expiresFrom` and `expiresTo` are `yyyy-MM-dd` strings or `null`.                                               |
+| `AssetFormValues`    | `platform`, `assetType`, `account`, `note`, `proxy`, `assetJsonText`, `expiresAt`                                                                                 | UI form contract before parsing and normalization; `expiresAt` is an ISO-8601 datetime string with timezone.    |
+| `AssetFormInput`     | `platform`, `assetType`, `account`, `note`, `proxy`, `assetJson`, `expiresAt`                                                                                     | Domain write contract after parsing and normalization; `expiresAt` is normalized for UTC timestamp persistence. |
+| `AssetEditorData`    | `id`, `platform`, `assetType`, `account`, `note`, `proxy`, `assetJson`, `expiresAt`, `disabledAt`, `status`, `totalUsed`, `createdAt`, `updatedAt`, `activeUsers` | Used to prefill the detail dialog.                                                                              |
+| `AssetActiveUserRow` | `userId`, `username`, `email`, nullable `avatarUrl`, optional or nullable enrichment fields `accessKey`, `subscriptionId`, `subscriptionStatus`, `assignedAt`     | Admin-visible current-user data; enrichment fields may be omitted if not needed for diagnostics.                |
+| `AssetTableResult`   | `items`, `page`, `pageSize`, `totalCount`                                                                                                                         | Returned by the server-side list query after stable `created_at desc, id desc` ordering and pagination.         |
+| `AssetToggleInput`   | `id`, `disabled`                                                                                                                                                  | `disabled = true` means disable, `false` means enable.                                                          |
+| `AssetDeleteInput`   | `id`                                                                                                                                                              | Used by the safe delete action.                                                                                 |
 
 ### 4.3 Mutation Server Action Contracts
-| Action                      | Input                      | Output                               | Notes                                                 |
-| --------------------------- | -------------------------- | ------------------------------------ | ----------------------------------------------------- |
-| `createAssetAction`         | `AssetFormInput`           | Created asset row or action error    | Must create one `public.assets` row.                  |
-| `updateAssetAction`         | `id` plus `AssetFormInput` | Updated asset detail or action error | Must update the existing row only.                    |
-| `toggleAssetDisabledAction` | `AssetToggleInput`         | Updated asset row or action error    | Disable must set `disabled_at`, enable must clear it. |
-| `deleteAssetAction`         | `AssetDeleteInput`         | Success flag or action error         | Must call the safe delete path.                       |
+| Action                      | Input                                                | Output                                                         | Notes                                                                                               |
+| --------------------------- | ---------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `createAssetAction`         | Raw `AssetFormValues` with `assetJsonText`           | `{ ok: true, id: string }` or `{ ok: false, message: string }` | Must parse and normalize into `AssetFormInput` server-side before creating one `public.assets` row. |
+| `updateAssetAction`         | `id` plus raw `AssetFormValues` with `assetJsonText` | `{ ok: true, id: string }` or `{ ok: false, message: string }` | Must parse and normalize into `AssetFormInput` server-side and update the existing row only.        |
+| `toggleAssetDisabledAction` | `AssetToggleInput`                                   | `{ ok: true, id: string }` or `{ ok: false, message: string }` | Disable must set `disabled_at`, enable must clear it.                                               |
+| `deleteAssetAction`         | `AssetDeleteInput`                                   | `{ ok: true, id: string }` or `{ ok: false, message: string }` | Must call the safe delete path.                                                                     |
 
-These mutation actions are admin-dashboard entrypoints and belong in `src/modules/admin/assets/actions.ts`. They must use `next-safe-action` and delegate business logic to `src/modules/assets/services.ts`.
+These mutation actions are admin-dashboard entrypoints and belong in `src/modules/assets/actions.ts`, matching the existing domain-action pattern used by package mutations. They must use `adminActionClient`, parse raw form action input into the domain `AssetFormInput`, delegate business logic to `src/modules/assets/services.ts`, and return only the affected asset `id` on success. Table and detail UI must refetch admin read models after mutation success. Sensitive fields may only be returned by `getAssetEditorDataAction`; they must not be returned into table cache or column state.
 
 ### 4.4 Admin Query Contracts
-| Query                | Input               | Output                    | Notes                                                                 |
-| -------------------- | ------------------- | ------------------------- | --------------------------------------------------------------------- |
-| `getAssetTablePage`  | `AssetTableFilters` | `AssetTableResult`        | Canonical admin read-model query for search, filters, and pagination. |
-| `getAssetEditorData` | `id`                | `AssetEditorData \| null` | Canonical admin read-model query for sensitive detail prefill.        |
+| Query                | Input               | Output                    | Notes                                                                                       |
+| -------------------- | ------------------- | ------------------------- | ------------------------------------------------------------------------------------------- |
+| `getAssetTablePage`  | `AssetTableFilters` | `AssetTableResult`        | Canonical admin read-model query for search, filters, stable default order, and pagination. |
+| `getAssetEditorData` | `id`                | `AssetEditorData \| null` | Canonical admin read-model query for sensitive detail prefill.                              |
 
-### 4.5 Validation Schema Contract
-| Field                   | Rule                                                     |
-| ----------------------- | -------------------------------------------------------- |
-| `platform`              | Required enum: `tradingview`, `fxreplay`, `fxtester`.    |
-| `assetType`             | Required enum: `private`, `share`.                       |
-| `account`               | Required non-empty trimmed string.                       |
-| `note`                  | Optional; trimmed blank becomes `null`.                  |
-| `proxy`                 | Optional; trimmed blank becomes `null`.                  |
-| `assetJsonText`         | Required form string that must parse to JSON.            |
-| `assetJson`             | Required parsed JSON with top-level `array` or `object`. |
-| `expiresAt`             | Required timestamp value.                                |
-| `id` for edit or delete | Required valid UUID.                                     |
-| `disabled`              | Required boolean for enable or disable toggle.           |
+### 4.5 Admin Read Action Contracts
+| Action                     | Input               | Output                                                                          | Notes                                                                                                                                                           |
+| -------------------------- | ------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getAssetTablePageAction`  | `AssetTableFilters` | `{ ok: true, tablePage: AssetTableResult }` or `{ ok: false, message: string }` | Uses `adminActionClient`, validates filters, delegates to `getAssetTablePage`, and surfaces reversed date ranges as validation or action errors.                |
+| `getAssetEditorDataAction` | `{ id: string }`    | `{ ok: true, prefill: AssetEditorData }` or `{ ok: false, message: string }`    | Uses `adminActionClient`, validates UUID input, delegates to `getAssetEditorData`, and returns `{ ok: false, message: "Asset not found." }` for missing detail. |
 
-### 4.6 Computation Contract
+The route-local `assets-query.ts` helper must import these admin read actions, convert `next-safe-action` validation errors or `{ ok: false, message }` results into thrown `Error` objects for React Query, and return only `AssetTableResult` or `AssetEditorData` on success. Client components must not import `src/modules/admin/assets/queries.ts` directly.
+
+### 4.6 Validation Schema Contract
+| Field                   | Rule                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------ |
+| `platform`              | Required enum: `tradingview`, `fxreplay`, `fxtester`.                                            |
+| `assetType`             | Required enum: `private`, `share`.                                                               |
+| `account`               | Required non-empty trimmed string.                                                               |
+| `note`                  | Optional; trimmed blank becomes `null`.                                                          |
+| `proxy`                 | Optional; trimmed blank becomes `null`.                                                          |
+| `assetJsonText`         | Required form string that must parse to JSON.                                                    |
+| `assetJson`             | Required parsed JSON with top-level `array` or `object`.                                         |
+| `expiresAt`             | Required ISO-8601 datetime string with timezone; parse server-side and persist as UTC timestamp. |
+| `id` for edit or delete | Required valid UUID.                                                                             |
+| `disabled`              | Required boolean for enable or disable toggle.                                                   |
+
+### 4.7 Computation Contract
 | Computed value   | Rule                                                                                                                                       |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | Asset status     | Use `public.v_asset_status.status` or an equivalent server-side derivation that exactly matches the baseline view logic.                   |
@@ -237,7 +247,7 @@ These mutation actions are admin-dashboard entrypoints and belong in `src/module
 | Active user list | Join the same current non-revoked assignment predicate used for `total used` with `profiles` and optional subscription enrichment fields.  |
 | `disabledAt`     | Directly mapped from `public.assets.disabled_at`; `null` means not disabled.                                                               |
 
-### 4.7 Example Payloads
+### 4.8 Example Payloads
 ```json
 {
   "platform": "tradingview",
@@ -283,27 +293,28 @@ These mutation actions are admin-dashboard entrypoints and belong in `src/module
 - **AC-015**: Given an asset has active users, when the detail dialog loads, then the current-user list displays those users using the admin identity presentation rules.
 - **AC-016**: Given the runtime database is inspected with read-only InsForge CLI, when asset rows and status rows are queried, then `public.assets`, `public.v_asset_status`, and safe-delete row removal match the UI outcome.
 - **AC-017**: Given an asset still has active assignments, when the admin edits `platform` or `assetType`, then the server rejects the request with a clear validation error and preserves the stored tuple.
-- **AC-018**: Given an assigned asset is edited so `expiresAt` becomes earlier than `now()`, when the mutation completes, then the update persists, the asset becomes `expired`, and the same server-side flow triggers immediate re-evaluation for impacted assignments.
-
-Non-blocking forward-compatibility note:
-- Representative browser or CLI proof for the disable-time replacement-versus-`processed` recovery outcomes is intentionally deferred to later milestones even though the Milestone 3 mutation boundary must stay compatible with that behavior.
+- **AC-018**: Given an in-use asset is edited so `expiresAt` becomes earlier than `now()`, when the mutation completes, then the update persists, the asset becomes `expired`, and the same server-side flow triggers immediate re-evaluation for impacted assignments.
 - **AC-019**: Given a search term matches multiple current users of the same `share` asset, when the table loads, then the asset appears only once and `totalCount` still counts distinct assets.
 - **AC-020**: Given only `expiresFrom` or only `expiresTo` is present, when the table query runs, then the date filter behaves as a one-sided inclusive range using UTC day boundaries.
 - **AC-021**: Given `expiresFrom` is later than `expiresTo`, when the canonical query contract is called directly, then it returns a clear validation error; when the route is opened through malformed search params, the page recovers safely without crashing.
 - **AC-022**: Given a malformed mutation payload bypasses the UI, when the server action runs, then it rejects the payload with a clear validation error and persists no invalid row.
+- **AC-023**: Given server-side contract coverage runs, when disable and delete mutations are inspected, then disabling proves the recheck wrapper is called after persistence and deleting proves delegation to `delete_asset_safely`; full in-use replacement outcome proof remains deferred.
+
+Non-blocking forward-compatibility note:
+- Representative browser or CLI proof for the disable-time replacement-versus-`processed` recovery outcomes is intentionally deferred to later milestones even though the Milestone 3 mutation boundary must stay compatible with that behavior.
 
 ## 6. Test Automation Strategy
 - **Test Levels**: unit, integration, and browser verification.
 - **Unit Focus**: Zod validation for asset forms, JSON parsing, blank-to-null normalization, and date-range normalization.
 - **Integration Focus**: asset repository queries, admin read-model filters, server actions, `v_asset_status` alignment, and safe delete wiring.
-- **Browser Verification**: manual browser flow on `/admin/assets` using `agent-browser` CLI through the `agent-browser` skill.
-- **Test Data Management**: use the runtime seed admin account and create temporary asset rows with deterministic notes or account values; do not rely on manual database edits during the flow under test.
+- **Browser Verification**: manual browser flow on `/admin/assets` using `agent-browser` CLI through the `agent-browser` skill, including active private status, active share status, current-user detail rows, desktop and mobile viewport checks, light and dark readability, keyboard access and focus states in dialogs and table controls, first-error focus after failed form submit, accessible labels for icon-only actions, and meaningful empty states.
+- **Test Data Management**: use the runtime seed admin account, existing active private and active share seed asset fixtures for active-use checks, and temporary asset rows with deterministic notes or account values for create/edit/delete; do not rely on manual database edits during the flow under test.
 - **CI/CD Integration**: at minimum run `pnpm lint`, `pnpm build`, and `pnpm check` after the feature implementation; run `pnpm markdown:check` when the Markdown docs for this milestone change.
-- **Coverage Requirements**: all create, edit, toggle, delete, JSON-validation, and admin read-model filter paths should have automated coverage where the repository already supports it.
+- **Coverage Requirements**: all create, edit, toggle, delete, JSON-validation, recheck-wrapper invocation, safe-delete-wrapper delegation, and admin read-model filter paths should have automated coverage where the repository already supports it.
 - **Performance Testing**: the asset table must remain paginated server-side and must not fetch the full asset inventory in one request.
 - **Negative Path Coverage**: include malformed `assetJsonText`, reversed date range, guest or member direct access to `/admin/assets`, and malformed mutation payloads that bypass the UI.
 - **Deferred Integration Proof**: standalone browser and CLI proof for full in-use recovery after disable or delete belongs to later milestones even though the Milestone 3 mutation boundary must remain compatible with that recovery path.
-- **Runtime Health Verification**: relevant Next.js runtime and compilation diagnostics for `/admin/assets` should be checked through Next.js DevTools MCP and must show no Milestone 3-related runtime or compilation error.
+- **Runtime Health Verification**: relevant Next.js runtime and compilation diagnostics for `/admin/assets` should be checked through Next.js DevTools MCP after `next-devtools_init` and must show no Milestone 3-related runtime or compilation error.
 
 ## 7. Rationale & Context
 The asset entity is the operational inventory source for fulfillment, subscriber assignment, member console access, and extension access. Milestone 3 must therefore finish the inventory-admin surface before subscription milestones rely on it.
@@ -322,7 +333,7 @@ Sensitive fields such as `account`, `proxy`, and `asset_json` are limited to ass
 
 ### Infrastructure Dependencies
 - **INF-001**: Runtime database with `auth.users` and applied baseline migrations `001_extensions.sql` through `030_rpc.sql`.
-- **INF-002**: Browser-verifiable seed data that includes an admin login fixture and assigned-asset fixture for detail inspection.
+- **INF-002**: Browser-verifiable seed data that includes an admin login fixture, at least one active private asset fixture, and at least one active share asset fixture for status and current-user detail inspection.
 - **INF-003**: Next.js App Router runtime with the `(admin)` route group already available.
 
 ### Data Dependencies
@@ -332,24 +343,24 @@ Sensitive fields such as `account`, `proxy`, and `asset_json` are limited to ass
 - **DAT-004**: `public.subscriptions` and `public.profiles` for current-user detail context.
 - **DAT-005**: `public.delete_asset_safely(uuid)` for safe hard delete.
 - **DAT-006**: `public.validate_asset_assignment()` as the invariant guard that later subscriber flows must continue to satisfy.
-- **DAT-007**: `public.recheck_subscription_after_asset_change(uuid)` as a later-milestone integration dependency for immediate invalid-asset recovery.
+- **DAT-007**: `public.recheck_subscription_after_asset_change(uuid)` required in Milestone 3 for disable and invalid-expiry edit mutations; broader recovery proof remains deferred to later milestones.
 
 ### Technology Platform Dependencies
 - **PLT-001**: Next.js App Router.
-- **PLT-002**: `next-safe-action` for admin mutations.
+- **PLT-002**: `next-safe-action` and `adminActionClient` for admin browser-callable reads and mutations.
 - **PLT-003**: `react-hook-form` for asset forms.
 - **PLT-004**: `zod` for input validation.
 - **PLT-005**: Existing Tailwind and UI primitives from `src/components/ui/**`.
 - **PLT-006**: Shared table, filter, state, query-provider, and local-storage helpers under `src/components/shared/**` and `src/lib/**` when available, plus the ability to add minimal missing shared pieces there if the exact helper set is not already present.
-- **PLT-007**: `TanStack React Query` and `TanStack React Table` consistent with the existing shared admin-table stack already present in the repo.
+- **PLT-007**: `TanStack React Query` for client read state and `TanStack React Table` for table rendering, consistent with the existing shared admin-table stack already present in the repo.
 
-Admin table reads may come from Server Components or from a route-local transport adapter that delegates to the canonical server-side read model. Such read transports must stay server-side, must avoid new public `/api/*` endpoints, and must not replace `src/modules/admin/assets/queries.ts` as the canonical read-model home.
+The initial admin table read may come from the Server Component page. Browser refreshes and on-demand detail prefill must use `assets-query.ts` to call admin read actions from `src/modules/admin/assets/actions.ts`; those actions must use `adminActionClient`, must avoid new public `/api/*` endpoints, and must not replace `src/modules/admin/assets/queries.ts` as the canonical read-model home.
 
 ### Compliance Dependencies
 - **COM-001**: Admin-only access to `/admin/*`.
 - **COM-002**: Server-side mutation enforcement for internal web UI asset management.
 - **COM-003**: Asset delete must preserve history snapshots.
-- **COM-004**: Disabled or expired assets must remain excluded from active-access read paths even if reconciliation has not yet run.
+- **COM-004**: Where Milestone 3 touches status or read models, disabled or expired assets must not be represented as active-access-eligible; full active-read-path enforcement remains owned by later extension and member milestones.
 
 ## 9. Examples & Edge Cases
 ```json
@@ -394,6 +405,8 @@ Admin table reads may come from Server Components or from a route-local transpor
 - **VAL-014**: Editing `platform` or `assetType` on an in-use asset is rejected unless the asset has no active assignments.
 - **VAL-015**: Editing `expiresAt` into the past on an in-use asset triggers immediate server-side re-evaluation of impacted assignments.
 - **VAL-016**: Next.js DevTools MCP shows no relevant runtime or compilation errors for the `/admin/assets` implementation.
+- **VAL-017**: Mutation action outputs used by table state exclude raw `account`, `proxy`, and `assetJson` values.
+- **VAL-018**: `pnpm markdown:check` passes when Markdown under `docs/*` changes.
 
 ## 11. Related Specifications / Further Reading
 - `docs/PRD.md`
@@ -404,4 +417,5 @@ Admin table reads may come from Server Components or from a route-local transpor
 - `migrations/012_subscription_tables.sql`
 - `migrations/021_rls_policies.sql`
 - `migrations/022_subscription_engine.sql`
+- `migrations/023_triggers.sql`
 - `migrations/024_views.sql`
