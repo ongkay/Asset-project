@@ -222,6 +222,7 @@ Aturan enforcement tambahan:
 - read path tidak boleh menunggu hasil rekonsiliasi untuk memblokir akses
 - asset yang sudah `disabled` atau sudah melewati `expires_at` harus langsung tidak muncul lagi di dashboard user, `GET /api/extension/session`, dan `GET /api/extension/asset`
 - saat admin melakukan `Disable` asset dari dashboard, action yang sama harus langsung memicu revoke assignment terdampak dan recheck fulfillment, tidak menunggu cron
+- saat admin mengedit `expires_at` asset dari dashboard sehingga asset tersebut langsung menjadi invalid (`expires_at < now()`), action yang sama harus langsung memicu revoke assignment terdampak dan recheck fulfillment, tidak menunggu cron
 - untuk asset yang natural expired, Next.js cron wajib merekonsiliasi assignment dan subscription maksimal pada siklus cron berikutnya
 
 ### 3.9. Expired dan Canceled Subscription
@@ -622,6 +623,7 @@ View details harus menampilkan:
 
 Catatan:
 - `Disable/Enable` dipakai jika admin ingin menghentikan pemakaian asset tanpa menghapus histori master asset
+- admin tidak boleh mengubah tuple exact `platform + asset_type` pada asset yang masih memiliki assignment aktif; perubahan tuple hanya boleh dilakukan saat asset tersebut tidak sedang dipakai
 
 Aturan assignment:
 - asset `private` maksimal punya 1 assignment aktif
