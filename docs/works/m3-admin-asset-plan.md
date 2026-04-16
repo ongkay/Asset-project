@@ -27,7 +27,6 @@ This plan defines the executable implementation sequence for Milestone 3 Admin A
 | `migrations/022_subscription_engine.sql` | `recheck_subscription_after_asset_change`, `delete_asset_safely`                                                     | Disable and delete flows must use the baseline recovery engine instead of hand-rolled mutation logic.                                                                                            |
 | `migrations/023_triggers.sql`            | `assets_set_updated_at`, assignment validation trigger                                                               | Asset updates must preserve baseline `updated_at` behavior and downstream assignment invariants.                                                                                                 |
 | `migrations/024_views.sql`               | `v_asset_status`                                                                                                     | The admin asset table should derive status from the baseline view or an exact equivalent.                                                                                                        |
-
 - **REQ-001**: Implement Milestone 3 only for the admin asset-management domain and its direct route.
 - **REQ-002**: Keep all mutations server-side and do not introduce a public REST endpoint for the admin UI.
 - **REQ-003**: Treat `public.assets` as current inventory only; deleted assets must leave the table.

@@ -27,7 +27,6 @@ This plan defines the executable implementation sequence for Milestone 2 Admin P
 | `migrations/012_subscription_tables.sql` | `public.subscriptions` schema                                                         | `total used` must count only running subscriptions.                                                     |
 | `migrations/024_views.sql`               | `v_current_subscriptions`                                                             | The read model should prefer the current-subscription view when computing current usage.                |
 | `migrations/030_rpc.sql`                 | `get_package_summary`                                                                 | Package summary must be derived from the entitlement snapshot, not manually entered.                    |
-
 - **REQ-001**: Implement Milestone 2 only for the package-management domain and its direct admin route.
 - **REQ-002**: Keep all mutations server-side and do not introduce a public REST endpoint for the admin UI.
 - **REQ-003**: Preserve the separation between `public.packages.id` and `public.packages.code`.

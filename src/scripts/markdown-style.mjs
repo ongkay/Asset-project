@@ -35,110 +35,110 @@ function isFence(line) {
   return /^```|^~~~/.test(line.trimStart());
 }
 
-function isTableLikeLine(line) {
-  const trimmed = line.trim();
-  return trimmed.startsWith("|") && trimmed.includes("|");
-}
+// function isTableLikeLine(line) {
+//   const trimmed = line.trim();
+//   return trimmed.startsWith("|") && trimmed.includes("|");
+// }
 
-function splitTableCells(line) {
-  const trimmed = line.trim();
-  const normalized = trimmed.replace(/^\|/u, "").replace(/\|$/u, "");
-  return normalized.split(/(?<!\\)\|/u).map((cell) => cell.trim());
-}
+// function splitTableCells(line) {
+//   const trimmed = line.trim();
+//   const normalized = trimmed.replace(/^\|/u, "").replace(/\|$/u, "");
+//   return normalized.split(/(?<!\\)\|/u).map((cell) => cell.trim());
+// }
 
-function isTableSeparatorCell(cell) {
-  return /^:?-{3,}:?$/u.test(cell.trim());
-}
+// function isTableSeparatorCell(cell) {
+//   return /^:?-{3,}:?$/u.test(cell.trim());
+// }
 
-function isTableSeparatorLine(line) {
-  if (!isTableLikeLine(line)) {
-    return false;
-  }
+// function isTableSeparatorLine(line) {
+//   if (!isTableLikeLine(line)) {
+//     return false;
+//   }
 
-  const cells = splitTableCells(line);
-  return cells.length > 0 && cells.every(isTableSeparatorCell);
-}
+//   const cells = splitTableCells(line);
+//   return cells.length > 0 && cells.every(isTableSeparatorCell);
+// }
 
-function detectTableAlignment(cell) {
-  const trimmed = cell.trim();
+// function detectTableAlignment(cell) {
+//   const trimmed = cell.trim();
 
-  if (trimmed.startsWith(":") && trimmed.endsWith(":")) {
-    return "center";
-  }
+//   if (trimmed.startsWith(":") && trimmed.endsWith(":")) {
+//     return "center";
+//   }
 
-  if (trimmed.endsWith(":")) {
-    return "right";
-  }
+//   if (trimmed.endsWith(":")) {
+//     return "right";
+//   }
 
-  if (trimmed.startsWith(":")) {
-    return "left";
-  }
+//   if (trimmed.startsWith(":")) {
+//     return "left";
+//   }
 
-  return "left";
-}
+//   return "left";
+// }
 
-function padCenter(value, width) {
-  if (value.length >= width) {
-    return value;
-  }
+// function padCenter(value, width) {
+//   if (value.length >= width) {
+//     return value;
+//   }
 
-  const totalPadding = width - value.length;
-  const leftPadding = Math.floor(totalPadding / 2);
-  const rightPadding = totalPadding - leftPadding;
-  return `${" ".repeat(leftPadding)}${value}${" ".repeat(rightPadding)}`;
-}
+//   const totalPadding = width - value.length;
+//   const leftPadding = Math.floor(totalPadding / 2);
+//   const rightPadding = totalPadding - leftPadding;
+//   return `${" ".repeat(leftPadding)}${value}${" ".repeat(rightPadding)}`;
+// }
 
-function renderTableCell(value, width, align) {
-  switch (align) {
-    case "right":
-      return ` ${value.padStart(width)} `;
-    case "center":
-      return ` ${padCenter(value, width)} `;
-    default:
-      return ` ${value.padEnd(width)} `;
-  }
-}
+// function renderTableCell(value, width, align) {
+//   switch (align) {
+//     case "right":
+//       return ` ${value.padStart(width)} `;
+//     case "center":
+//       return ` ${padCenter(value, width)} `;
+//     default:
+//       return ` ${value.padEnd(width)} `;
+//   }
+// }
 
-function renderTableSeparator(width, align) {
-  const normalizedWidth = Math.max(width, 3);
+// function renderTableSeparator(width, align) {
+//   const normalizedWidth = Math.max(width, 3);
 
-  switch (align) {
-    case "right":
-      return ` ${"-".repeat(normalizedWidth - 1)}: `;
-    case "center":
-      return ` :${"-".repeat(Math.max(normalizedWidth - 2, 1))}: `;
-    default:
-      return ` ${"-".repeat(normalizedWidth)} `;
-  }
-}
+//   switch (align) {
+//     case "right":
+//       return ` ${"-".repeat(normalizedWidth - 1)}: `;
+//     case "center":
+//       return ` :${"-".repeat(Math.max(normalizedWidth - 2, 1))}: `;
+//     default:
+//       return ` ${"-".repeat(normalizedWidth)} `;
+//   }
+// }
 
-function formatTableBlock(lines) {
-  const headerCells = splitTableCells(lines[0]);
-  const separatorCells = splitTableCells(lines[1]);
-  const bodyRows = lines.slice(2).map(splitTableCells);
-  const columnCount = Math.max(headerCells.length, separatorCells.length, ...bodyRows.map((row) => row.length));
+// function formatTableBlock(lines) {
+//   const headerCells = splitTableCells(lines[0]);
+//   const separatorCells = splitTableCells(lines[1]);
+//   const bodyRows = lines.slice(2).map(splitTableCells);
+//   const columnCount = Math.max(headerCells.length, separatorCells.length, ...bodyRows.map((row) => row.length));
 
-  const alignments = Array.from({ length: columnCount }, (_, index) =>
-    detectTableAlignment(separatorCells[index] ?? "---"),
-  );
+//   const alignments = Array.from({ length: columnCount }, (_, index) =>
+//     detectTableAlignment(separatorCells[index] ?? "---"),
+//   );
 
-  const normalizedRows = [headerCells, ...bodyRows].map((row) =>
-    Array.from({ length: columnCount }, (_, index) => row[index] ?? ""),
-  );
+//   const normalizedRows = [headerCells, ...bodyRows].map((row) =>
+//     Array.from({ length: columnCount }, (_, index) => row[index] ?? ""),
+//   );
 
-  const columnWidths = Array.from({ length: columnCount }, (_, index) =>
-    Math.max(3, ...normalizedRows.map((row) => row[index].length)),
-  );
+//   const columnWidths = Array.from({ length: columnCount }, (_, index) =>
+//     Math.max(3, ...normalizedRows.map((row) => row[index].length)),
+//   );
 
-  const renderRow = (row) =>
-    `|${row.map((cell, index) => renderTableCell(cell, columnWidths[index], alignments[index])).join("|")}|`;
+//   const renderRow = (row) =>
+//     `|${row.map((cell, index) => renderTableCell(cell, columnWidths[index], alignments[index])).join("|")}|`;
 
-  const separatorRow = `|${columnWidths
-    .map((width, index) => renderTableSeparator(width, alignments[index]))
-    .join("|")}|`;
+//   const separatorRow = `|${columnWidths
+//     .map((width, index) => renderTableSeparator(width, alignments[index]))
+//     .join("|")}|`;
 
-  return [renderRow(normalizedRows[0]), separatorRow, ...normalizedRows.slice(1).map(renderRow)];
-}
+//   return [renderRow(normalizedRows[0]), separatorRow, ...normalizedRows.slice(1).map(renderRow)];
+// }
 
 function isHeading(line) {
   return /^#{1,6}\s+\S/.test(line);
@@ -236,19 +236,19 @@ function formatMarkdownContent(input) {
       continue;
     }
 
-    if (isTableLikeLine(line) && index + 1 < lines.length && isTableSeparatorLine(lines[index + 1])) {
-      const tableLines = [line, lines[index + 1]];
-      let cursor = index + 2;
+    // if (isTableLikeLine(line) && index + 1 < lines.length && isTableSeparatorLine(lines[index + 1])) {
+    //   const tableLines = [line, lines[index + 1]];
+    //   let cursor = index + 2;
 
-      while (cursor < lines.length && isTableLikeLine(lines[cursor]) && !isBlank(lines[cursor])) {
-        tableLines.push(lines[cursor]);
-        cursor += 1;
-      }
+    //   while (cursor < lines.length && isTableLikeLine(lines[cursor]) && !isBlank(lines[cursor])) {
+    //     tableLines.push(lines[cursor]);
+    //     cursor += 1;
+    //   }
 
-      output.push(...formatTableBlock(tableLines));
-      index = cursor - 1;
-      continue;
-    }
+    //   output.push(...formatTableBlock(tableLines));
+    //   index = cursor - 1;
+    //   continue;
+    // }
 
     if (isHeading(line)) {
       output.push(line);

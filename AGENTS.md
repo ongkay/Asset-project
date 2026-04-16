@@ -86,9 +86,8 @@ Pekerjaan belum selesai sebelum semua gate yang relevan hijau.
 
 Gate yang benar-benar tersedia di repo saat ini:
 - `pnpm lint`
-- `pnpm build`
 - `pnpm check`
-- `pnpm markdown:check` jika mengubah dokumen Markdown di `docs/*`
+- `pnpm test`
 - browser verification untuk flow yang terdampak menggunakan `agent-browser`
 - Next.js DevTools MCP tidak menunjukkan error runtime atau compilation yang relevan
 
