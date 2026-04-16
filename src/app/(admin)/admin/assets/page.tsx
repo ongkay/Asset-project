@@ -1,13 +1,42 @@
-import { HardDrive } from "lucide-react";
+import { getAssetTablePage } from "@/modules/admin/assets/queries";
+import { parseAssetTableSearchParams } from "@/modules/admin/assets/schemas";
+import { requireAdminShellAccess } from "@/modules/users/services";
 
-import { AdminSectionPage } from "../_components/admin-section-page";
+import { AdminAssetsPage } from "./_components/assets-page";
 
-export default function AdminAssetsPage() {
+import type { AssetTableResult } from "@/modules/admin/assets/types";
+
+type AdminAssetsRoutePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function AdminAssetsRoutePage({ searchParams }: AdminAssetsRoutePageProps) {
+  await requireAdminShellAccess();
+
+  const resolvedSearchParams = await searchParams;
+  const filters = parseAssetTableSearchParams(resolvedSearchParams);
+
+  let tablePage: AssetTableResult = {
+    items: [],
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalCount: 0,
+  };
+  let tableError: string | null = null;
+
+  try {
+    tablePage = await getAssetTablePage(filters);
+  } catch (error) {
+    tableError = error instanceof Error ? error.message : "Failed to load asset table.";
+  }
+
   return (
-    <AdminSectionPage
-      title="Assets Management"
-      description="Track inventory assets, availability, notes, and operational state for fulfillment and recovery tasks."
-      icon={HardDrive}
+    <AdminAssetsPage
+      key={`${filters.page}|${filters.pageSize}|${filters.search ?? ""}|${filters.assetType ?? ""}|${filters.status ?? ""}|${filters.expiresFrom ?? ""}|${filters.expiresTo ?? ""}`}
+      filters={filters}
+      tablePage={tablePage}
+      tableError={tableError}
+      initialEditorPrefillById={{}}
     />
   );
 }
