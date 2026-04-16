@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, X } from "lucide-react";
@@ -18,6 +18,7 @@ export type AdminTableDateRangeValue = {
 type AdminTableDateRangeFilterProps = {
   align?: "start" | "center" | "end";
   ariaLabel?: string;
+  className?: string;
   label?: string;
   onChange: (value: AdminTableDateRangeValue) => void;
   value: AdminTableDateRangeValue;
@@ -54,38 +55,52 @@ function serializeDateRange(dateRange: DateRange | undefined): AdminTableDateRan
 export function AdminTableDateRangeFilter({
   align = "start",
   ariaLabel = "Filter by date range",
+  className = "w-full justify-start gap-2 overflow-hidden sm:w-auto",
   label = "Date range",
   onChange,
   value,
 }: AdminTableDateRangeFilterProps) {
   const [open, setOpen] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const hasValue = Boolean(value.from || value.to);
   const selectedDateRange = parseDateRange(value);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+
+    const syncViewport = () => {
+      setIsCompactViewport(mediaQuery.matches);
+    };
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          aria-label={ariaLabel}
-          className="w-full justify-start sm:w-auto"
-          size="sm"
-          type="button"
-          variant="outline"
-        >
+        <Button aria-label={ariaLabel} className={className} size="sm" type="button" variant="outline">
           <CalendarIcon data-icon="inline-start" />
-          <span className="truncate">{formatDateRangeLabel(value, label)}</span>
+          <span className="min-w-0 flex-1 truncate text-left">{formatDateRangeLabel(value, label)}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align={align} className="w-auto overflow-hidden p-0">
+      <PopoverContent
+        align={isCompactViewport ? "center" : align}
+        className="w-[calc(100vw-2rem)] max-w-sm overflow-hidden p-0 sm:w-auto sm:max-w-none"
+      >
         <Calendar
+          className="w-full"
           defaultMonth={selectedDateRange?.from}
           mode="range"
-          numberOfMonths={2}
+          numberOfMonths={isCompactViewport ? 1 : 2}
           onSelect={(nextDateRange) => onChange(serializeDateRange(nextDateRange))}
           selected={selectedDateRange}
         />
         <div className="flex justify-end border-t p-2">
           <Button
+            className="w-full sm:w-auto"
             disabled={!hasValue}
             onClick={() => onChange({ from: null, to: null })}
             size="sm"

@@ -97,8 +97,10 @@ export const ADMIN_ASSET_TABLE_COLUMNS: AdminAssetColumnDefinition[] = [
 ];
 
 export function createAdminAssetTableColumns({
+  onEditAsset,
   onOpenDetails,
 }: {
+  onEditAsset: (assetId: string) => void;
   onOpenDetails: (assetId: string) => void;
 }): ColumnDef<AssetAdminRow>[] {
   return ADMIN_ASSET_TABLE_COLUMNS.map((column) => {
@@ -107,7 +109,9 @@ export function createAdminAssetTableColumns({
         id: column.key,
         header: column.label,
         enableHiding: false,
-        cell: ({ row }) => <AdminAssetsRowActions row={row.original} onOpenDetails={onOpenDetails} />,
+        cell: ({ row }) => (
+          <AdminAssetsRowActions row={row.original} onEditAsset={onEditAsset} onOpenDetails={onOpenDetails} />
+        ),
       };
     }
 

@@ -6,14 +6,21 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "
 
 type AdminTableSearchInputProps = {
   ariaLabel: string;
+  className?: string;
   onChange: (search: string) => void;
   placeholder: string;
   value: string;
 };
 
-export function AdminTableSearchInput({ ariaLabel, onChange, placeholder, value }: AdminTableSearchInputProps) {
+export function AdminTableSearchInput({
+  ariaLabel,
+  className = "w-full sm:min-w-72",
+  onChange,
+  placeholder,
+  value,
+}: AdminTableSearchInputProps) {
   return (
-    <InputGroup className="w-full sm:min-w-72">
+    <InputGroup className={className}>
       <InputGroupAddon>
         <Search />
       </InputGroupAddon>

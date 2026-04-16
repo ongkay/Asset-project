@@ -175,6 +175,9 @@ export function AdminAssetsPage({
               visibleColumns={tableState.visibleColumns}
               isFetching={assetTableQuery.isFetching}
               isLoading={assetTableQuery.isLoading && !assetTableQuery.data}
+              onEditAsset={(assetId) => {
+                void handleOpenEditAsset(assetId);
+              }}
               onPageChange={tableState.handlePageChange}
               onPageSizeChange={tableState.handlePageSizeChange}
               onOpenDetails={(assetId) => {

@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
+import { AtSign, Braces, CalendarClock, FileText, Globe, HardDrive, Layers3 } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -19,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupTextarea } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -29,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { createAssetAction, updateAssetAction } from "@/modules/assets/actions";
 import { assetFormSchema } from "@/modules/assets/schemas";
 
@@ -193,7 +193,8 @@ export function AssetFormDialog({ dialogState, prefillById, onOpenChange, onSave
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="asset-platform">Platform</FieldLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger aria-invalid={fieldState.invalid} id="asset-platform">
+                      <SelectTrigger aria-invalid={fieldState.invalid} className="w-full" id="asset-platform">
+                        <HardDrive className="text-muted-foreground" />
                         <SelectValue placeholder="Select platform" />
                       </SelectTrigger>
                       <SelectContent>
@@ -217,7 +218,8 @@ export function AssetFormDialog({ dialogState, prefillById, onOpenChange, onSave
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="asset-type">Asset Type</FieldLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger aria-invalid={fieldState.invalid} id="asset-type">
+                      <SelectTrigger aria-invalid={fieldState.invalid} className="w-full" id="asset-type">
+                        <Layers3 className="text-muted-foreground" />
                         <SelectValue placeholder="Select asset type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -240,12 +242,17 @@ export function AssetFormDialog({ dialogState, prefillById, onOpenChange, onSave
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="asset-account">Account</FieldLabel>
-                  <Input
-                    {...field}
-                    aria-invalid={fieldState.invalid}
-                    id="asset-account"
-                    placeholder="account@example.com"
-                  />
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <AtSign />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      {...field}
+                      aria-invalid={fieldState.invalid}
+                      id="asset-account"
+                      placeholder="account@example.com"
+                    />
+                  </InputGroup>
                   {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                 </Field>
               )}
@@ -257,13 +264,18 @@ export function AssetFormDialog({ dialogState, prefillById, onOpenChange, onSave
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="asset-note">Note</FieldLabel>
-                  <Textarea
-                    id="asset-note"
-                    aria-invalid={fieldState.invalid}
-                    placeholder="Optional note"
-                    value={field.value ?? ""}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
+                  <InputGroup className="min-h-24 items-stretch">
+                    <InputGroupAddon className="items-start py-3" align="inline-start">
+                      <FileText />
+                    </InputGroupAddon>
+                    <InputGroupTextarea
+                      aria-invalid={fieldState.invalid}
+                      id="asset-note"
+                      placeholder="Optional note"
+                      value={field.value ?? ""}
+                      onChange={(event) => field.onChange(event.target.value)}
+                    />
+                  </InputGroup>
                   {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                 </Field>
               )}
@@ -275,13 +287,18 @@ export function AssetFormDialog({ dialogState, prefillById, onOpenChange, onSave
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="asset-proxy">Proxy</FieldLabel>
-                  <Input
-                    id="asset-proxy"
-                    aria-invalid={fieldState.invalid}
-                    placeholder="http://proxy.example.com"
-                    value={field.value ?? ""}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <Globe />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      aria-invalid={fieldState.invalid}
+                      id="asset-proxy"
+                      placeholder="http://proxy.example.com"
+                      value={field.value ?? ""}
+                      onChange={(event) => field.onChange(event.target.value)}
+                    />
+                  </InputGroup>
                   {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                 </Field>
               )}
@@ -293,13 +310,18 @@ export function AssetFormDialog({ dialogState, prefillById, onOpenChange, onSave
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="asset-json">Asset JSON</FieldLabel>
-                  <Textarea
-                    {...field}
-                    aria-invalid={fieldState.invalid}
-                    id="asset-json"
-                    placeholder='[{"name":"session","value":"cookie"}]'
-                    className="min-h-40 font-mono text-xs"
-                  />
+                  <InputGroup className="min-h-40 items-stretch">
+                    <InputGroupAddon className="items-start py-3" align="inline-start">
+                      <Braces />
+                    </InputGroupAddon>
+                    <InputGroupTextarea
+                      {...field}
+                      aria-invalid={fieldState.invalid}
+                      className="min-h-40 font-mono text-xs"
+                      id="asset-json"
+                      placeholder='[{"name":"session","value":"cookie"}]'
+                    />
+                  </InputGroup>
                   <FieldDescription>Top-level JSON must be object or array.</FieldDescription>
                   {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                 </Field>
@@ -312,12 +334,17 @@ export function AssetFormDialog({ dialogState, prefillById, onOpenChange, onSave
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="asset-expires-at">Expires At (ISO Datetime)</FieldLabel>
-                  <Input
-                    {...field}
-                    aria-invalid={fieldState.invalid}
-                    id="asset-expires-at"
-                    placeholder="2026-05-15T00:00:00.000Z"
-                  />
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <CalendarClock />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      {...field}
+                      aria-invalid={fieldState.invalid}
+                      id="asset-expires-at"
+                      placeholder="2026-05-15T00:00:00.000Z"
+                    />
+                  </InputGroup>
                   <FieldDescription>Must include timezone, example: 2026-05-15T00:00:00.000Z</FieldDescription>
                   {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                 </Field>

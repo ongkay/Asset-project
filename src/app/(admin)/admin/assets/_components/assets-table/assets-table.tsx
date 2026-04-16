@@ -17,6 +17,7 @@ type AdminAssetsTableProps = {
   visibleColumns: AdminAssetColumnVisibility;
   isFetching: boolean;
   isLoading: boolean;
+  onEditAsset: (assetId: string) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onOpenDetails: (assetId: string) => void;
@@ -28,11 +29,15 @@ export function AdminAssetsTable({
   visibleColumns,
   isFetching,
   isLoading,
+  onEditAsset,
   onPageChange,
   onPageSizeChange,
   onOpenDetails,
 }: AdminAssetsTableProps) {
-  const columns = React.useMemo(() => createAdminAssetTableColumns({ onOpenDetails }), [onOpenDetails]);
+  const columns = React.useMemo(
+    () => createAdminAssetTableColumns({ onEditAsset, onOpenDetails }),
+    [onEditAsset, onOpenDetails],
+  );
 
   return (
     <div className="relative flex flex-col gap-4 overflow-auto">

@@ -34,10 +34,11 @@ import type { AssetAdminRow } from "@/modules/admin/assets/types";
 
 type AdminAssetsRowActionsProps = {
   row: AssetAdminRow;
+  onEditAsset: (assetId: string) => void;
   onOpenDetails: (assetId: string) => void;
 };
 
-export function AdminAssetsRowActions({ row, onOpenDetails }: AdminAssetsRowActionsProps) {
+export function AdminAssetsRowActions({ row, onEditAsset, onOpenDetails }: AdminAssetsRowActionsProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -103,6 +104,15 @@ export function AdminAssetsRowActions({ row, onOpenDetails }: AdminAssetsRowActi
               }}
             >
               View Details
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setIsMenuOpen(false);
+                onEditAsset(row.id);
+              }}
+            >
+              Edit Asset
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
