@@ -12,6 +12,10 @@ const assetTypeSchema = z.enum(ASSET_TYPES, {
   error: "Asset type is invalid.",
 });
 
+export const assetEditorDataInputSchema = z.object({
+  id: z.string({ error: "Asset ID is required." }).trim().min(1, "Asset ID is required."),
+});
+
 const dateOnlySchema = z
   .string()
   .trim()

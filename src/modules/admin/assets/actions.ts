@@ -1,15 +1,9 @@
 "use server";
 
-import { z } from "zod";
-
 import { adminActionClient } from "@/modules/auth/action-client";
 
 import { getAssetEditorData, getAssetTablePage } from "./queries";
-import { assetTableFilterSchema } from "./schemas";
-
-const assetEditorDataInputSchema = z.object({
-  id: z.string({ error: "Asset ID is required." }).trim().min(1, "Asset ID is required."),
-});
+import { assetEditorDataInputSchema, assetTableFilterSchema } from "./schemas";
 
 export const getAssetTablePageAction = adminActionClient
   .metadata({ actionName: "admin.assets.get-table-page" })

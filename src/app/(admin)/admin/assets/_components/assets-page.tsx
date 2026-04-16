@@ -110,6 +110,7 @@ export function AdminAssetsPage({
       return;
     }
 
+    setDetailDialogState({ open: false, assetId: null });
     setFormDialogState({ mode: "edit", open: true, assetId });
   }
 
