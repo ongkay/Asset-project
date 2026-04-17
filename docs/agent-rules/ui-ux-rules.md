@@ -23,7 +23,7 @@ Gunakan skill berikut sesuai konteks kerja.
 - Jangan menampilkan istilah internal seperti `phase`, `demo`, `template`, `backend`, `route`, `threshold`, atau nama vendor teknis di copy user-facing.
 
 ## Referensi Visual
-Untuk screen internal yang sifatnya authenticated app, bahasa visual yang harus diikuti adalah bahasa dashboard demo yang sudah ada di `src/app/(main)/dashboard/*`. khusus untuk rout admin wajib ikuti src/app/(admin)/admin/subscriber/*
+Untuk screen internal yang sifatnya authenticated app, bahasa visual yang harus diikuti adalah bahasa dashboard demo yang sudah ada di `src/app/(main)/dashboard/*`. khusus untuk rout admin wajib ikuti visual src/app/(admin)/admin/assets/*
 
 Ciri yang harus ditiru:
 - shell desktop dengan sidebar kiri dan top bar yang rapih
