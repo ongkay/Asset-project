@@ -5,6 +5,18 @@ import { z } from "zod";
 
 import { actionLoggingMiddleware } from "./middleware";
 
+function getStableServerErrorMessage(error: Error) {
+  if (error.message === "Unauthorized") {
+    return "Unauthorized.";
+  }
+
+  if (error.message === "Forbidden") {
+    return "Forbidden.";
+  }
+
+  return "Unexpected server error.";
+}
+
 const baseActionClient = createSafeActionClient({
   defaultValidationErrorsShape: "flattened",
   defineMetadataSchema() {
@@ -17,7 +29,7 @@ const baseActionClient = createSafeActionClient({
       actionName: metadata?.actionName ?? "unknown_action",
       error,
     });
-    return "Unexpected server error.";
+    return error instanceof Error ? getStableServerErrorMessage(error) : "Unexpected server error.";
   },
 });
 

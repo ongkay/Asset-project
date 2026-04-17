@@ -2,8 +2,6 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
-import { env } from "@/config/env.server";
-import { createInsForgeAdminClient } from "@/lib/insforge/admin-client";
 import { createInsForgeServerAuth } from "@/lib/insforge/auth";
 import { createInsForgeAdminDatabase, createInsForgeServerDatabase } from "@/lib/insforge/database";
 
@@ -28,15 +26,6 @@ type ProfileRow = {
   username: string;
 };
 
-type ListUsersResponse = {
-  data: AuthProviderUser[];
-  pagination: {
-    limit: number;
-    offset: number;
-    total: number;
-  };
-};
-
 type LoginLogCounterRow = {
   created_at: string;
   failure_reason: string | null;
@@ -49,6 +38,13 @@ type InsertMemberProfileInput = {
   userId: string;
   username: string;
 };
+
+// The current InsForge repo/runtime does not expose a stable exact-email lookup or password-update
+// admin API from the SDK layer. Phase 2 therefore uses a narrow SQL helper boundary instead of
+// shaping auth.users rows in app code.
+function createAuthAdminDatabase() {
+  return createInsForgeAdminDatabase();
+}
 
 function mapProfileRowToAuthProfile(data: ProfileRow): AuthProfile {
   return {
@@ -127,6 +123,56 @@ export async function signUpWithPassword(input: SignUpInput) {
   });
 }
 
+export async function createAuthUserAsAdmin(input: { email: string; password: string }) {
+  const { data, error } = await createAuthAdminDatabase().rpc("admin_create_auth_user", {
+    p_email: input.email,
+    p_password: input.password,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("Auth user could not be created.");
+  }
+
+  return {
+    email: data.email,
+    emailVerified: data.email_verified,
+    id: data.id,
+  } satisfies AuthProviderUser;
+}
+
+export async function updateAuthUserPasswordAsAdmin(input: { newPassword: string; userId: string }) {
+  const { data, error } = await createAuthAdminDatabase().rpc("admin_update_auth_user_password", {
+    p_new_password: input.newPassword,
+    p_user_id: input.userId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("Auth user not found.");
+  }
+
+  return {
+    userId: input.userId,
+  };
+}
+
+export async function deleteAuthUserAsAdmin(input: { userId: string }) {
+  const { error } = await createAuthAdminDatabase().rpc("admin_delete_auth_user", {
+    p_user_id: input.userId,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function sendResetPasswordEmail(input: SendResetPasswordInput & { redirectTo: string }) {
   return createInsForgeServerAuth().sendResetPasswordEmail({
     email: input.email,
@@ -149,29 +195,19 @@ export async function resetPasswordWithOtp(input: ResetPasswordInput) {
 }
 
 export async function readAuthUserByEmail(input: CheckAuthEmailInput): Promise<AuthProviderUser | null> {
-  const response = await createInsForgeAdminClient()
-    .getHttpClient()
-    .get<ListUsersResponse>("/api/auth/users", {
-      params: {
-        limit: "10",
-        offset: "0",
-        search: input.email,
-      },
-    });
+  const { data, error } = await createAuthAdminDatabase().rpc("get_auth_user_by_email", {
+    p_email: input.email,
+  });
 
-  const matchedUser = response.data.find((candidateUser) => candidateUser.email.trim().toLowerCase() === input.email);
-
-  if (matchedUser) {
-    return matchedUser;
+  if (error) {
+    throw error;
   }
 
-  // InsForge excludes the configured project admin from auth user search results, so treat it as registered
-  // and let the actual sign-in path validate credentials against the provider.
-  if (env.INSFORGE_PROJECT_ADMIN_EMAIL.trim().toLowerCase() === input.email) {
+  if (data) {
     return {
-      email: input.email,
-      emailVerified: true,
-      id: "project-admin",
+      email: data.email,
+      emailVerified: data.email_verified,
+      id: data.id,
     } satisfies AuthProviderUser;
   }
 

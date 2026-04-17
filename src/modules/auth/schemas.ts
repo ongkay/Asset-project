@@ -49,6 +49,8 @@ export const resetPasswordInputSchema = z.object({
   password: authPasswordSchema,
 });
 
+export const authUserIdSchema = z.uuid("User ID must be a valid UUID.");
+
 export const completeResetPasswordInputSchema = z
   .object({
     confirmPassword: authPasswordSchema,
@@ -61,7 +63,16 @@ export const completeResetPasswordInputSchema = z
     path: ["confirmPassword"],
   });
 
-export const authUserIdSchema = z.uuid("User ID must be a valid UUID.");
+export const adminChangeUserPasswordInputSchema = z
+  .object({
+    userId: authUserIdSchema,
+    newPassword: authPasswordSchema,
+    confirmPassword: authPasswordSchema,
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    message: "Password confirmation must match.",
+    path: ["confirmPassword"],
+  });
 
 export const authRequestMetadataSchema = z.object({
   browser: z.string().trim().min(1).nullable().default(null),
@@ -86,5 +97,6 @@ export type SendResetPasswordInput = z.infer<typeof sendResetPasswordInputSchema
 export type ExchangeResetPasswordInput = z.infer<typeof exchangeResetPasswordInputSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;
 export type CompleteResetPasswordInput = z.infer<typeof completeResetPasswordInputSchema>;
+export type AdminChangeUserPasswordInput = z.infer<typeof adminChangeUserPasswordInputSchema>;
 export type AuthRequestMetadataInput = z.infer<typeof authRequestMetadataSchema>;
 export type LoginLogWriteInputSchema = z.infer<typeof loginLogWriteInputSchema>;

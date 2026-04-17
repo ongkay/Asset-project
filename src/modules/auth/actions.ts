@@ -2,8 +2,10 @@
 
 import { actionClient } from "@/lib/safe-action/client";
 import { buildCurrentUrl, readTrustedRequestMetadata } from "@/lib/request-metadata";
+import { adminActionClient } from "@/modules/auth/action-client";
 
 import {
+  adminChangeUserPasswordInputSchema,
   checkAuthEmailInputSchema,
   completeResetPasswordInputSchema,
   sendResetPasswordInputSchema,
@@ -12,6 +14,7 @@ import {
 } from "./schemas";
 import {
   checkAuthEmailStatus,
+  changeUserPasswordByAdmin,
   completePasswordReset,
   requestPasswordReset,
   signInAndCreateAppSession,
@@ -58,6 +61,25 @@ export const completePasswordResetAction = actionClient
   .metadata({ actionName: "auth.complete-password-reset" })
   .inputSchema(completeResetPasswordInputSchema)
   .action(async ({ parsedInput }) => completePasswordReset(parsedInput));
+
+export const changeUserPasswordAction = adminActionClient
+  .metadata({ actionName: "auth.change-user-password" })
+  .inputSchema(adminChangeUserPasswordInputSchema)
+  .action(async ({ parsedInput }) => {
+    try {
+      const result = await changeUserPasswordByAdmin(parsedInput);
+
+      return {
+        ok: true as const,
+        userId: result.userId,
+      };
+    } catch (error) {
+      return {
+        message: error instanceof Error ? error.message : "Failed to update user password.",
+        ok: false as const,
+      };
+    }
+  });
 
 export const logoutAction = actionClient
   .metadata({ actionName: "auth.logout" })

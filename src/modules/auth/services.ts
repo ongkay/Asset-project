@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  adminChangeUserPasswordInputSchema,
   checkAuthEmailInputSchema,
   completeResetPasswordInputSchema,
   authRequestMetadataSchema,
@@ -13,6 +14,7 @@ import {
 } from "./schemas";
 import {
   exchangeResetPasswordToken,
+  updateAuthUserPasswordAsAdmin,
   insertLoginLog,
   provisionMemberProfile,
   readAuthUserByEmail,
@@ -333,6 +335,20 @@ export async function completePasswordReset(input: unknown) {
     redirectTo: "/login",
     requiresLogin: true,
   } satisfies AuthActionResult;
+}
+
+export async function changeUserPasswordByAdmin(input: unknown) {
+  const payload = adminChangeUserPasswordInputSchema.parse(input);
+  const profile = await readProfileByUserId(payload.userId);
+
+  if (!profile) {
+    throw new Error("User not found.");
+  }
+
+  return updateAuthUserPasswordAsAdmin({
+    newPassword: payload.newPassword,
+    userId: payload.userId,
+  });
 }
 
 export async function getAuthenticatedUserSnapshot(accessToken?: string) {
