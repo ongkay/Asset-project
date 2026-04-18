@@ -91,4 +91,24 @@ describe("users/actions", () => {
     expect(result?.serverError).toBe("Unauthorized.");
     expect(mockedCreateUserByAdmin).not.toHaveBeenCalled();
   });
+
+  it("normalizes create-user payloads before calling the service", async () => {
+    mockedCreateUserByAdmin.mockResolvedValueOnce({
+      userId: "91000000-0000-4000-8000-000000000002",
+    } as never);
+
+    await createUserAction({
+      email: "new.member@assetnext.dev",
+      password: "Devpass123",
+      confirmPassword: "Devpass123",
+      role: "member",
+    });
+
+    expect(mockedCreateUserByAdmin).toHaveBeenCalledWith({
+      actingAdminUserId: "91000000-0000-4000-8000-000000000001",
+      email: "new.member@assetnext.dev",
+      password: "Devpass123",
+      role: "member",
+    });
+  });
 });

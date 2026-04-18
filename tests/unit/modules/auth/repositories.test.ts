@@ -43,11 +43,13 @@ describe("auth/repositories", () => {
 
   it("performs exact auth email lookup via the dedicated RPC", async () => {
     mockedRpc.mockResolvedValueOnce({
-      data: {
-        email: "target@assetnext.dev",
-        email_verified: true,
-        id: "auth-user-1",
-      },
+      data: [
+        {
+          email: "target@assetnext.dev",
+          email_verified: true,
+          id: "auth-user-1",
+        },
+      ],
       error: null,
     });
 
@@ -64,11 +66,13 @@ describe("auth/repositories", () => {
 
   it("creates admin-managed auth users via RPC instead of shaping auth.users rows in app code", async () => {
     mockedRpc.mockResolvedValueOnce({
-      data: {
-        email: "new.member@assetnext.dev",
-        email_verified: true,
-        id: "new-auth-user",
-      },
+      data: [
+        {
+          email: "new.member@assetnext.dev",
+          email_verified: true,
+          id: "new-auth-user",
+        },
+      ],
       error: null,
     });
 
@@ -91,7 +95,7 @@ describe("auth/repositories", () => {
 
   it("fails clearly when the target auth identity does not exist during password update", async () => {
     mockedRpc.mockResolvedValueOnce({
-      data: null,
+      data: [],
       error: null,
     });
 
@@ -119,5 +123,14 @@ describe("auth/repositories", () => {
     expect(mockedRpc).toHaveBeenCalledWith("admin_delete_auth_user", {
       p_user_id: "new-auth-user",
     });
+  });
+
+  it("treats an empty auth lookup array as no matching user", async () => {
+    mockedRpc.mockResolvedValueOnce({
+      data: [],
+      error: null,
+    });
+
+    await expect(readAuthUserByEmail({ email: "fresh.user@assetnext.dev" })).resolves.toBeNull();
   });
 });

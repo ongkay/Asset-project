@@ -4,29 +4,30 @@ import { useState } from "react";
 
 import { Eye, EyeOff } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 
-type PasswordInputProps = Omit<React.ComponentProps<typeof Input>, "type">;
+type PasswordInputProps = Omit<React.ComponentProps<typeof InputGroupInput>, "type"> & {
+  leadingIcon?: React.ReactNode;
+};
 
-export function PasswordInput({ className, ...props }: PasswordInputProps) {
+export function PasswordInput({ className, leadingIcon, ...props }: PasswordInputProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
-    <div className="relative">
-      <Input {...props} className={cn("pr-11", className)} type={isVisible ? "text" : "password"} />
-      <Button
-        aria-label={isVisible ? "Hide password" : "Show password"}
-        className="absolute top-1/2 right-1.5 -translate-y-1/2"
-        onClick={() => setIsVisible((currentValue) => !currentValue)}
-        size="icon-sm"
-        type="button"
-        variant="ghost"
-      >
-        {isVisible ? <EyeOff /> : <Eye />}
-        <span className="sr-only">{isVisible ? "Hide password" : "Show password"}</span>
-      </Button>
-    </div>
+    <InputGroup className={className}>
+      {leadingIcon ? <InputGroupAddon>{leadingIcon}</InputGroupAddon> : null}
+      <InputGroupInput {...props} type={isVisible ? "text" : "password"} />
+      <InputGroupAddon align="inline-end">
+        <InputGroupButton
+          aria-label={isVisible ? "Hide password" : "Show password"}
+          onClick={() => setIsVisible((currentValue) => !currentValue)}
+          size="icon-sm"
+          type="button"
+        >
+          {isVisible ? <EyeOff /> : <Eye />}
+          <span className="sr-only">{isVisible ? "Hide password" : "Show password"}</span>
+        </InputGroupButton>
+      </InputGroupAddon>
+    </InputGroup>
   );
 }

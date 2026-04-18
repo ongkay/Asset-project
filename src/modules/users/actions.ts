@@ -22,9 +22,12 @@ export const createUserAction = adminActionClient
   .inputSchema(adminCreateUserSchema)
   .action(async ({ ctx, parsedInput }) => {
     try {
+      const { email, password, role } = parsedInput;
       const createdUser = await createUserByAdmin({
         actingAdminUserId: ctx.currentAppUser.profile.userId,
-        ...parsedInput,
+        email,
+        password,
+        role,
       });
 
       return {

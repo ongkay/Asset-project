@@ -109,6 +109,15 @@ function isRetriableProfileConflict(error: unknown) {
   );
 }
 
+function readFirstRpcRow<TRow extends object>(data: unknown): TRow | null {
+  if (Array.isArray(data)) {
+    const firstRow = data[0];
+    return firstRow && typeof firstRow === "object" ? (firstRow as TRow) : null;
+  }
+
+  return data && typeof data === "object" ? (data as TRow) : null;
+}
+
 export async function signInWithPassword(input: SignInInput) {
   return createInsForgeServerAuth().signInWithPassword({
     email: input.email,
@@ -133,14 +142,16 @@ export async function createAuthUserAsAdmin(input: { email: string; password: st
     throw error;
   }
 
-  if (!data) {
+  const createdUser = readFirstRpcRow<{ email: string; email_verified: boolean; id: string }>(data);
+
+  if (!createdUser) {
     throw new Error("Auth user could not be created.");
   }
 
   return {
-    email: data.email,
-    emailVerified: data.email_verified,
-    id: data.id,
+    email: createdUser.email,
+    emailVerified: createdUser.email_verified,
+    id: createdUser.id,
   } satisfies AuthProviderUser;
 }
 
@@ -154,7 +165,9 @@ export async function updateAuthUserPasswordAsAdmin(input: { newPassword: string
     throw error;
   }
 
-  if (!data) {
+  const updatedUser = readFirstRpcRow<{ id: string }>(data);
+
+  if (!updatedUser) {
     throw new Error("Auth user not found.");
   }
 
@@ -203,11 +216,13 @@ export async function readAuthUserByEmail(input: CheckAuthEmailInput): Promise<A
     throw error;
   }
 
-  if (data) {
+  const authUser = readFirstRpcRow<{ email: string; email_verified: boolean; id: string }>(data);
+
+  if (authUser) {
     return {
-      email: data.email,
-      emailVerified: data.email_verified,
-      id: data.id,
+      email: authUser.email,
+      emailVerified: authUser.email_verified,
+      id: authUser.id,
     } satisfies AuthProviderUser;
   }
 

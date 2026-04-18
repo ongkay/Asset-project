@@ -2,7 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
-import { createInsForgeServerDatabase } from "@/lib/insforge/database";
+import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
 import { PACKAGE_ACCESS_KEYS, type PackageAccessKey } from "@/modules/packages/types";
 
 type AdminUserRole = "admin" | "member";
@@ -107,11 +107,15 @@ const ADMIN_USER_SUBSCRIPTION_SELECT =
   "id, user_id, package_id, package_name, access_keys_json, status, start_at, end_at, created_at, updated_at";
 
 function createAdminUsersRepositoryDatabase() {
-  return createInsForgeServerDatabase();
+  return createInsForgeAdminDatabase();
 }
 
 function escapePostgrestSearchValue(value: string) {
-  return value.replaceAll(",", "\\,");
+  return value.replace(/([\\,%_()])/g, "\\$1");
+}
+
+function isUuidSearchValue(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function parseArrayRows<TRow>(rows: unknown, schema: z.ZodType<TRow>) {
@@ -139,9 +143,17 @@ function applySearchFilter<TQuery extends { or: (filter: string) => TQuery }>(qu
   }
 
   const escapedSearch = escapePostgrestSearchValue(search);
-  return query.or(
-    `user_id.ilike.%${escapedSearch}%,email.ilike.%${escapedSearch}%,username.ilike.%${escapedSearch}%,public_id.ilike.%${escapedSearch}%`,
-  );
+  const orFilters = [
+    `email.ilike.%${escapedSearch}%`,
+    `username.ilike.%${escapedSearch}%`,
+    `public_id.ilike.%${escapedSearch}%`,
+  ];
+
+  if (isUuidSearchValue(search)) {
+    orFilters.push(`user_id.eq.${escapedSearch}`);
+  }
+
+  return query.or(orFilters.join(","));
 }
 
 export async function listAdminUserTableProfilesPage(input: {

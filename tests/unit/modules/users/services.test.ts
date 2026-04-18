@@ -183,18 +183,19 @@ describe("users/services", () => {
 
     expect(mockedUpdateUserBanState).not.toHaveBeenCalled();
   });
-});
-it("rejects duplicate requested usernames on profile edit instead of auto-suffixing", async () => {
-  mockedIsUsernameTaken.mockResolvedValueOnce(true);
 
-  await expect(
-    updateUserProfileByAdmin({
-      actingAdminUserId: "91000000-0000-4000-8000-000000000001",
-      userId: "91000000-0000-4000-8000-000000000002",
-      username: "seed-active-browser",
-      avatarUrl: null,
-    }),
-  ).rejects.toThrow("Username is already used by another user.");
+  it("rejects duplicate requested usernames on profile edit instead of auto-suffixing", async () => {
+    mockedIsUsernameTaken.mockResolvedValueOnce(true);
 
-  expect(mockedUpdateUserProfileFields).not.toHaveBeenCalled();
+    await expect(
+      updateUserProfileByAdmin({
+        actingAdminUserId: "91000000-0000-4000-8000-000000000001",
+        userId: "91000000-0000-4000-8000-000000000002",
+        username: "seed-active-browser",
+        avatarUrl: null,
+      }),
+    ).rejects.toThrow("Username is already used by another user.");
+
+    expect(mockedUpdateUserProfileFields).not.toHaveBeenCalled();
+  });
 });

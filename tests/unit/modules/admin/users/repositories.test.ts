@@ -11,14 +11,23 @@ const { mockedCreateInsForgeServerDatabase } = vi.hoisted(() => ({
   mockedCreateInsForgeServerDatabase: vi.fn(),
 }));
 
+const { mockedCreateInsForgeAdminDatabase } = vi.hoisted(() => ({
+  mockedCreateInsForgeAdminDatabase: vi.fn(),
+}));
+
 vi.mock("@/lib/insforge/database", () => ({
+  createInsForgeAdminDatabase: mockedCreateInsForgeAdminDatabase,
   createInsForgeServerDatabase: mockedCreateInsForgeServerDatabase,
 }));
 
-import { listAdminUserSubscriptionsByUserIds } from "@/modules/admin/users/repositories";
+import {
+  listAdminUserSubscriptionsByUserIds,
+  listAdminUserTableProfilesPage,
+} from "@/modules/admin/users/repositories";
 
 function createQueryBuilder(rows: QueryRow[]) {
   let resultRows = [...rows];
+  let lastOrFilter = "";
 
   const builder = {
     eq(column: string, value: unknown) {
@@ -40,6 +49,10 @@ function createQueryBuilder(rows: QueryRow[]) {
     order() {
       return builder;
     },
+    or(filter: string) {
+      lastOrFilter = filter;
+      return builder;
+    },
     range(start: number, end: number) {
       resultRows = resultRows.slice(start, end + 1);
       return builder;
@@ -50,27 +63,42 @@ function createQueryBuilder(rows: QueryRow[]) {
     },
   };
 
-  return builder;
+  return {
+    builder,
+    getLastOrFilter: () => lastOrFilter,
+  };
 }
 
 function installDatabaseFixture(dataset: QueryDataset) {
-  mockedCreateInsForgeServerDatabase.mockReturnValue({
+  let getLastProfilesOrFilter = () => "";
+
+  const database = {
     from(tableName: string) {
       if (tableName === "profiles") {
-        return createQueryBuilder(dataset.profileRows ?? []);
+        const queryBuilder = createQueryBuilder(dataset.profileRows ?? []);
+        getLastProfilesOrFilter = queryBuilder.getLastOrFilter;
+        return queryBuilder.builder;
       }
 
       if (tableName === "subscriptions") {
-        return createQueryBuilder(dataset.subscriptionRows ?? []);
+        return createQueryBuilder(dataset.subscriptionRows ?? []).builder;
       }
 
       throw new Error(`Unhandled table mock: ${tableName}`);
     },
-  });
+  };
+
+  mockedCreateInsForgeAdminDatabase.mockReturnValue(database);
+  mockedCreateInsForgeServerDatabase.mockReturnValue(database);
+
+  return {
+    getLastProfilesOrFilter: () => getLastProfilesOrFilter(),
+  };
 }
 
 describe("admin/users/repositories", () => {
   beforeEach(() => {
+    mockedCreateInsForgeAdminDatabase.mockReset();
     mockedCreateInsForgeServerDatabase.mockReset();
   });
 
@@ -93,5 +121,22 @@ describe("admin/users/repositories", () => {
     });
 
     await expect(listAdminUserSubscriptionsByUserIds(["user-1"])).rejects.toThrowError();
+  });
+
+  it("escapes ilike wildcard and parser control characters before building the users table filter", async () => {
+    const databaseFixture = installDatabaseFixture({
+      profileRows: [],
+    });
+
+    await listAdminUserTableProfilesPage({
+      page: 1,
+      pageSize: 10,
+      role: null,
+      search: "%a_b,()",
+    });
+
+    expect(databaseFixture.getLastProfilesOrFilter()).toContain("email.ilike.%\\%a\\_b\\,\\(\\)%");
+    expect(databaseFixture.getLastProfilesOrFilter()).toContain("username.ilike.%\\%a\\_b\\,\\(\\)%");
+    expect(databaseFixture.getLastProfilesOrFilter()).toContain("public_id.ilike.%\\%a\\_b\\,\\(\\)%");
   });
 });
