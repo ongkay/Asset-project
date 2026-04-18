@@ -7,11 +7,21 @@ import {
   countPackageTotalUsed,
   createPackageRow,
   getPackageById,
+  getPackageRowById,
   getPackageSummary,
+  listPackageRowsByIds,
   togglePackageActiveRow,
   updatePackageRow,
 } from "./repositories";
-import type { PackageAdminRow, PackageFormInput, PackageRow, PackageSummary, PackageToggleInput } from "./types";
+import { derivePackageSummaryFromAccessKeys, sortPackageAccessKeysCanonical } from "./types";
+import type {
+  PackageAdminRow,
+  PackageFormInput,
+  PackageIssuableSnapshot,
+  PackageRow,
+  PackageSummary,
+  PackageToggleInput,
+} from "./types";
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -79,6 +89,64 @@ export async function derivePackageSummary(accessKeys: PackageFormInput["accessK
   }
 
   return summary;
+}
+
+export async function getIssuablePackageSnapshotById(packageId: string): Promise<PackageIssuableSnapshot> {
+  const packageRow = await getPackageRowById(packageId);
+
+  if (!packageRow) {
+    throw new Error("Package not found.");
+  }
+
+  if (!packageRow.isActive) {
+    throw new Error("Package is disabled.");
+  }
+
+  const canonicalAccessKeys = sortPackageAccessKeysCanonical(packageRow.accessKeys);
+
+  return {
+    accessKeys: canonicalAccessKeys,
+    amountRp: packageRow.amountRp,
+    durationDays: packageRow.durationDays,
+    id: packageRow.id,
+    isExtended: packageRow.isExtended,
+    name: packageRow.name,
+    summary: derivePackageSummaryFromAccessKeys(canonicalAccessKeys),
+  };
+}
+
+export async function getIssuablePackageSnapshotsByIds(packageIds: string[]): Promise<PackageIssuableSnapshot[]> {
+  if (packageIds.length === 0) {
+    return [];
+  }
+
+  const uniquePackageIds = [...new Set(packageIds)];
+  const packageRows = await listPackageRowsByIds(uniquePackageIds);
+  const packageRowById = new Map(packageRows.map((packageRow) => [packageRow.id, packageRow]));
+
+  return uniquePackageIds.map((packageId) => {
+    const packageRow = packageRowById.get(packageId);
+
+    if (!packageRow) {
+      throw new Error("Package not found.");
+    }
+
+    if (!packageRow.isActive) {
+      throw new Error("Package is disabled.");
+    }
+
+    const canonicalAccessKeys = sortPackageAccessKeysCanonical(packageRow.accessKeys);
+
+    return {
+      accessKeys: canonicalAccessKeys,
+      amountRp: packageRow.amountRp,
+      durationDays: packageRow.durationDays,
+      id: packageRow.id,
+      isExtended: packageRow.isExtended,
+      name: packageRow.name,
+      summary: derivePackageSummaryFromAccessKeys(canonicalAccessKeys),
+    };
+  });
 }
 
 export async function buildPackageAdminRow(packageRow: PackageRow): Promise<PackageAdminRow> {

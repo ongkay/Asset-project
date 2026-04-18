@@ -73,6 +73,16 @@ export type PackageRow = {
   updatedAt: string;
 };
 
+export type PackageIssuableSnapshot = {
+  accessKeys: PackageAccessKey[];
+  amountRp: number;
+  durationDays: number;
+  id: string;
+  isExtended: boolean;
+  name: string;
+  summary: PackageSummary | null;
+};
+
 export type PackageEditorData = {
   accessKeys: PackageAccessKey[];
   amountRp: number;

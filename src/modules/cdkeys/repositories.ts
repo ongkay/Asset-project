@@ -2,7 +2,12 @@ import "server-only";
 
 import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
 
-import type { CdKeyActivationSnapshot } from "./types";
+import type {
+  CdKeyActivationSnapshot,
+  CdKeyIssueRecord,
+  CreateCdKeyRowInput,
+  MapCdKeyIssueRecordPayload,
+} from "./types";
 
 type CdKeyRow = {
   access_keys_json: string[];
@@ -19,6 +24,22 @@ type CdKeyRow = {
   used_at: string | null;
   used_by: string | null;
 };
+
+function mapCdKeyIssueRecord(row: MapCdKeyIssueRecordPayload): CdKeyIssueRecord {
+  return {
+    accessKeys: row.access_keys_json,
+    amountRp: row.amount_rp,
+    code: row.code,
+    createdBy: row.created_by,
+    durationDays: row.duration_days,
+    id: row.id,
+    isActive: row.is_active,
+    isExtended: row.is_extended,
+    packageId: row.package_id,
+    usedAt: row.used_at,
+    usedBy: row.used_by,
+  };
+}
 
 export async function findCdKeyByCode(code: string): Promise<CdKeyActivationSnapshot | null> {
   const database = createInsForgeAdminDatabase();
@@ -87,4 +108,34 @@ export async function releaseReservedCdKeyUsage(input: {
   if (error) {
     throw error;
   }
+}
+
+export async function createCdKeyRow(input: CreateCdKeyRowInput): Promise<CdKeyIssueRecord> {
+  const database = createInsForgeAdminDatabase();
+  const { data, error } = await database
+    .from("cd_keys")
+    .insert([
+      {
+        code: input.code,
+        package_id: input.packageId,
+        duration_days: input.durationDays,
+        is_extended: input.isExtended,
+        access_keys_json: input.accessKeys,
+        amount_rp: input.amountRp,
+        created_by: input.createdBy,
+        used_by: null,
+        used_at: null,
+        is_active: true,
+      },
+    ])
+    .select(
+      "id, code, package_id, duration_days, is_extended, access_keys_json, amount_rp, is_active, used_by, used_at, created_by",
+    )
+    .single<MapCdKeyIssueRecordPayload>();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapCdKeyIssueRecord(data);
 }
