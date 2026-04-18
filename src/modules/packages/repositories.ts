@@ -265,7 +265,7 @@ export async function listPackages(input: PackageListInput): Promise<PackageTabl
   };
 }
 
-export async function getPackageById(packageId: string): Promise<PackageRow | null> {
+export async function getPackageRowById(packageId: string): Promise<PackageRow | null> {
   const database = createPackagesRepositoryDatabase();
   const { data, error } = await database
     .from("packages")
@@ -282,6 +282,29 @@ export async function getPackageById(packageId: string): Promise<PackageRow | nu
   }
 
   return mapPackageDatabaseRow(data);
+}
+
+export async function listPackageRowsByIds(packageIds: string[]): Promise<PackageRow[]> {
+  if (packageIds.length === 0) {
+    return [];
+  }
+
+  const database = createPackagesRepositoryDatabase();
+  const { data, error } = await database
+    .from("packages")
+    .select(PACKAGE_BASE_SELECT_FIELDS)
+    .in("id", packageIds)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return parsePackageDatabaseRows(data).map(mapPackageDatabaseRow);
+}
+
+export async function getPackageById(packageId: string): Promise<PackageRow | null> {
+  return getPackageRowById(packageId);
 }
 
 export async function getPackageEditorData(packageId: string): Promise<PackageEditorData | null> {
