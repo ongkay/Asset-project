@@ -147,7 +147,7 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 - **DEP-003A**: `docs/DB.md` for schema, view, and constraint semantics used by admin-user queries and verification.
 - **DEP-004**: `docs/agent-rules/folder-structure.md` for module and route boundaries.
 - **DEP-005**: `docs/agent-rules/ui-ux-rules.md` for admin visual baseline and table/dialog quality expectations.
-- **DEP-006**: Baseline migrations `010_profiles_and_auth_tables.sql`, `011_catalog_tables.sql`, `012_subscription_tables.sql`, `020_admin_access_helpers.sql`, `021_rls_policies.sql`, `022_subscription_engine.sql`, `023_triggers.sql`, `024_views.sql`, `025_table_grants.sql`, and `030_rpc.sql`.
+- **DEP-006**: Baseline migrations `010_profiles_and_auth_tables.sql`, `011_catalog_tables.sql`, `012_subscription_tables.sql`, `020_admin_access_helpers.sql`, `021_rls_policies.sql`, `022_subscription_engine.sql`, `023_triggers.sql`, `024_views.sql`, `025_table_grants.sql`, `030_rpc.sql`, and `045_auth_admin_helpers.sql`.
 - **DEP-006A**: Verification seed files `040_dev_seed_full.sql`, `041_dev_seed_loginable_users.sql`, and `042_dev_seed_admin_users.sql` when browser verification depends on seeded accounts and history data.
 - **DEP-007**: Existing admin visual and interaction patterns in `src/app/(admin)/admin/assets/**`.
 - **DEP-008**: Existing admin read-transport patterns in `src/modules/admin/assets/actions.ts`, `src/app/(admin)/admin/assets/_components/assets-query.ts`, and `src/app/(admin)/admin/subscriber/_components/subscriber-query.ts`, plus mutation action patterns in `src/modules/assets/actions.ts`.

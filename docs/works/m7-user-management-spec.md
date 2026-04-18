@@ -47,7 +47,7 @@ The purpose of this specification is to provide a machine-readable contract for 
 ### 1.4 Assumptions
 - Milestones 0 through 4 are already available in the repo and runtime environment.
 - Milestones 5 and 6 may still be in progress. Milestone 7 user-management flows must not depend on CD-Key redeem or payment-dummy implementation being merged, but must render those transaction sources correctly when such data already exists.
-- Baseline migrations from `migrations/001_extensions.sql` through `migrations/030_rpc.sql` are applied to the runtime database.
+- Baseline migrations from `migrations/001_extensions.sql` through `migrations/030_rpc.sql` are applied to the runtime database, plus `migrations/045_auth_admin_helpers.sql` for the trusted auth-admin create, lookup, password-update, and compensation helpers used by Milestone 7.
 - The runtime database contains at least one admin account that can access `/admin/*`.
 - The implementation follows `docs/agent-rules/folder-structure.md`.
 - The implementation should keep route-local admin UI composition aligned first with `src/app/(admin)/admin/assets/*` as the admin visual baseline, and use current subscriber patterns only as secondary evidence for table interaction behavior.
@@ -373,7 +373,7 @@ Edge cases that implementation must handle:
 
 ## 10. Validation Criteria
 - The implementation must satisfy all Milestone 7 browser checklist items from `docs/IMPLEMENTATION_PLAN.md`.
-- Browser verification for Milestone 7 must use the runtime database setup required by the implementation plan, including baseline migrations and the seeded browser-loginable accounts from `040_dev_seed_full.sql`, `041_dev_seed_loginable_users.sql`, and `042_dev_seed_admin_users.sql` when those checklist steps rely on seeded login and admin users.
+- Browser verification for Milestone 7 must use the runtime database setup required by the implementation plan, including baseline migrations, `045_auth_admin_helpers.sql`, and the seeded browser-loginable accounts from `040_dev_seed_full.sql`, `041_dev_seed_loginable_users.sql`, and `042_dev_seed_admin_users.sql` when those checklist steps rely on seeded login and admin users.
 - The implementation must not require manual DB edits during browser verification.
 - Admin create-user verification must prove both `auth.users` and `public.profiles` consistency for the created identity.
 - Ban or unban verification must prove only `public.profiles.is_banned` changed and history stayed intact.

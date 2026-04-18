@@ -38,7 +38,7 @@ const requireAdminAppUser = createMiddleware<{
   ctx: { currentAppUser: AuthenticatedAppUser };
   metadata: { actionName: string };
 }>().define(async ({ ctx, next }) => {
-  if (ctx.currentAppUser.profile.role !== "admin") {
+  if (ctx.currentAppUser.profile.isBanned || ctx.currentAppUser.profile.role !== "admin") {
     throw new Error("Forbidden");
   }
 
