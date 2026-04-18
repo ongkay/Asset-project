@@ -12,7 +12,6 @@ tags: [feature, process, admin, subscriptions, nextjs, insforge, milestone-4]
 This plan defines the executable implementation sequence for Milestone 4 Admin Subscriptions. The target outcome is a guarded admin `/admin/subscriber` flow that can search, filter, paginate, open add or edit subscriber dialogs, resolve exact-entitlement candidate assets, quick-add private assets inside the dialog, create consistent `admin_manual` transactions and subscription outcomes through the shared activation service, and cancel running subscriptions without violating the one-running-subscription or exact-access-key invariants.
 
 ## Status Update
-
 - Last implementation review: `2026-04-16`.
 - Phase 1 implementation tasks are complete.
 - Phase 2 implementation tasks are complete.
@@ -22,7 +21,6 @@ This plan defines the executable implementation sequence for Milestone 4 Admin S
 ## 1. Requirements & Constraints
 
 ### Source Alignment
-
 | Source | Relevant References | Required Impact |
 |------|-------------|-----------|
 | `docs/works/m4-admin-subscriptions-spec.md` | Full spec, especially sections `3`, `4`, `5`, `10` | The plan must implement only the documented M4 contract, including local implementation decisions already locked in the spec. |
@@ -37,7 +35,6 @@ This plan defines the executable implementation sequence for Milestone 4 Admin S
 | `migrations/024_views.sql` | current subscription, current asset access, transaction list views | Read models should reuse baseline views where they fit, but must still compose admin-specific aggregates in the app layer. |
 | `src/app/(admin)/admin/assets/**` | shipped Milestone 3 route-local UI pattern | M4 route, query adapter, toolbar, column persistence, and page composition must stay structurally consistent with M3. |
 | `src/modules/admin/assets/**` | shipped Milestone 3 admin read-model pattern | M4 must mirror the query, schema, type, and action layering already used in M3. |
-
 - **REQ-001**: Implement Milestone 4 only for admin subscription management and its direct route.
 - **REQ-002**: Keep all mutations server-side and do not introduce a public REST endpoint for admin subscription UI.
 - **REQ-003**: Reuse the shared activation service direction already mandated by Milestone 0 and Milestone 4; do not create admin-only activation logic that diverges from later `payment_dummy` or `cdkey` flows.

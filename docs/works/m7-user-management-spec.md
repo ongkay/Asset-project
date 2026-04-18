@@ -321,7 +321,6 @@ The purpose of this specification is to provide a machine-readable contract for 
 - **COM-002**: Admin browser flows must use session-based app access and must not expose privileged credentials client-side.
 
 ## 9. Examples & Edge Cases
-
 ```json
 {
   "createUserExample": {

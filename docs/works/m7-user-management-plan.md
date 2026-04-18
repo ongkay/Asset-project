@@ -9,7 +9,6 @@ tags: [feature, admin, users, auth, nextjs, milestone-7]
 ---
 
 # Introduction
-
 ![Status: Completed](https://img.shields.io/badge/status-Completed-green)
 
 This plan defines the implementation sequence for Milestone 7 User Management at `/admin/users`. The plan is intentionally structured for `executing-plans`: phases are sequential, tasks are atomic, dependencies are explicit inside each task description, and every phase ends with concrete verification so execution can stop safely on the first blocker.
@@ -19,7 +18,6 @@ Implementation status: completed on `2026-04-18`, including Phase 1 through Phas
 The implementation must remain consistent with `docs/works/m7-user-management-spec.md`, `docs/PRD.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/DB.md`, `docs/agent-rules/folder-structure.md`, `docs/agent-rules/ui-ux-rules.md`, baseline SQL in `migrations/`, and the current admin UI baseline under `src/app/(admin)/admin/assets/**`.
 
 ## 1. Requirements & Constraints
-
 - **REQ-001**: Implement the `/admin/users` milestone exactly as specified in `docs/works/m7-user-management-spec.md`.
 - **REQ-002**: Preserve App Router boundaries: `src/app/**` stays thin; route-local UI lives under `src/app/(admin)/admin/users/_components/**`; business logic lives in `src/modules/**`.
 - **REQ-003**: Use `src/modules/admin/users/**` for admin read models, filter parsing, and thin admin read/bootstrap actions only.
@@ -49,7 +47,6 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 ## 2. Implementation Steps
 
 ### Implementation Phase 1
-
 - GOAL-001: Establish the domain and admin read-model contracts for `/admin/users` so later UI work can consume stable shapes without embedding business logic in route files.
 - Entry Criteria: `docs/works/m7-user-management-spec.md` is accepted as the source of truth for Milestone 7.
 - Completion Criteria: Admin-users schemas, types, and query boundaries exist; route-level parsing and initial table loading can be wired without placeholder types.
@@ -63,7 +60,6 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 | TASK-005 | Verify Phase 1 contracts by running TypeScript-aware checks on the touched module files and ensuring no route-local code is required to parse filters or shape admin-user payloads yet. Stop here if contract names or field shapes remain uncertain. | Yes | 2026-04-18 |
 
 ### Implementation Phase 2
-
 - GOAL-002: Implement trusted domain write paths for create user, safe profile edit, ban/unban, and password change without coupling them to route-local UI.
 - Entry Criteria: Phase 1 contracts are present and stable.
 - Completion Criteria: Canonical domain actions and services exist for all Milestone 7 writes, with server-side validation and trusted auth-admin orchestration in place.
@@ -79,7 +75,6 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 | TASK-012 | Verify Phase 2 by running targeted checks/tests for create-user input validation, duplicate-email rejection, username normalization/collision logic, `public_id` uniqueness, self-ban prevention, old-password failure vs new-password success, and trusted auth-admin orchestration. Stop if create-user cannot guarantee a real loginable auth identity. | Yes | 2026-04-18 |
 
 ### Implementation Phase 3
-
 - GOAL-003: Implement admin read models and thin admin transport actions for table data and detail bootstrap.
 - Entry Criteria: Phase 2 canonical write paths exist, even if UI is not yet wired.
 - Completion Criteria: `/admin/users` can load table data and detail bootstrap data from server-side queries, with all required filter and history shapes available.
@@ -92,7 +87,6 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 | TASK-016 | Verify Phase 3 by exercising table/detail reads through `src/modules/admin/users/actions.ts` and browser-callable write actions through `src/modules/users/actions.ts` and `src/modules/auth/actions.ts`. Confirm search is case-insensitive across `user_id/email/username/public_id`, role filter, DB-status subscription filter, `packageSummary = none`, stable table ordering, detail history ordering, and the action envelopes expected by the React Query client adapter. Stop if any required read/write path still depends on route-local business logic. | Yes | 2026-04-18 |
 
 ### Implementation Phase 4
-
 - GOAL-004: Replace the `/admin/users` placeholder route with the real page shell, table state, query adapter, and toolbar/table baseline aligned with `/admin/assets`.
 - Entry Criteria: Phase 3 queries can provide real table and detail data.
 - Completion Criteria: The route renders the real user-management page shell, with assets-style toolbar, table, pagination, and persisted column visibility.
@@ -106,7 +100,6 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 | TASK-021 | Verify Phase 4 in the browser and at the component level: `/admin/users` should render with the same visual density and shell language as `/admin/assets`, filters must update URL state, the search field must be clearable, the `actions` column must remain non-hideable, and other column visibility must persist via `localStorage`. Stop if the page drifts visually from the assets baseline or if route files accumulate business logic. | Yes | 2026-04-18 |
 
 ### Implementation Phase 5
-
 - GOAL-005: Implement create-user, detail, edit, ban/unban, and change-password dialogs with assets-style interaction quality and full milestone data coverage.
 - Entry Criteria: Phase 4 table and route shell are stable.
 - Completion Criteria: All row actions are wired, dialogs match current repo dialog style, and detail view shows all required sections without leaking sensitive data.
@@ -120,7 +113,6 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 | TASK-026 | Verify Phase 5 in the browser with seeded and newly created users: create member user, inspect detail, edit avatar/username from the detail dialog, clear `avatar_url` back to null, attempt duplicate-username edit and confirm server-side rejection, ban/unban a non-self user, change password, and confirm dialog behavior, keyboard focus, and empty states. Stop if any mutation bypasses server-side validation or if the detail dialog leaks sensitive fields. | Yes | 2026-04-18 |
 
 ### Implementation Phase 6
-
 - GOAL-006: Finish milestone verification, regression checks, and documentation-level alignment for a clean execution handoff.
 - Entry Criteria: Phases 1 through 5 are complete and all feature paths are implemented.
 - Completion Criteria: Repo quality gates, browser verification, and backend invariant checks pass; the final implementation remains consistent with current repo structure and visual baseline.
@@ -133,7 +125,6 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 | TASK-030 | Perform a final consistency pass against `docs/works/m7-user-management-spec.md`, `docs/PRD.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/agent-rules/folder-structure.md`, `docs/agent-rules/ui-ux-rules.md`, and the assets-page visual baseline. Only after all evidence is green should the implementation be considered ready for `finishing-a-development-branch`. | Yes | 2026-04-18 |
 
 ## 3. Alternatives
-
 - **ALT-001**: Keep `/admin/users/page.tsx` as a placeholder and defer the route until Milestone 8. Rejected because Milestone 7 explicitly owns `/admin/users` and its browser flows.
 - **ALT-002**: Put all user-management mutations in `src/modules/admin/users/actions.ts`. Rejected because folder rules require admin modules to stay thin and delegate business logic to core domain services.
 - **ALT-003**: Use a drawer for `View Details`. Rejected because the current admin detail-surface baseline is a dialog under `/admin/assets`.
@@ -142,7 +133,6 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 - **ALT-006**: Add a new migration for user-management helper SQL immediately. Rejected because the spec and migrations allow implementation via current app-layer services and trusted auth-admin paths unless a concrete blocker is discovered.
 
 ## 4. Dependencies
-
 - **DEP-001**: `docs/works/m7-user-management-spec.md` for all milestone contracts.
 - **DEP-002**: `docs/PRD.md` section `7.4. Users Management (/admin/users)` for product behavior.
 - **DEP-003**: `docs/IMPLEMENTATION_PLAN.md` Milestone 7 for browser and backend verification criteria.
@@ -156,7 +146,6 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 - **DEP-009**: Existing session guard in `src/modules/users/services.ts`.
 
 ## 5. Files
-
 - **FILE-001**: Modify `src/app/(admin)/admin/users/page.tsx`.
 - **FILE-002**: Create `src/app/(admin)/admin/users/_components/users-page.tsx`.
 - **FILE-003**: Create `src/app/(admin)/admin/users/_components/users-page-types.ts`.
@@ -190,9 +179,7 @@ The implementation must remain consistent with `docs/works/m7-user-management-sp
 - **FILE-030**: Modify `src/modules/auth/types.ts` only if auth-admin result contracts are needed.
 
 ## 6. Testing
-
 Final verification status: all listed quality gates and milestone browser/backend checks were completed on `2026-04-18` during Phase 6 closure.
-
 - **TEST-001**: Unit test username normalization and collision logic in the user domain.
 - **TEST-002**: Unit test safe profile-edit schema rules, including trimmed non-empty username, generated-rule-compatible username validation, duplicate-username rejection, `avatar_url` nullable clearing, and disallowed field edits.
 - **TEST-003**: Integration test create-user orchestration, including duplicate-email rejection, auth/profile consistency, `public_id` generation, and compensation on profile-insert failure.
@@ -207,9 +194,7 @@ Final verification status: all listed quality gates and milestone browser/backen
 - **TEST-012**: Read-only `npx @insforge/cli` verification starting with `whoami` and `current` for auth/profile consistency, uniqueness, banned state, and password-change identity stability.
 
 ## 7. Risks & Assumptions
-
 Implementation outcome: the milestone closed without unresolved blockers after browser verification, backend invariant verification, spec compliance review, and code quality review.
-
 - **RISK-001**: Trusted auth-admin capabilities may not be fully wrapped yet in the current auth module, increasing the chance of implementation drift if orchestration is scattered.
 - **RISK-002**: The current users domain is still minimal; adding too much into a single file could make `services.ts` or `repositories.ts` unwieldy unless concern split is introduced carefully.
 - **RISK-003**: User detail queries can accidentally leak `proxy` or other sensitive asset fields if `v_current_asset_access` is projected too broadly.
@@ -222,7 +207,6 @@ Implementation outcome: the milestone closed without unresolved blockers after b
 - **ASSUMPTION-004**: `public_id` format remains implementation-defined as long as it is unique, stable, and readable.
 
 ## 8. Related Specifications / Further Reading
-
 - `docs/works/m7-user-management-spec.md`
 - `docs/PRD.md`
 - `docs/IMPLEMENTATION_PLAN.md`

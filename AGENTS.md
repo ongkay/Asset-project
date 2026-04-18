@@ -3,6 +3,7 @@ Catatan penting:
 - repo ini masih membawa sisa template dashboard. Jangan jadikan struktur `(main)` atau halaman demo lama sebagai source of truth product
 - untuk build product baru, arahkan implementasi ke route group `(public)`, `(member)`, `(admin)`, dan `api` sesuai dokumen struktur folder
 - jangan memperkenalkan HeroUI sebagai fondasi baru. Repo dan PRD saat ini mengarah ke Tailwind + primitive UI yang sudah ada di repo
+- Jika terlalu Patch terlalu besar lebih baik di pecah agar patch tidak gagal di repo, karena patch besar seringkali gagal dan harus mengulang lagi.
 
 ## Architecture and Reuse
 Wajib ikuti `docs/agent-rules/folder-structure.md`.

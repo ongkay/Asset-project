@@ -9,7 +9,6 @@ tags: [feature, process, admin, cdkey, nextjs, insforge, milestone-5]
 ---
 
 # Introduction
-
 ![Status: Completed](https://img.shields.io/badge/status-Completed-brightgreen)
 
 This plan defines the executable implementation sequence for Milestone 5 Admin CD-Key. The target outcome is a guarded admin `/admin/cdkey` flow that can issue CD-Keys with manual or generated codes, persist package snapshot fields into `public.cd_keys`, search and filter the issued-key table, inspect read-only key details, and prove browser plus backend outcomes without conflicting with the locked Milestone 5 specification.
@@ -17,7 +16,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 ## 1. Requirements & Constraints
 
 ### Source Alignment
-
 | Source | Relevant References | Required Impact |
 |------|-------------|-----------|
 | `docs/works/m5-admin-cdkey-spec.md` | Full spec, especially sections `3`, `4`, `5`, `10` | The implementation plan must cover every locked M5 contract, including local implementation decisions already resolved by the spec. |
@@ -31,7 +29,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 | `src/app/(admin)/admin/package/**` | shipped admin package route composition, query adapter, toolbar, filters, form dialog, route keying pattern | The CD-Key route must mirror the current admin UI composition already used by `/admin/package`. |
 | `src/modules/packages/**` | current package domain reads plus access-key or summary helpers | The CD-Key issuance write path must hydrate package snapshot data from canonical package-domain code rather than from admin read models, and M5 must add the dedicated issuance snapshot helper there. |
 | `src/modules/auth/action-client.ts` | `adminActionClient` middleware with `currentAppUser` context | Actor identity for `created_by` must be injected from the authenticated admin action context and never accepted from browser input. |
-
 - **REQ-001**: Implement Milestone 5 only for the admin CD-Key issuance and inspection domain.
 - **REQ-002**: Keep all mutations server-side and do not introduce a public REST endpoint for internal admin CD-Key UI.
 - **REQ-003**: Keep `public.cd_keys` as the source of persisted issuance snapshots for `package_id`, `duration_days`, `is_extended`, `access_keys_json`, and `amount_rp`.
@@ -68,7 +65,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 ## 2. Implementation Steps
 
 ### Implementation Phase 1
-
 - GOAL-001: Establish deterministic package-snapshot helpers, CD-Key domain contracts, issuance services, and admin read-model contracts before wiring the route UI.
 
 | Task | Description | Completed | Date |
@@ -87,7 +83,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 | TASK-012 | Create `src/modules/admin/cdkeys/actions.ts` as an optional thin browser-callable transport layer over `src/modules/admin/cdkeys/queries.ts` for `getCdKeyTablePageAction`, `getCdKeyDetailSnapshotAction`, and `listIssuablePackagesAction`. Each action must use `adminActionClient`, validate input with the new admin schemas, delegate to `queries.ts`, and return exact deterministic success payloads plus `{ ok: false, message: string }` failures. | Yes | 2026-04-18 |
 
 ### Implementation Phase 2
-
 - GOAL-002: Replace the placeholder `/admin/cdkey` route with a full admin page and route-local UI that matches the shipped `/admin/package` structure and transport pattern.
 
 | Task | Description | Completed | Date |
@@ -105,7 +100,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 | TASK-023 | Preserve route-level accessibility and responsive behavior standards in the route-local UI: desktop and mobile layouts must both work; dialogs, table controls, and row actions must be keyboard navigable; icon-only actions must have accessible labels; failed submits must move focus to the first relevant error; and empty, loading, and error states must be explicit. | Yes | 2026-04-18 |
 
 ### Implementation Phase 3
-
 - GOAL-003: Verify Milestone 5 behavior end-to-end with automated tests, browser verification, backend inspection, project quality gates, and Next.js runtime diagnostics.
 
 | Task | Description | Completed | Date |
@@ -120,7 +114,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 | TASK-031 | Run the repo quality gates and runtime diagnostics required for completion: `pnpm test`, `pnpm lint`, `pnpm check`, browser verification through `agent-browser`, and relevant Next.js runtime or compilation inspection through `next-devtools_init`, `next-devtools_nextjs_index`, and `next-devtools_nextjs_call`. If any failure is caused by M5 work, fix only the relevant Milestone 5 implementation files and rerun the failing verification steps. | Yes | 2026-04-18 |
 
 ## 3. Alternatives
-
 - **ALT-001**: Implementing admin CD-Key issuance through new public `/api/*` routes was rejected because internal admin UI must use server-side layers or Server Actions, not new public REST surfaces.
 - **ALT-002**: Hydrating package snapshot data from `src/modules/admin/packages/**` was rejected because the M5 spec locks package snapshot reads to canonical package-domain code and keeps admin modules read-model only.
 - **ALT-003**: Reusing `public.seed_cd_key(...)` for live issuance was rejected because it performs an upsert on code conflict and would silently mutate an existing row instead of failing create-only issuance.
@@ -128,7 +121,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 - **ALT-005**: Loading the entire CD-Key catalog into the client and filtering in memory was rejected because the route must stay server-paginated and deterministic under the existing admin-table pattern.
 
 ## 4. Dependencies
-
 - **DEP-001**: Next.js App Router with the existing `(admin)` route group and admin shell.
 - **DEP-002**: `next-safe-action` shared setup in `src/lib/safe-action/client.ts`.
 - **DEP-003**: `adminActionClient` from `src/modules/auth/action-client.ts`.
@@ -141,7 +133,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 - **DEP-010**: Runtime seed dataset from `migrations/040_dev_seed_full.sql` or an equivalent dataset for browser and CLI verification.
 
 ## 5. Files
-
 - **FILE-001**: `src/modules/packages/types.ts` - add canonical package snapshot contract for issuance.
 - **FILE-002**: `src/modules/packages/repositories.ts` - add narrow package-row read helper by id for canonical snapshot hydration; active or inactive eligibility stays in `src/modules/packages/services.ts`.
 - **FILE-003**: `src/modules/packages/services.ts` - expose canonical package snapshot service for CD-Key issuance.
@@ -175,7 +166,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 - **FILE-031**: `tests/integration/modules/admin/cdkeys/*.test.ts` - admin read-model integration coverage using the existing Vitest runner.
 
 ## 6. Testing
-
 - **TEST-001**: Unit-test issue input normalization for uppercase conversion, blank-to-null handling, the locked Milestone 5 manual-code validation contract, and non-negative override amount validation.
 - **TEST-002**: Unit-test generated-code creation for uppercase alphanumeric output, deterministic collision retry behavior, compliance with the source-doc length range `8..12`, and the implementation-chosen length `10` locked by the Milestone 5 spec.
 - **TEST-003**: Unit-test package snapshot hydration so disabled packages are rejected before `createCdKeyRow` is called and active package snapshots return canonical access-key ordering and derived summary.
@@ -190,7 +180,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 - **TEST-012**: Project gates `pnpm test`, `pnpm lint`, `pnpm check`, and relevant Next.js runtime or compilation inspection through Next.js DevTools MCP.
 
 ## 7. Risks & Assumptions
-
 - **RISK-001**: The current `/admin/cdkey` route is only a placeholder, so route replacement must preserve admin shell behavior and navigation expectations.
 - **RISK-002**: If package snapshot hydration is implemented outside the canonical package domain, M5 can drift from the locked spec and violate the `modules/admin/*` boundary rules.
 - **RISK-003**: If generated-code conflicts are not retried deterministically, the UI can fail intermittently under repeated issuance.
@@ -203,7 +192,6 @@ This plan defines the executable implementation sequence for Milestone 5 Admin C
 - **ASSUMPTION-004**: No new migration is required for Milestone 5 if the implementation reuses the current baseline tables, policies, and package-domain helpers as planned.
 
 ## 8. Related Specifications / Further Reading
-
 - `docs/works/m5-admin-cdkey-spec.md`
 - `docs/works/m4-admin-subscriptions-plan.md`
 - `docs/works/m2-admin-package-plan.md`
