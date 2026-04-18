@@ -69,7 +69,7 @@ Aturan ringkas:
 - komentar hanya jika logic tidak langsung obvious
 - utamakan perubahan kecil pada file yang tepat daripada refactor besar yang tidak diminta
 - ikuti pola repo dan dokumen arsitektur sebelum memperkenalkan pola baru
-- jika script kualitas yang diwajibkan target project belum ada, jangan pura-pura menjalankannya; tambahkan script itu di Phase 0 atau nyatakan dengan jelas bahwa gate tersebut belum tersedia
+
 
 ## UI Rules
 Semua perubahan UI wajib mengikuti `docs/agent-rules/ui-ux-rules.md`.
@@ -91,6 +91,7 @@ Gate yang benar-benar tersedia di repo saat ini:
 - `pnpm test`
 - browser verification untuk flow yang terdampak menggunakan `agent-browser CLI`
 - next-devtools-mcp tidak menunjukkan error runtime atau compilation yang relevan
+- scan .next/dev/logs/*.log tidak ada temuan error relevan
 
 ## Required Skills and Tooling
 Skill dan tooling berikut wajib digunakan jika relevan terhadap tugas.
