@@ -80,6 +80,7 @@ Aturan inti:
 - reuse primitive yang sudah ada di `src/components/ui/**` sebelum membuat primitive baru
 - jangan membuat UI asal jadi, layout generik, atau copy yang terasa demo/template
 - semua UI baru harus tetap responsif, accessible, dan konsisten di desktop maupun mobile
+- semua form input wajib memiliki icon di sebelah kiri
 
 ## Quality Gate
 Pekerjaan belum selesai sebelum semua gate yang relevan hijau.
@@ -88,8 +89,8 @@ Gate yang benar-benar tersedia di repo saat ini:
 - `pnpm lint`
 - `pnpm check`
 - `pnpm test`
-- browser verification untuk flow yang terdampak menggunakan `agent-browser`
-- Next.js DevTools MCP tidak menunjukkan error runtime atau compilation yang relevan
+- browser verification untuk flow yang terdampak menggunakan `agent-browser CLI`
+- next-devtools-mcp tidak menunjukkan error runtime atau compilation yang relevan
 
 ## Required Skills and Tooling
 Skill dan tooling berikut wajib digunakan jika relevan terhadap tugas.
@@ -100,6 +101,7 @@ Skill dan tooling berikut wajib digunakan jika relevan terhadap tugas.
 - `ui-ux-pro-max` saat merancang, mengubah, mengoptimalkan, atau mereview UI/UX
 - `shadcn` saat bekerja dengan shadcn/ui, primitive UI, atau komponen registry yang sudah ada di repo
 - `agent-browser` untuk verifikasi browser flow, UI behavior, dan E2E yang terdampak
+- `playwright-cli` untuk verifikasi browser flow, UI behavior, dan E2E yang terdampak jika agent-browser terlalu sulit
 - `insforge` saat menulis atau mereview integrasi frontend/client dengan SDK InsForge
 - `insforge-cli` saat menangani operasi backend InsForge seperti schema, SQL, storage, functions, deployment, secrets, atau diagnostics
 - `insforge-debug` saat menangani error, bug, atau issue performa yang terkait InsForge
@@ -108,12 +110,10 @@ Skill dan tooling berikut wajib digunakan jika relevan terhadap tugas.
 Gunakan skill tambahan hanya jika konteksnya memang cocok. Jangan memanggil skill yang tidak relevan.
 
 ### MCP dan Tooling
-- jalankan `next-devtools_init` di awal sesi kerja Next.js agar workflow dokumentasi dan tooling runtime aktif
-- gunakan `next-devtools_nextjs_index` untuk menemukan server dev yang sedang berjalan dan tool runtime yang tersedia
-- gunakan `next-devtools_nextjs_call` untuk inspeksi runtime, error, route, dan diagnosis app yang sedang berjalan
+- gunakan `next-devtools-mcp` untuk inspeksi runtime, error, route, dan diagnosis app yang sedang berjalan
 - untuk dokumentasi library pihak ketiga, gunakan skill `find-docs`; jangan mengandalkan ingatan model
 - untuk tugas InsForge, gunakan skill `insforge`, `insforge-cli`, `insforge-debug`, atau `insforge-integrations` sesuai konteks; jangan membuat asumsi manual terhadap API atau schema
-- untuk browser verification, utamakan skill `agent-browser`
+- untuk browser verification, utamakan skill `agent-browser CLI`, apabila agent-browswer terlalu sulit untuk manual test boleh gunakan playwright CLI
 
 <!-- BEGIN:nextjs-agent-rules -->
 ## Next.js-Specific Warning
