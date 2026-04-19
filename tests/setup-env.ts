@@ -1,0 +1,16 @@
+process.env.DATABASE_URL ??= "postgres://postgres:postgres@localhost:5432/asset_project";
+process.env.NEXT_PUBLIC_INSFORGE_URL ??= "https://example.insforge.app";
+process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY ??= "anon-key";
+process.env.INSFORGE_URL ??= "https://example.insforge.app";
+process.env.INSFORGE_ANON_KEY ??= "anon-key";
+process.env.INSFORGE_SERVICE_KEY ??= "service-key";
+process.env.INSFORGE_PROJECT_ADMIN_EMAIL ??= "admin@example.com";
+process.env.INSFORGE_PROJECT_ADMIN_PASSWORD ??= "password";
+process.env.APP_SESSION_SECRET ??= "12345678901234567890123456789012";
+process.env.APP_SESSION_COOKIE_NAME ??= "app_session";
+process.env.EXTENSION_ALLOWED_IDS ??= "chrome-extension-id";
+process.env.EXTENSION_ALLOWED_ORIGINS ??= "https://example.com";
+process.env.CRON_SECRET ??= "cron-secret";
+process.env.TRUSTED_PROXY_IP_HEADER ??= "x-forwarded-for";
+process.env.TRUSTED_PROXY_CITY_HEADER ??= "x-city";
+process.env.TRUSTED_PROXY_COUNTRY_HEADER ??= "x-country";

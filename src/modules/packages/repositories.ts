@@ -2,7 +2,8 @@ import "server-only";
 
 import { z } from "zod";
 
-import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
+import { createInsForgeAdminDatabase, createInsForgeServerDatabase } from "@/lib/insforge/database";
+import { readValidatedInsForgeAccessTokenForActiveAppSession } from "@/modules/auth/services";
 
 import {
   derivePackageSummaryFromAccessKeys,
@@ -305,6 +306,53 @@ export async function listPackageRowsByIds(packageIds: string[]): Promise<Packag
 
 export async function getPackageById(packageId: string): Promise<PackageRow | null> {
   return getPackageRowById(packageId);
+}
+
+export async function listActivePackageRowsForMember(): Promise<PackageRow[]> {
+  const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
+
+  if (!accessToken) {
+    throw new Error("An authenticated InsForge access token is required.");
+  }
+
+  const database = createInsForgeServerDatabase({ accessToken });
+  const { data, error } = await database
+    .from("packages")
+    .select(PACKAGE_BASE_SELECT_FIELDS)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return parsePackageDatabaseRows(data).map(mapPackageDatabaseRow);
+}
+
+export async function getActivePackageRowByIdForMember(packageId: string): Promise<PackageRow | null> {
+  const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
+
+  if (!accessToken) {
+    throw new Error("An authenticated InsForge access token is required.");
+  }
+
+  const database = createInsForgeServerDatabase({ accessToken });
+  const { data, error } = await database
+    .from("packages")
+    .select(PACKAGE_BASE_SELECT_FIELDS)
+    .eq("id", packageId)
+    .eq("is_active", true)
+    .maybeSingle<PackageDatabaseRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapPackageDatabaseRow(data);
 }
 
 export async function getPackageEditorData(packageId: string): Promise<PackageEditorData | null> {

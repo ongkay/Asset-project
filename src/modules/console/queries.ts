@@ -4,9 +4,10 @@ import { z } from "zod";
 
 import { createInsForgeServerDatabase } from "@/lib/insforge/database";
 import { readProfileByUserId } from "@/modules/auth/repositories";
+import { readValidatedInsForgeAccessTokenForActiveAppSession } from "@/modules/auth/services";
 import { validateActiveAppSession } from "@/modules/sessions/services";
 
-import type { ConsoleAssetDetail, ConsoleSnapshot } from "./types";
+import type { ConsoleAssetDetail, ConsoleSnapshot, ConsoleStateSnapshot } from "./types";
 
 const consoleSubscriptionSchema = z.object({
   days_left: z.number().int().nonnegative(),
@@ -60,8 +61,37 @@ const consoleAssetDetailSchema = z.object({
   subscription_id: z.uuid(),
 });
 
+const consoleStateSubscriptionSchema = z.object({
+  created_at: z.iso.datetime(),
+  end_at: z.iso.datetime(),
+  id: z.uuid(),
+  package_id: z.uuid(),
+  package_name: z.string(),
+  start_at: z.iso.datetime(),
+  status: z.enum(["active", "processed", "expired", "canceled"]),
+});
+
+type ConsoleStateSubscriptionRow = {
+  endAt: string;
+  id: string;
+  packageId: string;
+  packageName: string;
+  startAt: string;
+  status: "active" | "processed" | "expired" | "canceled";
+};
+
 function createConsoleDatabase() {
   return createInsForgeServerDatabase();
+}
+
+async function createAuthenticatedConsoleDatabase() {
+  const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
+
+  if (!accessToken) {
+    throw new Error("An authenticated InsForge access token is required.");
+  }
+
+  return createInsForgeServerDatabase({ accessToken });
 }
 
 async function resolveConsoleTargetUserId(input: { userId?: string }) {
@@ -168,4 +198,64 @@ export async function getConsoleAssetDetail(input: {
     proxy: detail.proxy,
     subscriptionId: detail.subscription_id,
   };
+}
+
+export function deriveConsoleStateSnapshot(
+  latestSubscription: ConsoleStateSubscriptionRow | null,
+  now = new Date(),
+): ConsoleStateSnapshot {
+  if (!latestSubscription) {
+    return {
+      latestSubscription: null,
+      state: "none",
+    };
+  }
+
+  const effectiveStatus =
+    latestSubscription.status !== "canceled" && new Date(latestSubscription.endAt).getTime() <= now.getTime()
+      ? "expired"
+      : latestSubscription.status;
+
+  return {
+    latestSubscription: {
+      endAt: latestSubscription.endAt,
+      id: latestSubscription.id,
+      packageId: latestSubscription.packageId,
+      packageName: latestSubscription.packageName,
+      startAt: latestSubscription.startAt,
+      status: effectiveStatus,
+    },
+    state: effectiveStatus,
+  };
+}
+
+export async function getConsoleStateSnapshot(input: { userId?: string } = {}): Promise<ConsoleStateSnapshot> {
+  const database = await createAuthenticatedConsoleDatabase();
+  const targetUserId = await resolveConsoleTargetUserId(input);
+  const { data, error } = await database
+    .from("subscriptions")
+    .select("id, package_id, package_name, status, start_at, end_at, created_at")
+    .eq("user_id", targetUserId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return deriveConsoleStateSnapshot(null);
+  }
+
+  const latestSubscription = consoleStateSubscriptionSchema.parse(data);
+
+  return deriveConsoleStateSnapshot({
+    endAt: latestSubscription.end_at,
+    id: latestSubscription.id,
+    packageId: latestSubscription.package_id,
+    packageName: latestSubscription.package_name,
+    startAt: latestSubscription.start_at,
+    status: latestSubscription.status,
+  });
 }

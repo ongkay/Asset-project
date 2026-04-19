@@ -80,8 +80,10 @@ export type PackageIssuableSnapshot = {
   id: string;
   isExtended: boolean;
   name: string;
-  summary: PackageSummary | null;
+  summary: PackageSummary;
 };
+
+export type MemberPurchasablePackage = PackageIssuableSnapshot;
 
 export type PackageEditorData = {
   accessKeys: PackageAccessKey[];

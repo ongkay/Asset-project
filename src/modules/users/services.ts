@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 
 import { createAuthUserAsAdmin, deleteAuthUserAsAdmin, readAuthUserByEmail } from "@/modules/auth/repositories";
+import { readValidatedInsForgeAccessTokenForActiveAppSession } from "@/modules/auth/services";
 import {
   revokeActiveAppSession,
   touchActiveAppSessionLastSeen,
@@ -265,6 +266,14 @@ export async function getAuthenticatedAppUser(): Promise<AuthenticatedAppUser | 
   if (!profile) {
     await revokeActiveAppSession();
     return null;
+  }
+
+  if (profile.role === "member") {
+    const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
+
+    if (!accessToken) {
+      return null;
+    }
   }
 
   return {

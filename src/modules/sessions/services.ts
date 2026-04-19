@@ -3,7 +3,12 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { env } from "@/config/env.server";
-import { clearAppSessionCookie, readAppSessionCookie, writeAppSessionCookie } from "@/lib/cookies";
+import {
+  clearAppSessionCookie,
+  clearInsForgeAccessTokenCookie,
+  readAppSessionCookie,
+  writeAppSessionCookie,
+} from "@/lib/cookies";
 
 import { createSessionRecordInputSchema, revokeSessionInputSchema, sessionNoncePayloadSchema } from "./schemas";
 import {
@@ -68,6 +73,7 @@ export async function revokeActiveAppSession() {
 
   if (!activeSession) {
     await clearAppSessionCookie();
+    await clearInsForgeAccessTokenCookie();
     return 0;
   }
 
@@ -79,6 +85,7 @@ export async function revokeActiveAppSession() {
   );
 
   await clearAppSessionCookie();
+  await clearInsForgeAccessTokenCookie();
 
   return revokedCount;
 }

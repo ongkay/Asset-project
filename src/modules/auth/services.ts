@@ -1,6 +1,12 @@
 import "server-only";
 
 import {
+  clearInsForgeAccessTokenCookie,
+  readInsForgeAccessTokenCookie,
+  writeInsForgeAccessTokenCookie,
+} from "@/lib/cookies";
+
+import {
   adminChangeUserPasswordInputSchema,
   checkAuthEmailInputSchema,
   completeResetPasswordInputSchema,
@@ -26,7 +32,7 @@ import {
   signInWithPassword,
   signUpWithPassword,
 } from "./repositories";
-import { createAppSession, revokeActiveAppSession } from "../sessions/services";
+import { createAppSession, revokeActiveAppSession, validateActiveAppSession } from "../sessions/services";
 
 import type { AuthActionResult, AuthFailureReason, AuthProfile, AuthRedirectTarget } from "./types";
 
@@ -103,6 +109,46 @@ async function readResetPasswordCtaState(email: string) {
   };
 }
 
+async function createAlignedAppSession(input: { accessToken: string; userId: string }) {
+  await createAppSession(input.userId);
+
+  try {
+    await writeInsForgeAccessTokenCookie(input.accessToken);
+  } catch (error) {
+    await revokeActiveAppSession();
+    throw error;
+  }
+}
+
+export async function readValidatedInsForgeAccessTokenForActiveAppSession(): Promise<string | null> {
+  const activeSession = await validateActiveAppSession();
+
+  if (!activeSession) {
+    return null;
+  }
+
+  const accessToken = await readInsForgeAccessTokenCookie();
+
+  if (!accessToken) {
+    await revokeActiveAppSession();
+    return null;
+  }
+
+  try {
+    const authenticatedUserSnapshot = await readAuthenticatedUserSnapshot(accessToken);
+
+    if (!authenticatedUserSnapshot.user || authenticatedUserSnapshot.user.id !== activeSession.userId) {
+      await revokeActiveAppSession();
+      return null;
+    }
+
+    return accessToken;
+  } catch (_error) {
+    await revokeActiveAppSession();
+    return null;
+  }
+}
+
 export async function checkAuthEmailStatus(input: unknown) {
   const payload = checkAuthEmailInputSchema.parse(input);
   const authUser = await readAuthUserByEmail(payload);
@@ -131,7 +177,7 @@ export async function signInAndCreateAppSession(input: {
 
   const result = await signInWithPassword(credentials);
 
-  if (result.error || !result.data?.user) {
+  if (result.error || !result.data?.user || !result.data.accessToken) {
     const failureReason = mapAuthFailureReason(result.error);
     await writeAuthenticationLog({
       browser: metadata.browser,
@@ -195,7 +241,10 @@ export async function signInAndCreateAppSession(input: {
     };
   }
 
-  await createAppSession(result.data.user.id);
+  await createAlignedAppSession({
+    accessToken: result.data.accessToken,
+    userId: result.data.user.id,
+  });
 
   try {
     await writeAuthenticationLog({
@@ -254,7 +303,10 @@ export async function signUpAndCreateAppSession(input: {
     userId: result.data.user.id,
   });
 
-  await createAppSession(result.data.user.id);
+  await createAlignedAppSession({
+    accessToken: result.data.accessToken,
+    userId: result.data.user.id,
+  });
 
   try {
     await writeAuthenticationLog({
@@ -280,6 +332,7 @@ export async function signUpAndCreateAppSession(input: {
 
 export async function signOutAndRevokeAppSession() {
   await revokeActiveAppSession();
+  await clearInsForgeAccessTokenCookie();
 
   return {
     ok: true,
