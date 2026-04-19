@@ -10,6 +10,9 @@ import { validateActiveAppSession } from "@/modules/sessions/services";
 import type { ConsoleAssetDetail, ConsoleSnapshot, ConsoleStateSnapshot } from "./types";
 
 const isoDateTimeSchema = z.iso.datetime({ offset: true });
+const canonicalUuidLikeSchema = z
+  .string()
+  .regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
 
 const consoleSubscriptionSchema = z.object({
   days_left: z.number().int().nonnegative(),
@@ -26,7 +29,7 @@ const consoleAssetSchema = z.object({
   asset_type: z.enum(["private", "share"]),
   assignment_id: z.uuid(),
   expires_at: isoDateTimeSchema,
-  id: z.uuid(),
+  id: z.string().min(1),
   note: z.string().nullable(),
   platform: z.enum(["tradingview", "fxreplay", "fxtester"]),
   proxy: z.string().nullable(),
@@ -56,11 +59,11 @@ const consoleAssetDetailSchema = z.object({
   asset_json: z.unknown(),
   asset_type: z.enum(["private", "share"]),
   expires_at: isoDateTimeSchema,
-  id: z.uuid(),
+  id: canonicalUuidLikeSchema,
   note: z.string().nullable(),
   platform: z.enum(["tradingview", "fxreplay", "fxtester"]),
   proxy: z.string().nullable(),
-  subscription_id: z.uuid(),
+  subscription_id: canonicalUuidLikeSchema,
 });
 
 const consoleStateSubscriptionSchema = z.object({
@@ -82,15 +85,11 @@ type ConsoleStateSubscriptionRow = {
   status: "active" | "processed" | "expired" | "canceled";
 };
 
-function createConsoleDatabase() {
-  return createInsForgeServerDatabase();
-}
-
 async function createAuthenticatedConsoleDatabase() {
   const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
 
   if (!accessToken) {
-    throw new Error("An authenticated InsForge access token is required.");
+    return null;
   }
 
   return createInsForgeServerDatabase({ accessToken });
@@ -120,6 +119,15 @@ async function resolveConsoleTargetUserId(input: { userId?: string }) {
 
 export async function getConsoleSnapshot(input: { userId?: string } = {}): Promise<ConsoleSnapshot> {
   const database = await createAuthenticatedConsoleDatabase();
+
+  if (!database) {
+    return {
+      assets: [],
+      subscription: null,
+      transactions: [],
+    };
+  }
+
   const targetUserId = await resolveConsoleTargetUserId(input);
   const { data, error } = await database.rpc("get_user_console_snapshot", {
     p_user_id: targetUserId,
@@ -171,7 +179,16 @@ export async function getConsoleAssetDetail(input: {
   assetId: string;
   userId?: string;
 }): Promise<ConsoleAssetDetail | null> {
-  const database = createConsoleDatabase();
+  if (!canonicalUuidLikeSchema.safeParse(input.assetId).success) {
+    return null;
+  }
+
+  const database = await createAuthenticatedConsoleDatabase();
+
+  if (!database) {
+    return null;
+  }
+
   const targetUserId = await resolveConsoleTargetUserId(input);
   const { data, error } = await database.rpc("get_user_asset_detail", {
     p_asset_id: input.assetId,
@@ -233,6 +250,11 @@ export function deriveConsoleStateSnapshot(
 
 export async function getConsoleStateSnapshot(input: { userId?: string } = {}): Promise<ConsoleStateSnapshot> {
   const database = await createAuthenticatedConsoleDatabase();
+
+  if (!database) {
+    return deriveConsoleStateSnapshot(null);
+  }
+
   const targetUserId = await resolveConsoleTargetUserId(input);
   const { data, error } = await database
     .from("subscriptions")

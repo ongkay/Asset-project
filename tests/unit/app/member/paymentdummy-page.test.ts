@@ -23,12 +23,17 @@ vi.mock("@/modules/packages/services", () => ({
   getPackageById: vi.fn(),
 }));
 
+vi.mock("@/modules/auth/services", () => ({
+  readValidatedInsForgeAccessTokenForActiveAppSession: vi.fn(),
+}));
+
 vi.mock("@/app/(member)/paymentdummy/_components/paymentdummy-page", () => ({
   PaymentDummyPage: vi.fn(() => null),
 }));
 
 import * as consoleQueries from "@/modules/console/queries";
 import * as consoleSchemas from "@/modules/console/schemas";
+import * as authServices from "@/modules/auth/services";
 import * as packageServices from "@/modules/packages/services";
 
 import PaymentDummyRoutePage from "@/app/(member)/paymentdummy/page";
@@ -36,6 +41,9 @@ import PaymentDummyRoutePage from "@/app/(member)/paymentdummy/page";
 const mockedRedirect = vi.mocked(navigationMocks.redirect);
 const mockedGetConsoleSnapshot = vi.mocked(consoleQueries.getConsoleSnapshot);
 const mockedParsePaymentDummyPackageIdSearchParam = vi.mocked(consoleSchemas.parsePaymentDummyPackageIdSearchParam);
+const mockedReadValidatedInsForgeAccessTokenForActiveAppSession = vi.mocked(
+  authServices.readValidatedInsForgeAccessTokenForActiveAppSession,
+);
 const mockedGetMemberPurchasablePackageById = vi.mocked(packageServices.getMemberPurchasablePackageById);
 const mockedGetPackageById = vi.mocked(packageServices.getPackageById);
 
@@ -44,6 +52,7 @@ describe("app/member/paymentdummy/page", () => {
     mockedRedirect.mockClear();
     mockedGetConsoleSnapshot.mockReset();
     mockedParsePaymentDummyPackageIdSearchParam.mockReset();
+    mockedReadValidatedInsForgeAccessTokenForActiveAppSession.mockReset();
     mockedGetMemberPurchasablePackageById.mockReset();
     mockedGetPackageById.mockReset();
   });
@@ -177,5 +186,38 @@ describe("app/member/paymentdummy/page", () => {
         searchParams: Promise.resolve({ packageId: "11111111-1111-4111-8111-111111111111" }),
       }),
     ).rejects.toThrow("NEXT_REDIRECT:/console?paymentError=disabled-package");
+  });
+
+  it("redirects to login instead of misclassifying a valid package when member auth is stale", async () => {
+    mockedParsePaymentDummyPackageIdSearchParam.mockReturnValueOnce({
+      packageId: "11111111-1111-4111-8111-111111111111",
+      paymentError: null,
+    });
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce(null);
+    mockedGetConsoleSnapshot.mockResolvedValueOnce({
+      assets: [],
+      subscription: null,
+      transactions: [],
+    });
+    mockedGetPackageById.mockResolvedValueOnce({
+      accessKeys: ["tradingview:private"],
+      amountRp: 120000,
+      checkoutUrl: null,
+      code: "PKG-STARTER",
+      createdAt: "2026-04-01T00:00:00.000Z",
+      durationDays: 30,
+      id: "11111111-1111-4111-8111-111111111111",
+      isActive: true,
+      isExtended: true,
+      name: "Starter",
+      updatedAt: "2026-04-01T00:00:00.000Z",
+    });
+    mockedReadValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValueOnce(null);
+
+    await expect(
+      PaymentDummyRoutePage({
+        searchParams: Promise.resolve({ packageId: "11111111-1111-4111-8111-111111111111" }),
+      }),
+    ).rejects.toThrow("NEXT_REDIRECT:/login");
   });
 });

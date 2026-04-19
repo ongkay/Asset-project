@@ -34,7 +34,7 @@ describe("app/member/layout", () => {
     });
 
     expect(mockedRequireMemberShellAccess).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(element)).toContain("Member workspace");
+    expect(JSON.stringify(element)).toContain("Kelola langganan akun");
     expect(JSON.stringify(element)).not.toContain(">Console<");
   });
 });

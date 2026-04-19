@@ -51,9 +51,19 @@ describe("consoleAssetDetailActionInputSchema", () => {
     });
   });
 
+  it("accepts legacy non-uuid asset id payloads from the console snapshot", () => {
+    expect(consoleAssetDetailActionInputSchema.parse({ assetId: "TV-001" })).toEqual({
+      assetId: "TV-001",
+    });
+  });
+
+  it("accepts canonical Postgres-style asset ids used by seeded asset rows", () => {
+    expect(consoleAssetDetailActionInputSchema.parse({ assetId: "20000000-0000-0000-0000-000000000003" })).toEqual({
+      assetId: "20000000-0000-0000-0000-000000000003",
+    });
+  });
+
   it("rejects an invalid asset id payload", () => {
-    expect(() => consoleAssetDetailActionInputSchema.parse({ assetId: "bad-id" })).toThrow(
-      "Asset ID must be a valid UUID.",
-    );
+    expect(() => consoleAssetDetailActionInputSchema.parse({ assetId: "  " })).toThrow("Asset ID is required.");
   });
 });

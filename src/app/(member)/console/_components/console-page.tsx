@@ -1,11 +1,20 @@
 "use client";
 
-import { AlertCircle, Boxes, CreditCard, Package2 } from "lucide-react";
+import { useState } from "react";
+
+import { AlertCircle } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import type { ConsolePageProps } from "./console-page-types";
+import { ConsoleAssetDetailDialog } from "./console-asset-detail-dialog/console-asset-detail-dialog";
+import { ConsoleAssetTable } from "./console-asset-table/console-asset-table";
+import { ConsoleExtendDialog } from "./console-extend-dialog/console-extend-dialog";
+import { ConsoleHistoryTable } from "./console-history-table/console-history-table";
+import { ConsoleOverviewCard } from "./console-overview-card";
+import { ConsoleRedeemDialog } from "./console-redeem-dialog/console-redeem-dialog";
+
+import type { ConsoleAssetSnapshot } from "@/modules/console/types";
 
 const paymentErrorMessageByKey = {
   "disabled-package": "Package sudah tidak tersedia untuk pembelian baru.",
@@ -19,54 +28,45 @@ export function ConsolePage({
   initialSnapshot,
   initialStateSnapshot,
 }: ConsolePageProps) {
+  const [isExtendDialogOpen, setIsExtendDialogOpen] = useState(false);
+  const [isRedeemDialogOpen, setIsRedeemDialogOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<ConsoleAssetSnapshot | null>(null);
+  const [isAssetDetailOpen, setIsAssetDetailOpen] = useState(false);
+
+  function handleOpenAssetDetail(asset: ConsoleAssetSnapshot) {
+    setSelectedAsset(asset);
+    setIsAssetDetailOpen(true);
+  }
+
   return (
-    <div className="flex flex-col gap-6">
-      {initialPaymentError ? (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertTitle>Checkout belum bisa dilanjutkan</AlertTitle>
-          <AlertDescription>{paymentErrorMessageByKey[initialPaymentError]}</AlertDescription>
-        </Alert>
-      ) : null}
+    <>
+      <div className="flex flex-col gap-6">
+        {initialPaymentError ? (
+          <Alert variant="destructive">
+            <AlertCircle className="size-4" />
+            <AlertTitle>Checkout belum bisa dilanjutkan</AlertTitle>
+            <AlertDescription>{paymentErrorMessageByKey[initialPaymentError]}</AlertDescription>
+          </Alert>
+        ) : null}
 
-      <Card className="border-border/60 shadow-xs">
-        <CardHeader>
-          <CardTitle>Console bootstrap</CardTitle>
-          <CardDescription>Phase 4 menyiapkan route final dengan data server yang sudah stabil.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-              <CreditCard className="size-4" />
-              Console state
-            </div>
-            <p className="text-2xl font-semibold capitalize">{initialStateSnapshot.state}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {initialStateSnapshot.latestSubscription?.packageName ?? "Belum ada subscription sebelumnya."}
-            </p>
-          </div>
+        <ConsoleOverviewCard
+          onOpenExtendDialog={() => setIsExtendDialogOpen(true)}
+          onOpenRedeemDialog={() => setIsRedeemDialogOpen(true)}
+          snapshot={initialSnapshot}
+          stateSnapshot={initialStateSnapshot}
+        />
+        <ConsoleAssetTable assets={initialSnapshot.assets} onViewAsset={handleOpenAssetDetail} />
+        <ConsoleHistoryTable transactions={initialSnapshot.transactions} />
+      </div>
 
-          <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-              <Boxes className="size-4" />
-              Assigned assets
-            </div>
-            <p className="text-2xl font-semibold">{initialSnapshot.assets.length}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Asset aktif akan dirender penuh pada phase UI berikutnya.
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-              <Package2 className="size-4" />
-              Active packages
-            </div>
-            <p className="text-2xl font-semibold">{initialPackages.length}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Katalog package aktif siap dipakai oleh purchase flow.</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <ConsoleExtendDialog
+        onOpenChange={setIsExtendDialogOpen}
+        open={isExtendDialogOpen}
+        packages={initialPackages}
+        state={initialStateSnapshot.state}
+      />
+      <ConsoleRedeemDialog onOpenChange={setIsRedeemDialogOpen} open={isRedeemDialogOpen} />
+      <ConsoleAssetDetailDialog asset={selectedAsset} onOpenChange={setIsAssetDetailOpen} open={isAssetDetailOpen} />
+    </>
   );
 }

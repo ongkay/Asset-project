@@ -92,13 +92,13 @@ describe("console/actions", () => {
     });
   });
 
-  it("rejects an invalid asset id before calling the query layer", async () => {
+  it("rejects a blank asset id before calling the query layer", async () => {
     const { getConsoleAssetDetailAction } = await import("@/modules/console/actions");
     const result = await getConsoleAssetDetailAction({
-      assetId: "bad-id",
+      assetId: "   ",
     });
 
-    expect(result?.validationErrors?.fieldErrors.assetId).toContain("Asset ID must be a valid UUID.");
+    expect(result?.validationErrors?.fieldErrors.assetId).toContain("Asset ID is required.");
     expect(consoleQueryMocks.getConsoleAssetDetail).not.toHaveBeenCalled();
   });
 });

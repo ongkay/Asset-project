@@ -106,7 +106,67 @@ describe("console query read paths", () => {
     expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledWith({ accessToken: "member-access-token" });
   });
 
-  it("keeps getConsoleAssetDetail on the legacy server database path", async () => {
+  it("accepts legacy non-uuid asset ids from the console snapshot read model", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        assets: [
+          {
+            access_key: "tradingview:private",
+            asset_type: "private",
+            assignment_id: "11111111-1111-4111-8111-111111111111",
+            expires_at: "2026-05-01T00:00:00.000Z",
+            id: "TV-001",
+            note: "Legacy asset key",
+            platform: "tradingview",
+            proxy: null,
+            subscription_id: "22222222-2222-4222-8222-222222222222",
+          },
+        ],
+        subscription: null,
+        transactions: [],
+      },
+      error: null,
+    });
+
+    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
+    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
+
+    const { getConsoleSnapshot } = await import("@/modules/console/queries");
+
+    await expect(getConsoleSnapshot()).resolves.toEqual({
+      assets: [
+        {
+          accessKey: "tradingview:private",
+          assetType: "private",
+          assignmentId: "11111111-1111-4111-8111-111111111111",
+          expiresAt: "2026-05-01T00:00:00.000Z",
+          id: "TV-001",
+          note: "Legacy asset key",
+          platform: "tradingview",
+          proxy: null,
+          subscriptionId: "22222222-2222-4222-8222-222222222222",
+        },
+      ],
+      subscription: null,
+      transactions: [],
+    });
+  });
+
+  it("returns an empty snapshot instead of throwing when the member token is unavailable", async () => {
+    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue(null);
+
+    const { getConsoleSnapshot } = await import("@/modules/console/queries");
+
+    await expect(getConsoleSnapshot()).resolves.toEqual({
+      assets: [],
+      subscription: null,
+      transactions: [],
+    });
+
+    expect(databaseMocks.createInsForgeServerDatabase).not.toHaveBeenCalled();
+  });
+
+  it("uses the authenticated server database path for getConsoleAssetDetail", async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
         access_key: "tradingview:private",
@@ -123,6 +183,7 @@ describe("console query read paths", () => {
       error: null,
     });
 
+    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
     databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
 
     const { getConsoleAssetDetail } = await import("@/modules/console/queries");
@@ -141,7 +202,53 @@ describe("console query read paths", () => {
     });
 
     expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledTimes(1);
-    expect(databaseMocks.createAuthenticatedInsForgeServerDatabase).not.toHaveBeenCalled();
+    expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledWith({ accessToken: "member-access-token" });
+  });
+
+  it("accepts canonical Postgres-style asset ids that do not satisfy zod uuid version checks", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        access_key: "tradingview:share",
+        account: "seed-browser-tv-share-active@assetnext.dev",
+        asset_json: [{ name: "session", value: "seed-browser-tv-active" }],
+        asset_type: "share",
+        expires_at: "2026-07-18T00:00:00.000Z",
+        id: "20000000-0000-0000-0000-000000000003",
+        note: "seed_tv_share_1",
+        platform: "tradingview",
+        proxy: "http://proxy.tv.share.1",
+        subscription_id: "30000000-0000-0000-0000-000000000001",
+      },
+      error: null,
+    });
+
+    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
+    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
+
+    const { getConsoleAssetDetail } = await import("@/modules/console/queries");
+
+    await expect(getConsoleAssetDetail({ assetId: "20000000-0000-0000-0000-000000000003" })).resolves.toEqual({
+      accessKey: "tradingview:share",
+      account: "seed-browser-tv-share-active@assetnext.dev",
+      asset: [{ name: "session", value: "seed-browser-tv-active" }],
+      assetType: "share",
+      expiresAt: "2026-07-18T00:00:00.000Z",
+      id: "20000000-0000-0000-0000-000000000003",
+      note: "seed_tv_share_1",
+      platform: "tradingview",
+      proxy: "http://proxy.tv.share.1",
+      subscriptionId: "30000000-0000-0000-0000-000000000001",
+    });
+  });
+
+  it("returns null for asset detail when the member token is unavailable", async () => {
+    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue(null);
+
+    const { getConsoleAssetDetail } = await import("@/modules/console/queries");
+
+    await expect(getConsoleAssetDetail({ assetId: "22222222-2222-4222-8222-222222222222" })).resolves.toBeNull();
+
+    expect(databaseMocks.createInsForgeServerDatabase).not.toHaveBeenCalled();
   });
 
   it("uses the authenticated server database path for getConsoleStateSnapshot", async () => {
@@ -182,5 +289,18 @@ describe("console query read paths", () => {
 
     expect(authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession).toHaveBeenCalledTimes(1);
     expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledWith({ accessToken: "member-access-token" });
+  });
+
+  it("returns none for console state instead of throwing when the member token is unavailable", async () => {
+    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue(null);
+
+    const { getConsoleStateSnapshot } = await import("@/modules/console/queries");
+
+    await expect(getConsoleStateSnapshot()).resolves.toEqual({
+      latestSubscription: null,
+      state: "none",
+    });
+
+    expect(databaseMocks.createInsForgeServerDatabase).not.toHaveBeenCalled();
   });
 });

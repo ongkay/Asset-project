@@ -312,7 +312,7 @@ export async function listActivePackageRowsForMember(): Promise<PackageRow[]> {
   const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
 
   if (!accessToken) {
-    throw new Error("An authenticated InsForge access token is required.");
+    return [];
   }
 
   const database = createInsForgeServerDatabase({ accessToken });
@@ -333,7 +333,7 @@ export async function getActivePackageRowByIdForMember(packageId: string): Promi
   const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
 
   if (!accessToken) {
-    throw new Error("An authenticated InsForge access token is required.");
+    return null;
   }
 
   const database = createInsForgeServerDatabase({ accessToken });

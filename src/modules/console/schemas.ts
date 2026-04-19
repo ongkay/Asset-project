@@ -10,11 +10,7 @@ function readSingleSearchParam(value: string | string[] | undefined) {
 }
 
 export const consoleAssetDetailActionInputSchema = z.object({
-  assetId: z
-    .string({ error: "Asset ID is required." })
-    .trim()
-    .min(1, "Asset ID is required.")
-    .uuid("Asset ID must be a valid UUID."),
+  assetId: z.string({ error: "Asset ID is required." }).trim().min(1, "Asset ID is required."),
 });
 
 export function parseConsolePaymentErrorSearchParam(

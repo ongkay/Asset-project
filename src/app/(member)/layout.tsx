@@ -12,8 +12,8 @@ export default async function MemberLayout({ children }: Readonly<{ children: Re
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-8 lg:px-10">
         <header className="flex flex-col gap-4 border-b border-border/60 pb-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm text-muted-foreground">Member area</p>
-            <h1 className="font-semibold text-2xl tracking-tight">Member workspace</h1>
+            <p className="text-sm text-muted-foreground">Akses member</p>
+            <h1 className="font-semibold text-2xl tracking-tight">Kelola langganan akun</h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <Badge variant="outline">{authenticatedUser.profile.role}</Badge>
               <span>{authenticatedUser.profile.username}</span>
