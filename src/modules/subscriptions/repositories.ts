@@ -113,6 +113,10 @@ const transactionAmountDatabaseRowSchema = z.object({
   amount_rp: z.number().int().nonnegative(),
 });
 
+const canonicalUuidLikeSchema = z
+  .string()
+  .regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
+
 function createSubscriptionsRepositoryDatabase() {
   return createInsForgeAdminDatabase();
 }
@@ -768,8 +772,7 @@ export async function assignBestAssetForSubscription(input: {
   }
 
   return z
-    .string()
-    .uuid()
+    .union([canonicalUuidLikeSchema, z.null()])
     .nullable()
     .parse(data ?? null);
 }

@@ -90,6 +90,21 @@ export async function revokeActiveAppSession() {
   return revokedCount;
 }
 
+export async function revokeActiveAppSessionRecord() {
+  const activeSession = await validateActiveAppSession();
+
+  if (!activeSession) {
+    return 0;
+  }
+
+  return revokeSessionRecord(
+    revokeSessionInputSchema.parse({
+      sessionId: activeSession.sessionId,
+      reason: "logout",
+    }),
+  );
+}
+
 export async function touchActiveAppSessionLastSeen() {
   const activeSession = await validateActiveAppSession();
 

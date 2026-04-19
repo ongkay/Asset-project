@@ -32,7 +32,12 @@ import {
   signInWithPassword,
   signUpWithPassword,
 } from "./repositories";
-import { createAppSession, revokeActiveAppSession, validateActiveAppSession } from "../sessions/services";
+import {
+  createAppSession,
+  revokeActiveAppSession,
+  revokeActiveAppSessionRecord,
+  validateActiveAppSession,
+} from "../sessions/services";
 
 import type { AuthActionResult, AuthFailureReason, AuthProfile, AuthRedirectTarget } from "./types";
 
@@ -130,7 +135,7 @@ export async function readValidatedInsForgeAccessTokenForActiveAppSession(): Pro
   const accessToken = await readInsForgeAccessTokenCookie();
 
   if (!accessToken) {
-    await revokeActiveAppSession();
+    await revokeActiveAppSessionRecord();
     return null;
   }
 
@@ -138,13 +143,13 @@ export async function readValidatedInsForgeAccessTokenForActiveAppSession(): Pro
     const authenticatedUserSnapshot = await readAuthenticatedUserSnapshot(accessToken);
 
     if (!authenticatedUserSnapshot.user || authenticatedUserSnapshot.user.id !== activeSession.userId) {
-      await revokeActiveAppSession();
+      await revokeActiveAppSessionRecord();
       return null;
     }
 
     return accessToken;
   } catch (_error) {
-    await revokeActiveAppSession();
+    await revokeActiveAppSessionRecord();
     return null;
   }
 }

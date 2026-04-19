@@ -27,6 +27,10 @@ type ConsoleRedeemDialogProps = {
   open: boolean;
 };
 
+type ConsoleRedeemSuccessRouter = {
+  refresh: () => void;
+};
+
 function getActionFormError(result: {
   serverError?: string;
   validationErrors?: {
@@ -38,6 +42,16 @@ function getActionFormError(result: {
 
 function isGuardFailure(errorMessage: string | null) {
   return errorMessage === "Unauthorized." || errorMessage === "Forbidden.";
+}
+
+export function applySuccessfulRedeemMutation(input: {
+  onOpenChange: (open: boolean) => void;
+  resetDialogState: () => void;
+  router: ConsoleRedeemSuccessRouter;
+}) {
+  input.resetDialogState();
+  input.onOpenChange(false);
+  input.router.refresh();
 }
 
 export function ConsoleRedeemDialog({ onOpenChange, open }: ConsoleRedeemDialogProps) {
@@ -73,9 +87,11 @@ export function ConsoleRedeemDialog({ onOpenChange, open }: ConsoleRedeemDialogP
     }
 
     if (result.data?.ok) {
-      resetDialogState();
-      onOpenChange(false);
-      router.refresh();
+      applySuccessfulRedeemMutation({
+        onOpenChange,
+        resetDialogState,
+        router,
+      });
       return;
     }
 

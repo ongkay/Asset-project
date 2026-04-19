@@ -21,6 +21,7 @@ const repositoryMocks = vi.hoisted(() => ({
 const sessionMocks = vi.hoisted(() => ({
   createAppSession: vi.fn(),
   revokeActiveAppSession: vi.fn(),
+  revokeActiveAppSessionRecord: vi.fn(),
   validateActiveAppSession: vi.fn(),
 }));
 
@@ -49,6 +50,7 @@ vi.mock("@/modules/auth/repositories", async () => {
 vi.mock("@/modules/sessions/services", () => ({
   createAppSession: sessionMocks.createAppSession,
   revokeActiveAppSession: sessionMocks.revokeActiveAppSession,
+  revokeActiveAppSessionRecord: sessionMocks.revokeActiveAppSessionRecord,
   validateActiveAppSession: sessionMocks.validateActiveAppSession,
 }));
 
@@ -75,6 +77,7 @@ describe("signInAndCreateAppSession", () => {
     repositoryMocks.signUpWithPassword.mockReset();
     sessionMocks.createAppSession.mockReset();
     sessionMocks.revokeActiveAppSession.mockReset();
+    sessionMocks.revokeActiveAppSessionRecord.mockReset();
     sessionMocks.validateActiveAppSession.mockReset();
     cookieMocks.clearInsForgeAccessTokenCookie.mockReset();
     cookieMocks.readInsForgeAccessTokenCookie.mockReset();
@@ -230,7 +233,8 @@ describe("signInAndCreateAppSession", () => {
 
     await expect(readValidatedInsForgeAccessTokenForActiveAppSession()).resolves.toBeNull();
 
-    expect(sessionMocks.revokeActiveAppSession).toHaveBeenCalledTimes(1);
+    expect(sessionMocks.revokeActiveAppSessionRecord).toHaveBeenCalledTimes(1);
+    expect(sessionMocks.revokeActiveAppSession).not.toHaveBeenCalled();
   });
 
   it("invalidates the app session when the InsForge token does not map to the same user", async () => {
@@ -250,6 +254,7 @@ describe("signInAndCreateAppSession", () => {
 
     await expect(readValidatedInsForgeAccessTokenForActiveAppSession()).resolves.toBeNull();
 
-    expect(sessionMocks.revokeActiveAppSession).toHaveBeenCalledTimes(1);
+    expect(sessionMocks.revokeActiveAppSessionRecord).toHaveBeenCalledTimes(1);
+    expect(sessionMocks.revokeActiveAppSession).not.toHaveBeenCalled();
   });
 });

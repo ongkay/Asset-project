@@ -152,6 +152,50 @@ describe("console query read paths", () => {
     });
   });
 
+  it("accepts canonical transaction ids that do not satisfy zod uuid version checks", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        assets: [],
+        subscription: null,
+        transactions: [
+          {
+            amount_rp: 100000,
+            created_at: "2026-04-06T09:45:22.805008+00:00",
+            id: "50000000-0000-0000-0000-000000000004",
+            package_id: "3cd291dd-5403-4417-8e9b-92d9ced54f8a",
+            package_name: "Paket 3",
+            paid_at: null,
+            source: "payment_dummy",
+            status: "success",
+          },
+        ],
+      },
+      error: null,
+    });
+
+    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
+    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
+
+    const { getConsoleSnapshot } = await import("@/modules/console/queries");
+
+    await expect(getConsoleSnapshot()).resolves.toEqual({
+      assets: [],
+      subscription: null,
+      transactions: [
+        {
+          amountRp: 100000,
+          createdAt: "2026-04-06T09:45:22.805008+00:00",
+          id: "50000000-0000-0000-0000-000000000004",
+          packageId: "3cd291dd-5403-4417-8e9b-92d9ced54f8a",
+          packageName: "Paket 3",
+          paidAt: null,
+          source: "payment_dummy",
+          status: "success",
+        },
+      ],
+    });
+  });
+
   it("returns an empty snapshot instead of throwing when the member token is unavailable", async () => {
     authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue(null);
 
@@ -289,6 +333,43 @@ describe("console query read paths", () => {
 
     expect(authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession).toHaveBeenCalledTimes(1);
     expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledWith({ accessToken: "member-access-token" });
+  });
+
+  it("accepts canonical subscription ids that do not satisfy zod uuid version checks in console state reads", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        created_at: "2026-04-01T00:00:00.000Z",
+        end_at: "2026-04-18T00:00:00.000Z",
+        id: "40000000-0000-0000-0000-000000000004",
+        package_id: "55555555-5555-4555-8555-555555555555",
+        package_name: "Paket Legacy",
+        start_at: "2026-03-19T00:00:00.000Z",
+        status: "active",
+      },
+      error: null,
+    });
+    const limit = vi.fn().mockReturnValue({ maybeSingle });
+    const order = vi.fn().mockReturnValue({ limit });
+    const eqUserId = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ eq: eqUserId });
+    const from = vi.fn().mockReturnValue({ select });
+
+    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
+    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ from });
+
+    const { getConsoleStateSnapshot } = await import("@/modules/console/queries");
+
+    await expect(getConsoleStateSnapshot()).resolves.toEqual({
+      latestSubscription: {
+        endAt: "2026-04-18T00:00:00.000Z",
+        id: "40000000-0000-0000-0000-000000000004",
+        packageId: "55555555-5555-4555-8555-555555555555",
+        packageName: "Paket Legacy",
+        startAt: "2026-03-19T00:00:00.000Z",
+        status: "expired",
+      },
+      state: "expired",
+    });
   });
 
   it("returns none for console state instead of throwing when the member token is unavailable", async () => {

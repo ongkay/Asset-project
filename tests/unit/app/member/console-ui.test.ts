@@ -46,9 +46,12 @@ vi.mock("@/components/ui/select", () => ({
   SelectValue: ({ placeholder }: { placeholder?: string }) => createElement("span", null, placeholder),
 }));
 
+import {
+  applySuccessfulRedeemMutation,
+  ConsoleRedeemDialog,
+} from "@/app/(member)/console/_components/console-redeem-dialog/console-redeem-dialog";
 import { ConsoleExtendDialog } from "@/app/(member)/console/_components/console-extend-dialog/console-extend-dialog";
 import { ConsolePage } from "@/app/(member)/console/_components/console-page";
-import { ConsoleRedeemDialog } from "@/app/(member)/console/_components/console-redeem-dialog/console-redeem-dialog";
 
 const packages = [
   {
@@ -140,5 +143,21 @@ describe("app/member/console UI", () => {
     expect(extendMarkup).toContain('data-slot="input-group-addon"');
     expect(redeemMarkup).toContain("Masukkan CD-Key");
     expect(redeemMarkup).toContain('data-slot="input-group-addon"');
+  });
+
+  it("refreshes the current route after redeem succeeds", () => {
+    const onOpenChange = vi.fn();
+    const resetDialogState = vi.fn();
+    const refresh = vi.fn();
+
+    applySuccessfulRedeemMutation({
+      onOpenChange,
+      resetDialogState,
+      router: { refresh },
+    });
+
+    expect(resetDialogState).toHaveBeenCalledTimes(1);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });

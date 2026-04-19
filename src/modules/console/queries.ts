@@ -39,7 +39,7 @@ const consoleAssetSchema = z.object({
 const consoleTransactionSchema = z.object({
   amount_rp: z.number().int().nonnegative(),
   created_at: isoDateTimeSchema,
-  id: z.uuid(),
+  id: canonicalUuidLikeSchema,
   package_id: z.uuid(),
   package_name: z.string(),
   paid_at: isoDateTimeSchema.nullable(),
@@ -69,7 +69,7 @@ const consoleAssetDetailSchema = z.object({
 const consoleStateSubscriptionSchema = z.object({
   created_at: isoDateTimeSchema,
   end_at: isoDateTimeSchema,
-  id: z.uuid(),
+  id: canonicalUuidLikeSchema,
   package_id: z.uuid(),
   package_name: z.string(),
   start_at: isoDateTimeSchema,
