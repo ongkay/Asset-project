@@ -27,18 +27,24 @@ type AdminTransactionsToolbarProps = {
   visibleColumns: AdminUserLogsTransactionsColumnVisibility;
 };
 
-const TRANSACTION_SOURCE_OPTIONS = [
+const TRANSACTION_SOURCE_OPTIONS: Array<{
+  label: string;
+  value: NonNullable<AdminTransactionsFilters["source"]>;
+}> = [
   { label: "Dummy Payment", value: "payment_dummy" },
   { label: "CD Key", value: "cdkey" },
   { label: "Admin Manual", value: "admin_manual" },
-] as const;
+];
 
-const TRANSACTION_STATUS_OPTIONS = [
+const TRANSACTION_STATUS_OPTIONS: Array<{
+  label: string;
+  value: NonNullable<AdminTransactionsFilters["status"]>;
+}> = [
   { label: "Pending", value: "pending" },
   { label: "Success", value: "success" },
   { label: "Failed", value: "failed" },
   { label: "Canceled", value: "canceled" },
-] as const;
+];
 
 export function AdminTransactionsToolbar({
   dateRange,

@@ -60,10 +60,7 @@ function normalizeDateOnly(value: string | undefined) {
   return parsedDate.success ? parsedDate.data : null;
 }
 
-function normalizeEnumValue<TValue extends string>(
-  value: string | undefined,
-  schema: z.ZodEnum<[TValue, ...TValue[]]>,
-) {
+function normalizeEnumValue<TValue extends string>(value: string | undefined, schema: z.ZodType<TValue>) {
   const parsedValue = schema.safeParse(value);
   return parsedValue.success ? parsedValue.data : null;
 }
