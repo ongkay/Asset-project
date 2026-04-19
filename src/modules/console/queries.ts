@@ -9,13 +9,15 @@ import { validateActiveAppSession } from "@/modules/sessions/services";
 
 import type { ConsoleAssetDetail, ConsoleSnapshot, ConsoleStateSnapshot } from "./types";
 
+const isoDateTimeSchema = z.iso.datetime({ offset: true });
+
 const consoleSubscriptionSchema = z.object({
   days_left: z.number().int().nonnegative(),
-  end_at: z.iso.datetime(),
+  end_at: isoDateTimeSchema,
   id: z.uuid(),
   package_id: z.uuid(),
   package_name: z.string(),
-  start_at: z.iso.datetime(),
+  start_at: isoDateTimeSchema,
   status: z.enum(["active", "processed"]),
 });
 
@@ -23,7 +25,7 @@ const consoleAssetSchema = z.object({
   access_key: z.string(),
   asset_type: z.enum(["private", "share"]),
   assignment_id: z.uuid(),
-  expires_at: z.iso.datetime(),
+  expires_at: isoDateTimeSchema,
   id: z.uuid(),
   note: z.string().nullable(),
   platform: z.enum(["tradingview", "fxreplay", "fxtester"]),
@@ -33,11 +35,11 @@ const consoleAssetSchema = z.object({
 
 const consoleTransactionSchema = z.object({
   amount_rp: z.number().int().nonnegative(),
-  created_at: z.iso.datetime(),
+  created_at: isoDateTimeSchema,
   id: z.uuid(),
   package_id: z.uuid(),
   package_name: z.string(),
-  paid_at: z.iso.datetime().nullable(),
+  paid_at: isoDateTimeSchema.nullable(),
   source: z.enum(["payment_dummy", "cdkey", "admin_manual"]),
   status: z.enum(["pending", "success", "failed", "canceled"]),
 });
@@ -53,7 +55,7 @@ const consoleAssetDetailSchema = z.object({
   account: z.string(),
   asset_json: z.unknown(),
   asset_type: z.enum(["private", "share"]),
-  expires_at: z.iso.datetime(),
+  expires_at: isoDateTimeSchema,
   id: z.uuid(),
   note: z.string().nullable(),
   platform: z.enum(["tradingview", "fxreplay", "fxtester"]),
@@ -62,12 +64,12 @@ const consoleAssetDetailSchema = z.object({
 });
 
 const consoleStateSubscriptionSchema = z.object({
-  created_at: z.iso.datetime(),
-  end_at: z.iso.datetime(),
+  created_at: isoDateTimeSchema,
+  end_at: isoDateTimeSchema,
   id: z.uuid(),
   package_id: z.uuid(),
   package_name: z.string(),
-  start_at: z.iso.datetime(),
+  start_at: isoDateTimeSchema,
   status: z.enum(["active", "processed", "expired", "canceled"]),
 });
 
@@ -117,7 +119,7 @@ async function resolveConsoleTargetUserId(input: { userId?: string }) {
 }
 
 export async function getConsoleSnapshot(input: { userId?: string } = {}): Promise<ConsoleSnapshot> {
-  const database = createConsoleDatabase();
+  const database = await createAuthenticatedConsoleDatabase();
   const targetUserId = await resolveConsoleTargetUserId(input);
   const { data, error } = await database.rpc("get_user_console_snapshot", {
     p_user_id: targetUserId,

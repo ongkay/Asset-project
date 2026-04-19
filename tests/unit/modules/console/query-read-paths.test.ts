@@ -59,16 +59,28 @@ describe("console query read paths", () => {
     });
   });
 
-  it("keeps getConsoleSnapshot on the legacy server database path", async () => {
+  it("uses the authenticated server database path for getConsoleSnapshot", async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
         assets: [],
         subscription: null,
-        transactions: [],
+        transactions: [
+          {
+            amount_rp: 100000,
+            created_at: "2026-04-07T09:45:22.805008+00:00",
+            id: "93000000-0000-4000-8000-000000000008",
+            package_id: "3cd291dd-5403-4417-8e9b-92d9ced54f8a",
+            package_name: "Paket 3",
+            paid_at: null,
+            source: "payment_dummy",
+            status: "pending",
+          },
+        ],
       },
       error: null,
     });
 
+    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
     databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
 
     const { getConsoleSnapshot } = await import("@/modules/console/queries");
@@ -76,11 +88,22 @@ describe("console query read paths", () => {
     await expect(getConsoleSnapshot()).resolves.toEqual({
       assets: [],
       subscription: null,
-      transactions: [],
+      transactions: [
+        {
+          amountRp: 100000,
+          createdAt: "2026-04-07T09:45:22.805008+00:00",
+          id: "93000000-0000-4000-8000-000000000008",
+          packageId: "3cd291dd-5403-4417-8e9b-92d9ced54f8a",
+          packageName: "Paket 3",
+          paidAt: null,
+          source: "payment_dummy",
+          status: "pending",
+        },
+      ],
     });
 
     expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledTimes(1);
-    expect(databaseMocks.createAuthenticatedInsForgeServerDatabase).not.toHaveBeenCalled();
+    expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledWith({ accessToken: "member-access-token" });
   });
 
   it("keeps getConsoleAssetDetail on the legacy server database path", async () => {
