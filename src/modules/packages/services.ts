@@ -7,7 +7,7 @@ import {
   countPackageTotalUsed,
   createPackageRow,
   getActivePackageRowByIdForMember,
-  getPackageById,
+  getPackageById as getPackageRowByIdForAdmin,
   getPackageRowById,
   getPackageSummary,
   listActivePackageRowsForMember,
@@ -18,6 +18,7 @@ import {
 import { derivePackageSummaryFromAccessKeys, sortPackageAccessKeysCanonical } from "./types";
 import type {
   PackageAdminRow,
+  PackageActivationSnapshot,
   PackageFormInput,
   PackageIssuableSnapshot,
   MemberPurchasablePackage,
@@ -107,6 +108,7 @@ function mapPackageRowToIssuableSnapshot(packageRow: PackageRow): PackageIssuabl
   }
 
   return {
+    packageId: packageRow.id,
     accessKeys: canonicalAccessKeys,
     amountRp: packageRow.amountRp,
     durationDays: packageRow.durationDays,
@@ -114,6 +116,21 @@ function mapPackageRowToIssuableSnapshot(packageRow: PackageRow): PackageIssuabl
     isExtended: packageRow.isExtended,
     name: packageRow.name,
     summary,
+  };
+}
+
+export async function getPackageById(packageId: string) {
+  return getPackageRowByIdForAdmin(packageId);
+}
+
+export function toPackageActivationSnapshot(packageSnapshot: PackageIssuableSnapshot): PackageActivationSnapshot {
+  return {
+    packageId: packageSnapshot.packageId,
+    accessKeys: packageSnapshot.accessKeys,
+    amountRp: packageSnapshot.amountRp,
+    durationDays: packageSnapshot.durationDays,
+    isExtended: packageSnapshot.isExtended,
+    name: packageSnapshot.name,
   };
 }
 
@@ -204,7 +221,7 @@ export async function createPackage(input: PackageFormInput): Promise<PackageAdm
 }
 
 export async function updatePackage(input: { id: string } & PackageFormInput): Promise<PackageAdminRow> {
-  const existingPackageRow = await getPackageById(input.id);
+  const existingPackageRow = await getPackageRowByIdForAdmin(input.id);
 
   if (!existingPackageRow) {
     throw new Error("Package not found.");

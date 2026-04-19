@@ -63,6 +63,7 @@ describe("member purchasable package helpers", () => {
         id: "pkg-1",
         isExtended: true,
         name: "Paket 1",
+        packageId: "pkg-1",
         summary: "private",
       },
     ]);

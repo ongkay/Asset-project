@@ -614,7 +614,7 @@ export async function createSubscriptionWithSnapshot(input: {
   packageId: string;
   packageName: string;
   accessKeys: string[];
-  source: "admin_manual";
+  source: "payment_dummy" | "cdkey" | "admin_manual";
   startAt: string;
   endAt: string;
   status: "processed";
@@ -656,6 +656,33 @@ export async function cancelSubscriptionRow(input: {
     .update({
       status: "canceled",
       cancel_reason: input.cancelReason,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.subscriptionId)
+    .select(
+      "id, user_id, package_id, package_name, access_keys_json, status, source, start_at, end_at, created_at, updated_at",
+    )
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapSubscriptionDatabaseRow(subscriptionDatabaseRowSchema.parse(data));
+}
+
+export async function restoreSubscriptionRow(input: {
+  subscriptionId: string;
+  endAt: string;
+  status: SubscriptionStatus;
+}): Promise<SubscriptionRow> {
+  const database = createSubscriptionsRepositoryDatabase();
+  const { data, error } = await database
+    .from("subscriptions")
+    .update({
+      status: input.status,
+      end_at: input.endAt,
+      cancel_reason: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.subscriptionId)

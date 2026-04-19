@@ -59,12 +59,12 @@ export async function insertTransaction(input: CreateTransactionInput): Promise<
     .from("transactions")
     .insert([
       {
-        amount_rp: input.amountRp,
+        amount_rp: input.packageSnapshot.amountRp,
         cd_key_id: input.cdKeyId ?? null,
         code: createTransactionCode(),
         failure_reason: null,
-        package_id: input.packageId,
-        package_name: input.packageName,
+        package_id: input.packageSnapshot.packageId,
+        package_name: input.packageSnapshot.name,
         paid_at: null,
         source: input.source,
         status: "pending",

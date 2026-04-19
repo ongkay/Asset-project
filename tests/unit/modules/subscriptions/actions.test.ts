@@ -1,103 +1,112 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/modules/users/services", () => ({
-  getAuthenticatedAppUser: vi.fn().mockResolvedValue({
-    id: "admin-user-id",
-    profile: {
-      role: "admin",
-    },
-  }),
-}));
-
 vi.mock("@/modules/subscriptions/services", () => ({
-  activateSubscriptionManually: vi.fn(),
-  cancelSubscription: vi.fn(),
-  quickAddSubscriberAsset: vi.fn(),
+  purchaseSubscriptionWithPaymentDummy: vi.fn(),
 }));
 
-import * as subscriptionServices from "@/modules/subscriptions/services";
-import {
-  activateSubscriptionManuallyAction,
-  cancelSubscriptionAction,
-  quickAddSubscriberAssetAction,
-} from "@/modules/subscriptions/actions";
+vi.mock("@/modules/auth/action-client", () => ({
+  adminActionClient: {
+    metadata() {
+      return this;
+    },
+    inputSchema() {
+      return this;
+    },
+    action() {
+      return async () => ({ data: null });
+    },
+  },
+  memberActionClient: {
+    metadata() {
+      return this;
+    },
+    inputSchema() {
+      return this;
+    },
+    action(
+      handler: (args: {
+        parsedInput: {
+          packageId: string;
+        };
+        ctx: {
+          currentAppUser: {
+            profile: {
+              userId: string;
+            };
+          };
+        };
+      }) => Promise<unknown>,
+    ) {
+      return async (input: unknown) => {
+        const parsed = await import("@/modules/subscriptions/schemas").then(({ memberPaymentDummySchema }) =>
+          memberPaymentDummySchema.safeParse(input),
+        );
 
-const mockedActivateSubscriptionManually = vi.mocked(subscriptionServices.activateSubscriptionManually);
-const mockedCancelSubscription = vi.mocked(subscriptionServices.cancelSubscription);
-const mockedQuickAddSubscriberAsset = vi.mocked(subscriptionServices.quickAddSubscriberAsset);
+        if (!parsed.success) {
+          return {
+            validationErrors: {
+              fieldErrors: parsed.error.flatten().fieldErrors,
+            },
+          };
+        }
+
+        const data = await handler({
+          parsedInput: parsed.data,
+          ctx: {
+            currentAppUser: {
+              profile: {
+                userId: "member-user-id",
+              },
+            },
+          },
+        });
+
+        return { data };
+      };
+    },
+  },
+}));
+
+import { purchaseSubscriptionWithPaymentDummyAction } from "@/modules/subscriptions/actions";
+import * as subscriptionServices from "@/modules/subscriptions/services";
+
+const mockedPurchaseSubscriptionWithPaymentDummy = vi.mocked(subscriptionServices.purchaseSubscriptionWithPaymentDummy);
 
 describe("subscriptions/actions", () => {
   beforeEach(() => {
-    mockedActivateSubscriptionManually.mockReset();
-    mockedCancelSubscription.mockReset();
-    mockedQuickAddSubscriberAsset.mockReset();
+    mockedPurchaseSubscriptionWithPaymentDummy.mockReset();
   });
 
-  it("rejects invalid manual activation input before the service runs", async () => {
-    const result = await activateSubscriptionManuallyAction({
-      userId: "user-1",
-      packageId: "package-1",
-      durationDays: 0,
-      manualAssignmentsByAccessKey: {},
+  it("rejects invalid payment dummy payload before the service call", async () => {
+    const result = await purchaseSubscriptionWithPaymentDummyAction({
+      packageId: "not-a-uuid",
     });
 
-    expect(result?.validationErrors?.fieldErrors.durationDays).toContain("Duration must be a positive integer.");
-    expect(mockedActivateSubscriptionManually).not.toHaveBeenCalled();
+    expect(result?.validationErrors?.fieldErrors.packageId).toContain("Package ID must be a valid UUID.");
+    expect(mockedPurchaseSubscriptionWithPaymentDummy).not.toHaveBeenCalled();
   });
 
-  it("returns a stable failure payload when activation throws", async () => {
-    mockedActivateSubscriptionManually.mockRejectedValueOnce(new Error("Package is disabled."));
-
-    const result = await activateSubscriptionManuallyAction({
-      userId: "user-1",
-      packageId: "package-1",
-      durationDays: 30,
-      manualAssignmentsByAccessKey: {},
-    });
-
-    expect(result?.data).toEqual({
-      ok: false,
-      message: "Package is disabled.",
-    });
-  });
-
-  it("returns the new asset and access key after quick add succeeds", async () => {
-    mockedQuickAddSubscriberAsset.mockResolvedValueOnce({
-      assetId: "asset-1",
-      accessKey: "tradingview:private",
-    });
-
-    const result = await quickAddSubscriberAssetAction({
-      userId: "user-1",
-      packageId: "package-1",
-      subscriptionId: null,
-      platform: "tradingview",
-      account: "asset@example.com",
-      durationDays: 14,
-      note: null,
-      proxy: null,
-      assetJsonText: '{"session":"abc"}',
-    });
-
-    expect(result?.data).toEqual({
+  it("returns the structured payment dummy result from the member service", async () => {
+    mockedPurchaseSubscriptionWithPaymentDummy.mockResolvedValueOnce({
       ok: true,
-      assetId: "asset-1",
-      accessKey: "tradingview:private",
-    });
-  });
-
-  it("returns the canceled subscription id when cancel succeeds", async () => {
-    mockedCancelSubscription.mockResolvedValueOnce({
       subscriptionId: "subscription-1",
+      transactionId: "transaction-1",
+      redirectTo: "/console",
     });
 
-    const result = await cancelSubscriptionAction({
-      subscriptionId: "subscription-1",
+    const result = await purchaseSubscriptionWithPaymentDummyAction({
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
     });
 
+    expect(mockedPurchaseSubscriptionWithPaymentDummy).toHaveBeenCalledWith({
+      userId: "member-user-id",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+    });
     expect(result?.data).toEqual({
       ok: true,
       subscriptionId: "subscription-1",
+      transactionId: "transaction-1",
+      redirectTo: "/console",
     });
   });
 });

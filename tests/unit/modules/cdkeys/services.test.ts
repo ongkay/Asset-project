@@ -1,332 +1,285 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/modules/cdkeys/repositories", () => ({
-  createCdKeyRow: vi.fn(),
+  findCdKeyByCode: vi.fn(),
+  releaseReservedCdKeyUsage: vi.fn(),
+  reserveCdKeyUsage: vi.fn(),
 }));
 
-vi.mock("@/lib/insforge/database", () => ({
-  createInsForgeAdminDatabase: vi.fn(),
+vi.mock("@/modules/subscriptions/services", () => ({
+  activateSubscriptionWithCompensation: vi.fn(),
 }));
 
-vi.mock("@/modules/packages/services", () => ({
-  getIssuablePackageSnapshotById: vi.fn(),
+vi.mock("@/modules/transactions/services", () => ({
+  attachTransactionToSubscription: vi.fn(),
+  createTransaction: vi.fn(),
+  failTransaction: vi.fn(),
+  succeedTransaction: vi.fn(),
 }));
 
 import * as cdKeyRepositories from "@/modules/cdkeys/repositories";
-import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
-import * as packageServices from "@/modules/packages/services";
-import { createCdKey, generateCdKeyCode } from "@/modules/cdkeys/services";
+import { redeemCdKey } from "@/modules/cdkeys/services";
+import * as subscriptionServices from "@/modules/subscriptions/services";
+import * as transactionServices from "@/modules/transactions/services";
 
-const mockedCreateCdKeyRow = vi.mocked(cdKeyRepositories.createCdKeyRow);
-const mockedCreateInsForgeAdminDatabase = vi.mocked(createInsForgeAdminDatabase);
-const mockedGetIssuablePackageSnapshotById = vi.mocked(packageServices.getIssuablePackageSnapshotById);
+const mockedFindCdKeyByCode = vi.mocked(cdKeyRepositories.findCdKeyByCode);
+const mockedReleaseReservedCdKeyUsage = vi.mocked(cdKeyRepositories.releaseReservedCdKeyUsage);
+const mockedReserveCdKeyUsage = vi.mocked(cdKeyRepositories.reserveCdKeyUsage);
+const mockedActivateSubscriptionWithCompensation = vi.mocked(subscriptionServices.activateSubscriptionWithCompensation);
+const mockedAttachTransactionToSubscription = vi.mocked(transactionServices.attachTransactionToSubscription);
+const mockedCreateTransaction = vi.mocked(transactionServices.createTransaction);
+const mockedFailTransaction = vi.mocked(transactionServices.failTransaction);
+const mockedSucceedTransaction = vi.mocked(transactionServices.succeedTransaction);
+
+function createCdKeySnapshot(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "cdkey-1",
+    code: "AB12CD34EF",
+    isActive: true,
+    usedAt: null,
+    usedBy: null,
+    packageSnapshot: {
+      packageId: "package-1",
+      name: "Premium Package",
+      amountRp: 150000,
+      durationDays: 30,
+      isExtended: true,
+      accessKeys: ["tradingview:private"],
+    },
+    ...overrides,
+  };
+}
 
 describe("cdkeys/services", () => {
   beforeEach(() => {
-    mockedCreateCdKeyRow.mockReset();
-    mockedCreateInsForgeAdminDatabase.mockReset();
-    mockedGetIssuablePackageSnapshotById.mockReset();
-  });
-
-  it("generates 10-char uppercase alphanumeric code", () => {
-    const generatedCode = generateCdKeyCode();
-
-    expect(generatedCode).toMatch(/^[A-Z0-9]{10}$/);
-  });
-
-  it("creates cd key from package snapshot when override is null", async () => {
-    mockedGetIssuablePackageSnapshotById.mockResolvedValueOnce({
-      id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Starter Package",
-      accessKeys: ["tradingview:private"],
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      summary: "private",
-    });
-    mockedCreateCdKeyRow.mockResolvedValueOnce({
-      id: "cdkey-1",
-      code: "AB12CD34EF",
-      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      isActive: true,
-      usedBy: null,
-      usedAt: null,
-      createdBy: "admin-user-id",
-    });
-
-    const row = await createCdKey(
-      {
-        packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-        manualCode: null,
-        amountRpOverride: null,
+    mockedFindCdKeyByCode.mockReset();
+    mockedFindCdKeyByCode.mockResolvedValue(createCdKeySnapshot());
+    mockedReleaseReservedCdKeyUsage.mockReset();
+    mockedReserveCdKeyUsage.mockReset();
+    mockedReserveCdKeyUsage.mockResolvedValue("2026-04-16T00:00:00.000Z");
+    mockedActivateSubscriptionWithCompensation.mockReset();
+    mockedActivateSubscriptionWithCompensation.mockResolvedValue({
+      result: {
+        subscriptionId: "subscription-1",
+        mode: "create-new",
       },
-      "admin-user-id",
+      compensation: {
+        rollback: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+    mockedAttachTransactionToSubscription.mockReset();
+    mockedCreateTransaction.mockReset();
+    mockedCreateTransaction.mockResolvedValue({
+      id: "transaction-1",
+      code: "TRX-0001",
+      amountRp: 150000,
+      createdAt: "2026-04-16T00:00:00.000Z",
+      failureReason: null,
+      packageId: "package-1",
+      packageName: "Premium Package",
+      paidAt: null,
+      source: "cdkey",
+      status: "pending",
+      subscriptionId: null,
+      userId: "user-1",
+    });
+    mockedFailTransaction.mockReset();
+    mockedSucceedTransaction.mockReset();
+  });
+
+  it("returns code-invalid when the key is inactive", async () => {
+    mockedFindCdKeyByCode.mockResolvedValueOnce(createCdKeySnapshot({ isActive: false }));
+
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "code-invalid",
+      message: "CD-Key tidak valid atau sudah terpakai.",
+    });
+    expect(mockedReserveCdKeyUsage).not.toHaveBeenCalled();
+  });
+
+  it("returns code-used when the key is already consumed", async () => {
+    mockedFindCdKeyByCode.mockResolvedValueOnce(
+      createCdKeySnapshot({ usedAt: "2026-04-01T00:00:00.000Z", usedBy: "user-9" }),
     );
 
-    expect(mockedCreateCdKeyRow).toHaveBeenCalledWith({
-      code: expect.stringMatching(/^[A-Z0-9]{10}$/),
-      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      amountRp: 150000,
-      createdBy: "admin-user-id",
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "code-used",
+      message: "CD-Key tidak valid atau sudah terpakai.",
     });
-    expect(row.id).toBe("cdkey-1");
+    expect(mockedReserveCdKeyUsage).not.toHaveBeenCalled();
   });
 
-  it("does not use seed RPC path during live issuance", async () => {
-    mockedGetIssuablePackageSnapshotById.mockResolvedValueOnce({
-      id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Starter Package",
-      accessKeys: ["tradingview:private"],
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      summary: "private",
-    });
-    mockedCreateCdKeyRow.mockResolvedValueOnce({
-      id: "cdkey-rpc-guard",
-      code: "ZXCVBN12AS",
-      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      isActive: true,
-      usedBy: null,
-      usedAt: null,
-      createdBy: "admin-user-id",
-    });
+  it("rechecks reservation races and maps a now-disabled key to code-invalid", async () => {
+    mockedReserveCdKeyUsage.mockResolvedValueOnce(null);
+    mockedFindCdKeyByCode.mockResolvedValueOnce(createCdKeySnapshot());
+    mockedFindCdKeyByCode.mockResolvedValueOnce(createCdKeySnapshot({ isActive: false }));
 
-    await createCdKey(
-      {
-        packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-        manualCode: "ZXCVBN12AS",
-        amountRpOverride: null,
-      },
-      "admin-user-id",
-    );
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
 
-    expect(mockedCreateInsForgeAdminDatabase).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "code-invalid",
+      message: "CD-Key tidak valid atau sudah terpakai.",
+    });
+    expect(mockedCreateTransaction).not.toHaveBeenCalled();
   });
 
-  it("uses manual code and amount override when provided", async () => {
-    mockedGetIssuablePackageSnapshotById.mockResolvedValueOnce({
-      id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Starter Package",
-      accessKeys: ["tradingview:private"],
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      summary: "private",
-    });
-    mockedCreateCdKeyRow.mockResolvedValueOnce({
-      id: "cdkey-2",
-      code: "ZXCVBN12AS",
-      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      amountRp: 200000,
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      isActive: true,
-      usedBy: null,
-      usedAt: null,
-      createdBy: "admin-user-id",
-    });
-
-    const row = await createCdKey(
-      {
-        packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-        manualCode: "ZXCVBN12AS",
-        amountRpOverride: 200000,
-      },
-      "admin-user-id",
+  it("maps a reservation race with a now-used key to code-used", async () => {
+    mockedReserveCdKeyUsage.mockResolvedValueOnce(null);
+    mockedFindCdKeyByCode.mockResolvedValueOnce(createCdKeySnapshot());
+    mockedFindCdKeyByCode.mockResolvedValueOnce(
+      createCdKeySnapshot({ usedAt: "2026-04-16T00:01:00.000Z", usedBy: "user-9" }),
     );
 
-    expect(mockedCreateCdKeyRow).toHaveBeenCalledWith(
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "code-used",
+      message: "CD-Key tidak valid atau sudah terpakai.",
+    });
+    expect(mockedCreateTransaction).not.toHaveBeenCalled();
+  });
+
+  it("creates, links, and finalizes the redeem transaction from the cd-key snapshot", async () => {
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
+
+    expect(result).toEqual({
+      ok: true,
+      subscriptionId: "subscription-1",
+      transactionId: "transaction-1",
+    });
+    expect(mockedCreateTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
-        code: "ZXCVBN12AS",
-        amountRp: 200000,
+        cdKeyId: "cdkey-1",
+        source: "cdkey",
+        userId: "user-1",
       }),
     );
-    expect(row.amountRp).toBe(200000);
-  });
-
-  it("rejects issuance when package is inactive", async () => {
-    mockedGetIssuablePackageSnapshotById.mockRejectedValueOnce(new Error("Package is disabled."));
-
-    await expect(
-      createCdKey(
-        {
-          packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-          manualCode: null,
-          amountRpOverride: null,
+    expect(mockedActivateSubscriptionWithCompensation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        source: "cdkey",
+        packageSnapshot: {
+          packageId: "package-1",
+          name: "Premium Package",
+          amountRp: 150000,
+          durationDays: 30,
+          isExtended: true,
+          accessKeys: ["tradingview:private"],
         },
-        "admin-user-id",
-      ),
-    ).rejects.toThrow("Package is disabled.");
-
-    expect(mockedCreateCdKeyRow).not.toHaveBeenCalled();
+      }),
+    );
+    expect(mockedAttachTransactionToSubscription).toHaveBeenCalledWith("transaction-1", "subscription-1");
+    expect(mockedSucceedTransaction).toHaveBeenCalledWith("transaction-1");
   });
 
-  it("retries deterministic generated codes on unique conflict", async () => {
-    mockedGetIssuablePackageSnapshotById.mockResolvedValue({
-      id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Starter Package",
-      accessKeys: ["tradingview:private"],
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      summary: "private",
-    });
-
-    mockedCreateCdKeyRow
-      .mockRejectedValueOnce({
-        code: "23505",
-        message: "duplicate key value violates unique constraint cd_keys_code_key",
-      })
-      .mockResolvedValueOnce({
-        id: "cdkey-3",
-        code: "BBBBBBBBBB",
-        packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-        amountRp: 150000,
-        durationDays: 30,
-        isExtended: true,
-        accessKeys: ["tradingview:private"],
-        isActive: true,
-        usedBy: null,
-        usedAt: null,
-        createdBy: "admin-user-id",
-      });
-
-    const generatedCodes = ["AAAAAAAAAA", "BBBBBBBBBB"];
-    let nextGeneratedCodeIndex = 0;
-
-    const row = await createCdKey(
-      {
-        packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-        manualCode: null,
-        amountRpOverride: null,
-      },
-      "admin-user-id",
-      () => {
-        const code = generatedCodes[nextGeneratedCodeIndex];
-
-        if (!code) {
-          throw new Error("Test generator exhausted.");
-        }
-
-        nextGeneratedCodeIndex += 1;
-        return code;
-      },
+  it("redeems successfully from a valid cd-key snapshot even when the package master is now disabled", async () => {
+    mockedFindCdKeyByCode.mockResolvedValueOnce(
+      createCdKeySnapshot({
+        packageSnapshot: {
+          packageId: "package-disabled",
+          name: "Disabled Snapshot Package",
+          amountRp: 99000,
+          durationDays: 14,
+          isExtended: false,
+          accessKeys: ["fxreplay:share"],
+        },
+      }),
     );
 
-    expect(mockedCreateCdKeyRow).toHaveBeenNthCalledWith(1, expect.objectContaining({ code: "AAAAAAAAAA" }));
-    expect(mockedCreateCdKeyRow).toHaveBeenNthCalledWith(2, expect.objectContaining({ code: "BBBBBBBBBB" }));
-    expect(row.code).toBe("BBBBBBBBBB");
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
+
+    expect(result).toEqual({
+      ok: true,
+      subscriptionId: "subscription-1",
+      transactionId: "transaction-1",
+    });
+    expect(mockedCreateTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        packageSnapshot: {
+          packageId: "package-disabled",
+          name: "Disabled Snapshot Package",
+          amountRp: 99000,
+        },
+      }),
+    );
+    expect(mockedActivateSubscriptionWithCompensation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        packageSnapshot: {
+          packageId: "package-disabled",
+          name: "Disabled Snapshot Package",
+          amountRp: 99000,
+          durationDays: 14,
+          isExtended: false,
+          accessKeys: ["fxreplay:share"],
+        },
+      }),
+    );
   });
 
-  it("fails after retry exhaustion on repeated unique conflicts", async () => {
-    mockedGetIssuablePackageSnapshotById.mockResolvedValue({
-      id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Starter Package",
-      accessKeys: ["tradingview:private"],
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      summary: "private",
+  it("rolls back the reservation and fails the transaction when activation throws", async () => {
+    mockedActivateSubscriptionWithCompensation.mockRejectedValueOnce(new Error("asset assignment failed"));
+
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "redeem-failed",
+      message: "Redeem CD-Key gagal diproses. Silakan coba lagi.",
     });
-
-    mockedCreateCdKeyRow.mockRejectedValue({
-      code: "23505",
-      message: "duplicate key value violates unique constraint cd_keys_code_key",
+    expect(mockedReleaseReservedCdKeyUsage).toHaveBeenCalledWith({
+      cdKeyId: "cdkey-1",
+      reservedAt: "2026-04-16T00:00:00.000Z",
+      userId: "user-1",
     });
-
-    const generatedCodes = Array.from({ length: 10 }, (_, index) => `AAAAAAAAA${index}`);
-    let nextGeneratedCodeIndex = 0;
-
-    await expect(
-      createCdKey(
-        {
-          packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-          manualCode: null,
-          amountRpOverride: null,
-        },
-        "admin-user-id",
-        () => {
-          const code = generatedCodes[nextGeneratedCodeIndex];
-
-          if (!code) {
-            throw new Error("Test generator exhausted.");
-          }
-
-          nextGeneratedCodeIndex += 1;
-          return code;
-        },
-      ),
-    ).rejects.toThrow("Failed to generate a unique CD-Key code.");
-
-    expect(mockedCreateCdKeyRow).toHaveBeenCalledTimes(10);
+    expect(mockedFailTransaction).toHaveBeenCalledWith({
+      transactionId: "transaction-1",
+      failureReason: "asset assignment failed",
+    });
+    expect(mockedSucceedTransaction).not.toHaveBeenCalled();
   });
 
-  it("returns deterministic message on non-unique DB failure", async () => {
-    mockedGetIssuablePackageSnapshotById.mockResolvedValueOnce({
-      id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Starter Package",
-      accessKeys: ["tradingview:private"],
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      summary: "private",
-    });
+  it("compensates activation before releasing the key when succeedTransaction fails", async () => {
+    mockedSucceedTransaction.mockRejectedValueOnce(new Error("success finalize failed"));
 
-    mockedCreateCdKeyRow.mockRejectedValueOnce({
-      code: "23514",
-      message: 'new row for relation "cd_keys" violates check constraint',
-    });
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
 
-    await expect(
-      createCdKey(
-        {
-          packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-          manualCode: "ZXCVBN12AS",
-          amountRpOverride: null,
-        },
-        "admin-user-id",
-      ),
-    ).rejects.toThrow("Failed to create CD-Key.");
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "redeem-failed",
+      message: "Redeem CD-Key gagal diproses. Silakan coba lagi.",
+    });
+    expect(mockedReleaseReservedCdKeyUsage).toHaveBeenCalledWith({
+      cdKeyId: "cdkey-1",
+      reservedAt: "2026-04-16T00:00:00.000Z",
+      userId: "user-1",
+    });
+    expect(mockedFailTransaction).toHaveBeenCalledWith({
+      transactionId: "transaction-1",
+      failureReason: "success finalize failed",
+    });
+    expect(mockedReleaseReservedCdKeyUsage.mock.invocationCallOrder[0]).toBeGreaterThan(
+      mockedSucceedTransaction.mock.invocationCallOrder[0],
+    );
   });
 
-  it("returns deterministic duplicate message on manual code conflict", async () => {
-    mockedGetIssuablePackageSnapshotById.mockResolvedValueOnce({
-      id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Starter Package",
-      accessKeys: ["tradingview:private"],
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      summary: "private",
-    });
+  it("does not mask the original redeem failure when failTransaction rejects after finalization race", async () => {
+    mockedSucceedTransaction.mockRejectedValueOnce(new Error("success finalize failed"));
+    mockedFailTransaction.mockRejectedValueOnce(new Error("Transaction is missing or already finalized."));
 
-    mockedCreateCdKeyRow.mockRejectedValueOnce({
-      code: "23505",
-      message: "duplicate key value violates unique constraint cd_keys_code_key",
-    });
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
 
-    await expect(
-      createCdKey(
-        {
-          packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-          manualCode: "ZXCVBN12AS",
-          amountRpOverride: null,
-        },
-        "admin-user-id",
-      ),
-    ).rejects.toThrow("CD-Key code already exists.");
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "redeem-failed",
+      message: "Redeem CD-Key gagal diproses. Silakan coba lagi.",
+    });
   });
 });

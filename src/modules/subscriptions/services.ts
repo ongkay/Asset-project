@@ -2,8 +2,24 @@ import "server-only";
 
 import { createAsset } from "@/modules/assets/services";
 import { parseAssetJsonText } from "@/modules/assets/schemas";
+import {
+  getMemberPurchasablePackageById,
+  getPackageById as getPackageByIdFromPackages,
+  toPackageActivationSnapshot,
+} from "@/modules/packages/services";
+import {
+  attachTransactionToSubscription,
+  createTransaction,
+  failTransaction,
+  succeedTransaction,
+} from "@/modules/transactions/services";
 
-import { adminManualActivationFormSchema, subscriberCancelSchema, subscriberQuickAddAssetSchema } from "./schemas";
+import {
+  adminManualActivationFormSchema,
+  memberPaymentDummySchema,
+  subscriberCancelSchema,
+  subscriberQuickAddAssetSchema,
+} from "./schemas";
 import {
   applySubscriptionStatus,
   assignBestAssetForSubscription,
@@ -15,13 +31,17 @@ import {
   getSubscriptionById,
   insertManualAssignmentRow,
   listActiveAssignmentsBySubscriptionId,
+  listCurrentAssignmentsBySubscriptionId,
   revokeActiveAssignmentsBySubscriptionId,
+  restoreSubscriptionRow,
   updateSubscriptionWindow,
 } from "./repositories";
 
 import type {
   AdminManualActivationFormValues,
   AdminManualActivationInput,
+  MemberPaymentDummyInput,
+  MemberPaymentDummyResult,
   ManualAssignmentsByAccessKey,
   SubscriberCancelInput,
   SubscriberQuickAddAssetInput,
@@ -43,6 +63,19 @@ function addDaysToIso(startAtIso: string, durationDays: number) {
 function toTransactionCode() {
   return `TX-ADM-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 }
+
+const PAYMENT_DUMMY_INVALID_PACKAGE_MESSAGE = "Package yang dipilih tidak valid atau sudah tidak tersedia.";
+const PAYMENT_DUMMY_DISABLED_PACKAGE_MESSAGE = "Package sudah tidak tersedia untuk pembelian baru.";
+const PAYMENT_DUMMY_FAILED_MESSAGE = "Pembayaran dummy gagal diproses. Silakan coba lagi.";
+
+type ActivationCompensation = {
+  rollback: () => Promise<void>;
+};
+
+type ActivationExecutionResult = {
+  compensation: ActivationCompensation;
+  result: SubscriptionActivationResult;
+};
 
 function isActivationInput(
   value: AdminManualActivationInput | AdminManualActivationFormValues,
@@ -73,7 +106,7 @@ async function resolveActivationInput(
     packageSnapshot,
     durationDays: parsedInput.durationDays,
     manualAssignmentsByAccessKey: parsedInput.manualAssignmentsByAccessKey,
-    existingRunningSubscriptionId: null,
+    source: "admin_manual",
   };
 }
 
@@ -90,6 +123,211 @@ function getReplacementMode(input: {
   }
 
   return input.packageSnapshot.isExtended ? "replace-with-carry-over" : "replace-immediately";
+}
+
+function getReplacementCancelReason(source: AdminManualActivationInput["source"]) {
+  if (source === "payment_dummy") {
+    return "replaced_by_payment_dummy";
+  }
+
+  if (source === "cdkey") {
+    return "replaced_by_cdkey";
+  }
+
+  return "replaced_by_admin_manual";
+}
+
+function getCompensationCancelReason(source: AdminManualActivationInput["source"]) {
+  if (source === "payment_dummy") {
+    return "payment_dummy_compensation";
+  }
+
+  if (source === "cdkey") {
+    return "cdkey_compensation";
+  }
+
+  return "admin_manual_compensation";
+}
+
+async function restoreAssignmentsForSubscription(input: {
+  assignments: Awaited<ReturnType<typeof listCurrentAssignmentsBySubscriptionId>>;
+  subscriptionId: string;
+  userId: string;
+}) {
+  for (const assignment of input.assignments) {
+    if (!assignment.assetId) {
+      continue;
+    }
+
+    await insertManualAssignmentRow({
+      subscriptionId: input.subscriptionId,
+      userId: input.userId,
+      accessKey: assignment.accessKey,
+      assetId: assignment.assetId,
+    });
+  }
+}
+
+async function tryFinalizeFailureWithoutMasking(input: { failureReason: string; transactionId: string }) {
+  try {
+    await failTransaction(input);
+  } catch {
+    return;
+  }
+}
+
+async function tryRollbackWithoutMasking(compensation: ActivationCompensation) {
+  try {
+    await compensation.rollback();
+  } catch {
+    return;
+  }
+}
+
+export async function activateSubscriptionWithCompensation(
+  input: AdminManualActivationInput,
+): Promise<ActivationExecutionResult> {
+  const nowIso = new Date().toISOString();
+  const runningSubscription = await getRunningSubscriptionByUserId(input.userId);
+  const mode = getReplacementMode({
+    runningSubscription,
+    packageSnapshot: input.packageSnapshot,
+  });
+
+  if (mode === "extend-existing") {
+    const previousEndAt = runningSubscription!.endAt;
+    const previousStatus = runningSubscription!.status;
+    const previousAssignments = await listCurrentAssignmentsBySubscriptionId(runningSubscription!.id);
+    const compensation: ActivationCompensation = {
+      rollback: async () => {
+        await revokeActiveAssignmentsBySubscriptionId({
+          subscriptionId: runningSubscription!.id,
+          revokeReason: "subscription_compensation",
+        });
+        await restoreSubscriptionRow({
+          subscriptionId: runningSubscription!.id,
+          status: previousStatus,
+          endAt: previousEndAt,
+        });
+        await restoreAssignmentsForSubscription({
+          assignments: previousAssignments,
+          subscriptionId: runningSubscription!.id,
+          userId: input.userId,
+        });
+      },
+    };
+
+    try {
+      await updateSubscriptionWindow({
+        subscriptionId: runningSubscription!.id,
+        endAt: addDaysToIso(runningSubscription!.endAt, input.durationDays),
+      });
+
+      await fulfillSubscriptionAccessKeys({
+        subscriptionId: runningSubscription!.id,
+        userId: input.userId,
+        accessKeys: input.packageSnapshot.accessKeys,
+        manualAssignmentsByAccessKey: input.manualAssignmentsByAccessKey,
+      });
+
+      await applySubscriptionStatus(runningSubscription!.id);
+
+      return {
+        result: {
+          subscriptionId: runningSubscription!.id,
+          mode,
+        },
+        compensation,
+      };
+    } catch (error) {
+      await tryRollbackWithoutMasking(compensation);
+      throw error;
+    }
+  }
+
+  const previousAssignments = runningSubscription
+    ? await listCurrentAssignmentsBySubscriptionId(runningSubscription.id)
+    : [];
+  let createdSubscriptionId: string | null = null;
+  const compensation: ActivationCompensation = {
+    rollback: async () => {
+      if (createdSubscriptionId) {
+        await revokeActiveAssignmentsBySubscriptionId({
+          subscriptionId: createdSubscriptionId,
+          revokeReason: "subscription_compensation",
+        });
+        await cancelSubscriptionRow({
+          subscriptionId: createdSubscriptionId,
+          cancelReason: getCompensationCancelReason(input.source),
+        });
+      }
+
+      if (!runningSubscription) {
+        return;
+      }
+
+      await restoreSubscriptionRow({
+        subscriptionId: runningSubscription.id,
+        status: runningSubscription.status,
+        endAt: runningSubscription.endAt,
+      });
+      await restoreAssignmentsForSubscription({
+        assignments: previousAssignments,
+        subscriptionId: runningSubscription.id,
+        userId: input.userId,
+      });
+    },
+  };
+
+  try {
+    if (runningSubscription) {
+      await cancelSubscriptionRow({
+        subscriptionId: runningSubscription.id,
+        cancelReason: getReplacementCancelReason(input.source),
+      });
+      await revokeActiveAssignmentsBySubscriptionId({
+        subscriptionId: runningSubscription.id,
+        revokeReason: "subscription_replaced",
+      });
+    }
+
+    const replacementBaseEndAt =
+      mode === "replace-with-carry-over" && runningSubscription
+        ? new Date(Math.max(new Date(runningSubscription.endAt).getTime(), new Date(nowIso).getTime())).toISOString()
+        : nowIso;
+
+    const createdSubscription = await createSubscriptionWithSnapshot({
+      userId: input.userId,
+      packageId: input.packageSnapshot.packageId,
+      packageName: input.packageSnapshot.name,
+      accessKeys: input.packageSnapshot.accessKeys,
+      source: input.source,
+      startAt: nowIso,
+      endAt: addDaysToIso(replacementBaseEndAt, input.durationDays),
+      status: "processed",
+    });
+    createdSubscriptionId = createdSubscription.id;
+
+    await fulfillSubscriptionAccessKeys({
+      subscriptionId: createdSubscription.id,
+      userId: input.userId,
+      accessKeys: input.packageSnapshot.accessKeys,
+      manualAssignmentsByAccessKey: input.manualAssignmentsByAccessKey,
+    });
+
+    await applySubscriptionStatus(createdSubscription.id);
+
+    return {
+      result: {
+        subscriptionId: createdSubscription.id,
+        mode,
+      },
+      compensation,
+    };
+  } catch (error) {
+    await tryRollbackWithoutMasking(compensation);
+    throw error;
+  }
 }
 
 function getFulfilledAccessKeys(activeAssignments: { accessKey: string }[]) {
@@ -181,75 +419,31 @@ export async function quickAddSubscriberAsset(input: SubscriberQuickAddAssetValu
   };
 }
 
+export async function activateSubscription(input: AdminManualActivationInput): Promise<SubscriptionActivationResult> {
+  const activationExecution = await activateSubscriptionWithCompensation(input);
+  return activationExecution.result;
+}
+
 export async function activateSubscriptionManually(
   input: AdminManualActivationInput | AdminManualActivationFormValues,
-): Promise<SubscriptionActivationResult> {
+): Promise<SubscriptionActivationResult & { transactionId: string }> {
   const resolvedInput = await resolveActivationInput(input);
 
   if (resolvedInput.packageSnapshot.isActive === false) {
     throw new Error("Package is disabled.");
   }
 
+  const activationResult = await activateSubscription({
+    ...resolvedInput,
+    source: "admin_manual",
+  });
+
   const nowIso = new Date().toISOString();
-  const runningSubscription = await getRunningSubscriptionByUserId(resolvedInput.userId);
-  const mode = getReplacementMode({
-    runningSubscription,
-    packageSnapshot: resolvedInput.packageSnapshot,
-  });
-
-  let targetSubscriptionId: string;
-
-  if (mode === "extend-existing") {
-    targetSubscriptionId = runningSubscription!.id;
-    await updateSubscriptionWindow({
-      subscriptionId: runningSubscription!.id,
-      endAt: addDaysToIso(runningSubscription!.endAt, resolvedInput.durationDays),
-    });
-  } else {
-    if (runningSubscription) {
-      await cancelSubscriptionRow({
-        subscriptionId: runningSubscription.id,
-        cancelReason: "replaced_by_admin_manual",
-      });
-      await revokeActiveAssignmentsBySubscriptionId({
-        subscriptionId: runningSubscription.id,
-        revokeReason: "subscription_replaced",
-      });
-    }
-
-    const baseStartAt = nowIso;
-    const replacementBaseEndAt =
-      mode === "replace-with-carry-over" && runningSubscription
-        ? new Date(Math.max(new Date(runningSubscription.endAt).getTime(), new Date(nowIso).getTime())).toISOString()
-        : nowIso;
-
-    const createdSubscription = await createSubscriptionWithSnapshot({
-      userId: resolvedInput.userId,
-      packageId: resolvedInput.packageSnapshot.packageId,
-      packageName: resolvedInput.packageSnapshot.name,
-      accessKeys: resolvedInput.packageSnapshot.accessKeys,
-      source: "admin_manual",
-      startAt: baseStartAt,
-      endAt: addDaysToIso(replacementBaseEndAt, resolvedInput.durationDays),
-      status: "processed",
-    });
-
-    targetSubscriptionId = createdSubscription.id;
-  }
-
-  await fulfillSubscriptionAccessKeys({
-    subscriptionId: targetSubscriptionId,
-    userId: resolvedInput.userId,
-    accessKeys: resolvedInput.packageSnapshot.accessKeys,
-    manualAssignmentsByAccessKey: resolvedInput.manualAssignmentsByAccessKey,
-  });
-
-  await applySubscriptionStatus(targetSubscriptionId);
 
   const transaction = await createTransactionRow({
     code: toTransactionCode(),
     userId: resolvedInput.userId,
-    subscriptionId: targetSubscriptionId,
+    subscriptionId: activationResult.subscriptionId,
     packageId: resolvedInput.packageSnapshot.packageId,
     packageName: resolvedInput.packageSnapshot.name,
     source: "admin_manual",
@@ -259,10 +453,85 @@ export async function activateSubscriptionManually(
   });
 
   return {
-    subscriptionId: targetSubscriptionId,
+    subscriptionId: activationResult.subscriptionId,
     transactionId: transaction.id,
-    mode,
+    mode: activationResult.mode,
   };
+}
+
+function getFailureReason(error: unknown) {
+  return error instanceof Error ? error.message : "Unexpected checkout error.";
+}
+
+export async function purchaseSubscriptionWithPaymentDummy(
+  input: MemberPaymentDummyInput,
+): Promise<MemberPaymentDummyResult> {
+  const parsedInput = memberPaymentDummySchema.parse({ packageId: input.packageId });
+  const activePackage = await getMemberPurchasablePackageById(parsedInput.packageId);
+
+  if (!activePackage) {
+    const packageRow = await getPackageByIdFromPackages(parsedInput.packageId);
+
+    return packageRow
+      ? {
+          ok: false,
+          errorCode: "disabled-package",
+          message: PAYMENT_DUMMY_DISABLED_PACKAGE_MESSAGE,
+        }
+      : {
+          ok: false,
+          errorCode: "invalid-package",
+          message: PAYMENT_DUMMY_INVALID_PACKAGE_MESSAGE,
+        };
+  }
+
+  const transaction = await createTransaction({
+    userId: input.userId,
+    source: "payment_dummy",
+    packageSnapshot: {
+      packageId: activePackage.packageId,
+      name: activePackage.name,
+      amountRp: activePackage.amountRp,
+    },
+  });
+
+  let activationExecution: ActivationExecutionResult | null = null;
+
+  try {
+    activationExecution = await activateSubscriptionWithCompensation({
+      userId: input.userId,
+      packageSnapshot: toPackageActivationSnapshot(activePackage),
+      durationDays: activePackage.durationDays,
+      manualAssignmentsByAccessKey: {},
+      source: "payment_dummy",
+    });
+    const activationResult = activationExecution.result;
+
+    await attachTransactionToSubscription(transaction.id, activationResult.subscriptionId);
+    await succeedTransaction(transaction.id);
+
+    return {
+      ok: true,
+      subscriptionId: activationResult.subscriptionId,
+      transactionId: transaction.id,
+      redirectTo: "/console",
+    };
+  } catch (error) {
+    if (activationExecution) {
+      await tryRollbackWithoutMasking(activationExecution.compensation);
+    }
+
+    await tryFinalizeFailureWithoutMasking({
+      transactionId: transaction.id,
+      failureReason: getFailureReason(error),
+    });
+
+    return {
+      ok: false,
+      errorCode: "checkout-failed",
+      message: PAYMENT_DUMMY_FAILED_MESSAGE,
+    };
+  }
 }
 
 export async function cancelSubscription(input: SubscriberCancelInput) {

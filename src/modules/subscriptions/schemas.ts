@@ -4,6 +4,7 @@ import { ASSET_PLATFORMS } from "@/modules/assets/types";
 
 import type {
   AdminManualActivationFormValues,
+  MemberPaymentDummyInput,
   ManualAssignmentsByAccessKey,
   SubscriberCancelInput,
   SubscriberQuickAddAssetValues,
@@ -57,3 +58,7 @@ export const subscriberQuickAddAssetSchema = z.object({
 export const subscriberCancelSchema = z.object({
   subscriptionId: z.string({ error: "Subscription ID is required." }).trim().min(1, "Subscription ID is required."),
 }) satisfies z.ZodType<SubscriberCancelInput>;
+
+export const memberPaymentDummySchema = z.object({
+  packageId: z.uuid("Package ID must be a valid UUID."),
+}) satisfies z.ZodType<Pick<MemberPaymentDummyInput, "packageId">>;

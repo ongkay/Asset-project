@@ -1,4 +1,5 @@
 import type { AssetJsonArray, AssetJsonObject, AssetPlatform, AssetType } from "@/modules/assets/types";
+import type { PackageActivationSnapshot } from "@/modules/packages/types";
 
 export type SubscriptionStatus = "active" | "processed" | "expired" | "canceled";
 export type SubscriptionSource = "payment_dummy" | "cdkey" | "admin_manual";
@@ -12,13 +13,7 @@ export type AdminManualActivationFormValues = {
   manualAssignmentsByAccessKey: ManualAssignmentsByAccessKey;
 };
 
-export type SubscriptionPackageSnapshot = {
-  packageId: string;
-  name: string;
-  amountRp: number;
-  durationDays: number;
-  isExtended: boolean;
-  accessKeys: string[];
+export type SubscriptionPackageSnapshot = PackageActivationSnapshot & {
   isActive?: boolean;
 };
 
@@ -27,8 +22,26 @@ export type AdminManualActivationInput = {
   packageSnapshot: SubscriptionPackageSnapshot;
   durationDays: number;
   manualAssignmentsByAccessKey: ManualAssignmentsByAccessKey;
-  existingRunningSubscriptionId: string | null;
+  source: SubscriptionSource;
 };
+
+export type MemberPaymentDummyInput = {
+  packageId: string;
+  userId: string;
+};
+
+export type MemberPaymentDummyResult =
+  | {
+      ok: true;
+      redirectTo: "/console";
+      subscriptionId: string;
+      transactionId: string;
+    }
+  | {
+      errorCode: "checkout-failed" | "disabled-package" | "invalid-package";
+      message: string;
+      ok: false;
+    };
 
 export type SubscriberQuickAddAssetValues = {
   userId: string;
@@ -105,6 +118,5 @@ export type SubscriptionActivationMode =
 
 export type SubscriptionActivationResult = {
   subscriptionId: string;
-  transactionId: string;
   mode: SubscriptionActivationMode;
 };

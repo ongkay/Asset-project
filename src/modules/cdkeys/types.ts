@@ -1,15 +1,10 @@
-import type { PackageAccessKey } from "@/modules/packages/types";
+import type { PackageAccessKey, PackageActivationSnapshot } from "@/modules/packages/types";
 
 export type CdKeyActivationSnapshot = {
-  accessKeys: string[];
-  amountRp: number;
   code: string;
-  durationDays: number;
   id: string;
   isActive: boolean;
-  isExtended: boolean;
-  packageName: string;
-  packageId: string;
+  packageSnapshot: PackageActivationSnapshot;
   usedAt: string | null;
   usedBy: string | null;
 };
@@ -72,6 +67,26 @@ export type CdKeyIssueResult =
       row: CdKeyIssueRecord;
     }
   | {
+      message: string;
+      ok: false;
+    };
+
+export type RedeemCdKeyInput = {
+  code: string;
+};
+
+export type RedeemCdKeyServiceInput = RedeemCdKeyInput & {
+  userId: string;
+};
+
+export type RedeemCdKeyResult =
+  | {
+      ok: true;
+      subscriptionId: string;
+      transactionId: string;
+    }
+  | {
+      errorCode: "code-invalid" | "code-used" | "redeem-failed";
       message: string;
       ok: false;
     };

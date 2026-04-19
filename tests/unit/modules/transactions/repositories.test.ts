@@ -42,9 +42,11 @@ describe("transactions/repositories", () => {
 
     await expect(
       insertTransaction({
-        amountRp: 150000,
-        packageId: "package-1",
-        packageName: "Paket 1",
+        packageSnapshot: {
+          amountRp: 150000,
+          packageId: "package-1",
+          name: "Paket 1",
+        },
         source: "payment_dummy",
         userId: "user-1",
       }),

@@ -3,15 +3,24 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 
 import { getIssuablePackageSnapshotById } from "@/modules/packages/services";
+import { activateSubscriptionWithCompensation } from "@/modules/subscriptions/services";
+import {
+  attachTransactionToSubscription,
+  createTransaction,
+  failTransaction,
+  succeedTransaction,
+} from "@/modules/transactions/services";
 
-import { cdKeyIssueInputSchema } from "./schemas";
+import { cdKeyIssueInputSchema, redeemCdKeySchema } from "./schemas";
 import { createCdKeyRow, findCdKeyByCode, releaseReservedCdKeyUsage, reserveCdKeyUsage } from "./repositories";
 
-import type { CdKeyIssueInput, CdKeyIssueRecord } from "./types";
+import type { CdKeyIssueInput, CdKeyIssueRecord, RedeemCdKeyResult, RedeemCdKeyServiceInput } from "./types";
 
 const CDKEY_CREATE_FAILED_MESSAGE = "Failed to create CD-Key.";
 const CDKEY_DUPLICATE_CODE_MESSAGE = "CD-Key code already exists.";
 const CDKEY_GENERATION_EXHAUSTED_MESSAGE = "Failed to generate a unique CD-Key code.";
+const REDEEM_INVALID_MESSAGE = "CD-Key tidak valid atau sudah terpakai.";
+const REDEEM_FAILED_MESSAGE = "Redeem CD-Key gagal diproses. Silakan coba lagi.";
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -158,4 +167,127 @@ export async function consumeCdKey(cdKeyId: string, userId: string) {
 
 export async function rollbackConsumedCdKey(input: { cdKeyId: string; reservedAt: string; userId: string }) {
   await releaseReservedCdKeyUsage(input);
+}
+
+function getRedeemFailureReason(error: unknown) {
+  return error instanceof Error ? error.message : "Unexpected redeem error.";
+}
+
+async function getReservationRaceResult(code: string): Promise<RedeemCdKeyResult> {
+  const latestSnapshot = await findCdKeyByCode(code);
+
+  if (!latestSnapshot || latestSnapshot.isActive === false) {
+    return {
+      ok: false,
+      errorCode: "code-invalid",
+      message: REDEEM_INVALID_MESSAGE,
+    };
+  }
+
+  return {
+    ok: false,
+    errorCode: latestSnapshot.usedAt || latestSnapshot.usedBy ? "code-used" : "code-invalid",
+    message: REDEEM_INVALID_MESSAGE,
+  };
+}
+
+async function tryFinalizeRedeemFailureWithoutMasking(input: { failureReason: string; transactionId: string }) {
+  try {
+    await failTransaction(input);
+  } catch {
+    return;
+  }
+}
+
+export async function redeemCdKey(input: RedeemCdKeyServiceInput): Promise<RedeemCdKeyResult> {
+  const parsedInput = redeemCdKeySchema.parse({ code: input.code });
+  const cdKeySnapshot = await findCdKeyByCode(parsedInput.code);
+
+  if (!cdKeySnapshot || cdKeySnapshot.isActive === false) {
+    return {
+      ok: false,
+      errorCode: "code-invalid",
+      message: REDEEM_INVALID_MESSAGE,
+    };
+  }
+
+  if (cdKeySnapshot.usedAt || cdKeySnapshot.usedBy) {
+    return {
+      ok: false,
+      errorCode: "code-used",
+      message: REDEEM_INVALID_MESSAGE,
+    };
+  }
+
+  const reservedAt = await reserveCdKeyUsage(cdKeySnapshot.id, input.userId);
+
+  if (!reservedAt) {
+    return getReservationRaceResult(parsedInput.code);
+  }
+
+  let transactionId: string | null = null;
+  let activationExecution: Awaited<ReturnType<typeof activateSubscriptionWithCompensation>> | null = null;
+
+  try {
+    const transaction = await createTransaction({
+      userId: input.userId,
+      source: "cdkey",
+      cdKeyId: cdKeySnapshot.id,
+      packageSnapshot: {
+        packageId: cdKeySnapshot.packageSnapshot.packageId,
+        name: cdKeySnapshot.packageSnapshot.name,
+        amountRp: cdKeySnapshot.packageSnapshot.amountRp,
+      },
+    });
+    transactionId = transaction.id;
+
+    activationExecution = await activateSubscriptionWithCompensation({
+      userId: input.userId,
+      packageSnapshot: cdKeySnapshot.packageSnapshot,
+      durationDays: cdKeySnapshot.packageSnapshot.durationDays,
+      manualAssignmentsByAccessKey: {},
+      source: "cdkey",
+    });
+    const activationResult = activationExecution.result;
+
+    await attachTransactionToSubscription(transaction.id, activationResult.subscriptionId);
+    await succeedTransaction(transaction.id);
+
+    return {
+      ok: true,
+      subscriptionId: activationResult.subscriptionId,
+      transactionId: transaction.id,
+    };
+  } catch (error) {
+    let canReleaseReservation = true;
+
+    if (activationExecution) {
+      try {
+        await activationExecution.compensation.rollback();
+      } catch {
+        canReleaseReservation = false;
+      }
+    }
+
+    if (canReleaseReservation) {
+      await rollbackConsumedCdKey({
+        cdKeyId: cdKeySnapshot.id,
+        reservedAt,
+        userId: input.userId,
+      });
+    }
+
+    if (transactionId) {
+      await tryFinalizeRedeemFailureWithoutMasking({
+        transactionId,
+        failureReason: getRedeemFailureReason(error),
+      });
+    }
+
+    return {
+      ok: false,
+      errorCode: "redeem-failed",
+      message: REDEEM_FAILED_MESSAGE,
+    };
+  }
 }

@@ -74,13 +74,17 @@ export type PackageRow = {
 };
 
 export type PackageIssuableSnapshot = {
+  id: string;
+  summary: PackageSummary;
+} & PackageActivationSnapshot;
+
+export type PackageActivationSnapshot = {
+  packageId: string;
   accessKeys: PackageAccessKey[];
   amountRp: number;
   durationDays: number;
-  id: string;
   isExtended: boolean;
   name: string;
-  summary: PackageSummary;
 };
 
 export type MemberPurchasablePackage = PackageIssuableSnapshot;

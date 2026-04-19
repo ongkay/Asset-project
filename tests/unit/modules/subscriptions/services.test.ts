@@ -1,5 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/modules/packages/services", () => ({
+  getMemberPurchasablePackageById: vi.fn(),
+  getPackageById: vi.fn(),
+  toPackageActivationSnapshot: vi.fn(
+    (packageSnapshot: {
+      packageId: string;
+      accessKeys: string[];
+      amountRp: number;
+      durationDays: number;
+      isExtended: boolean;
+      name: string;
+    }) => ({
+      packageId: packageSnapshot.packageId,
+      accessKeys: packageSnapshot.accessKeys,
+      amountRp: packageSnapshot.amountRp,
+      durationDays: packageSnapshot.durationDays,
+      isExtended: packageSnapshot.isExtended,
+      name: packageSnapshot.name,
+    }),
+  ),
+}));
+
 vi.mock("@/modules/subscriptions/repositories", () => ({
   applySubscriptionStatus: vi.fn(),
   assignBestAssetForSubscription: vi.fn(),
@@ -11,23 +33,39 @@ vi.mock("@/modules/subscriptions/repositories", () => ({
   getSubscriptionById: vi.fn(),
   insertManualAssignmentRow: vi.fn(),
   listActiveAssignmentsBySubscriptionId: vi.fn(),
+  listCurrentAssignmentsBySubscriptionId: vi.fn(),
   revokeActiveAssignmentsBySubscriptionId: vi.fn(),
+  restoreSubscriptionRow: vi.fn(),
   updateSubscriptionWindow: vi.fn(),
+}));
+
+vi.mock("@/modules/transactions/services", () => ({
+  attachTransactionToSubscription: vi.fn(),
+  createTransaction: vi.fn(),
+  failTransaction: vi.fn(),
+  succeedTransaction: vi.fn(),
 }));
 
 vi.mock("@/modules/assets/services", () => ({
   createAsset: vi.fn(),
 }));
 
+import * as packageServices from "@/modules/packages/services";
 import * as subscriptionRepositories from "@/modules/subscriptions/repositories";
 import {
+  activateSubscription,
+  activateSubscriptionWithCompensation,
   activateSubscriptionManually,
   buildQuickAddAssetInput,
   cancelSubscription,
+  purchaseSubscriptionWithPaymentDummy,
 } from "@/modules/subscriptions/services";
+import * as transactionServices from "@/modules/transactions/services";
 
 import type { SubscriptionPackageSnapshot, SubscriptionRow } from "@/modules/subscriptions/types";
 
+const mockedGetMemberPurchasablePackageById = vi.mocked(packageServices.getMemberPurchasablePackageById);
+const mockedGetPackageByIdFromPackages = vi.mocked(packageServices.getPackageById);
 const mockedApplySubscriptionStatus = vi.mocked(subscriptionRepositories.applySubscriptionStatus);
 const mockedAssignBestAssetForSubscription = vi.mocked(subscriptionRepositories.assignBestAssetForSubscription);
 const mockedCancelSubscriptionRow = vi.mocked(subscriptionRepositories.cancelSubscriptionRow);
@@ -40,14 +78,22 @@ const mockedInsertManualAssignmentRow = vi.mocked(subscriptionRepositories.inser
 const mockedListActiveAssignmentsBySubscriptionId = vi.mocked(
   subscriptionRepositories.listActiveAssignmentsBySubscriptionId,
 );
+const mockedListCurrentAssignmentsBySubscriptionId = vi.mocked(
+  subscriptionRepositories.listCurrentAssignmentsBySubscriptionId,
+);
 const mockedRevokeActiveAssignmentsBySubscriptionId = vi.mocked(
   subscriptionRepositories.revokeActiveAssignmentsBySubscriptionId,
 );
+const mockedRestoreSubscriptionRow = vi.mocked(subscriptionRepositories.restoreSubscriptionRow);
 const mockedUpdateSubscriptionWindow = vi.mocked(subscriptionRepositories.updateSubscriptionWindow);
+const mockedAttachTransactionToSubscription = vi.mocked(transactionServices.attachTransactionToSubscription);
+const mockedCreateTransaction = vi.mocked(transactionServices.createTransaction);
+const mockedFailTransaction = vi.mocked(transactionServices.failTransaction);
+const mockedSucceedTransaction = vi.mocked(transactionServices.succeedTransaction);
 
 function createPackageSnapshot(overrides: Partial<SubscriptionPackageSnapshot> = {}): SubscriptionPackageSnapshot {
   return {
-    packageId: "package-1",
+    packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
     name: "Premium Package",
     amountRp: 150000,
     durationDays: 30,
@@ -61,7 +107,7 @@ function createSubscriptionRow(overrides: Partial<SubscriptionRow> = {}): Subscr
   return {
     id: "subscription-1",
     userId: "user-1",
-    packageId: "package-1",
+    packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
     packageName: "Premium Package",
     accessKeys: ["tradingview:private"],
     status: "active",
@@ -76,6 +122,8 @@ function createSubscriptionRow(overrides: Partial<SubscriptionRow> = {}): Subscr
 
 describe("subscriptions/services", () => {
   beforeEach(() => {
+    mockedGetMemberPurchasablePackageById.mockReset();
+    mockedGetPackageByIdFromPackages.mockReset();
     mockedApplySubscriptionStatus.mockResolvedValue("active");
     mockedAssignBestAssetForSubscription.mockResolvedValue(null);
     mockedCancelSubscriptionRow.mockResolvedValue(createSubscriptionRow({ status: "canceled" }));
@@ -86,8 +134,28 @@ describe("subscriptions/services", () => {
     mockedGetSubscriptionById.mockResolvedValue(createSubscriptionRow());
     mockedInsertManualAssignmentRow.mockResolvedValue({ id: "assignment-1" });
     mockedListActiveAssignmentsBySubscriptionId.mockResolvedValue([]);
+    mockedListCurrentAssignmentsBySubscriptionId.mockResolvedValue([]);
     mockedRevokeActiveAssignmentsBySubscriptionId.mockResolvedValue({ count: 0 });
+    mockedRestoreSubscriptionRow.mockResolvedValue(createSubscriptionRow());
     mockedUpdateSubscriptionWindow.mockResolvedValue(createSubscriptionRow({ endAt: "2026-05-05T00:00:00.000Z" }));
+    mockedAttachTransactionToSubscription.mockReset();
+    mockedCreateTransaction.mockReset();
+    mockedCreateTransaction.mockResolvedValue({
+      id: "transaction-member-1",
+      code: "TRX-0001",
+      amountRp: 150000,
+      createdAt: "2026-04-16T00:00:00.000Z",
+      failureReason: null,
+      packageId: "package-1",
+      packageName: "Premium Package",
+      paidAt: null,
+      source: "payment_dummy",
+      status: "pending",
+      subscriptionId: null,
+      userId: "user-1",
+    });
+    mockedFailTransaction.mockReset();
+    mockedSucceedTransaction.mockReset();
   });
 
   afterEach(() => {
@@ -187,13 +255,375 @@ describe("subscriptions/services", () => {
       expect.objectContaining({
         userId: "user-1",
         subscriptionId: "subscription-1",
-        packageId: "package-1",
+        packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
         packageName: "Premium Package",
         source: "admin_manual",
         status: "success",
         amountRp: 150000,
       }),
     );
+  });
+
+  it("returns a transaction-agnostic activation result for replacement flows", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-16T00:00:00.000Z"));
+
+    mockedGetRunningSubscriptionByUserId.mockResolvedValueOnce(
+      createSubscriptionRow({
+        id: "subscription-old",
+        packageId: "package-old",
+        packageName: "Legacy Package",
+      }),
+    );
+    mockedCreateSubscriptionWithSnapshot.mockResolvedValueOnce(
+      createSubscriptionRow({
+        id: "subscription-new",
+        packageId: "package-2",
+        packageName: "Replacement Package",
+        accessKeys: ["fxreplay:share"],
+      }),
+    );
+
+    const result = await activateSubscription({
+      userId: "user-1",
+      packageSnapshot: createPackageSnapshot({
+        packageId: "package-2",
+        name: "Replacement Package",
+        accessKeys: ["fxreplay:share"],
+        isExtended: false,
+      }),
+      durationDays: 20,
+      manualAssignmentsByAccessKey: {},
+      source: "payment_dummy",
+    });
+
+    expect(result).toEqual({
+      subscriptionId: "subscription-new",
+      mode: "replace-immediately",
+    });
+    expect(mockedRevokeActiveAssignmentsBySubscriptionId).toHaveBeenCalledWith({
+      subscriptionId: "subscription-old",
+      revokeReason: "subscription_replaced",
+    });
+    expect(mockedCreateTransactionRow).not.toHaveBeenCalled();
+  });
+
+  it("rolls back create-new activation when fulfillSubscriptionAccessKeys fails after subscription creation", async () => {
+    mockedAssignBestAssetForSubscription.mockRejectedValueOnce(new Error("assignment failed"));
+
+    await expect(
+      activateSubscriptionWithCompensation({
+        userId: "user-1",
+        packageSnapshot: createPackageSnapshot(),
+        durationDays: 30,
+        manualAssignmentsByAccessKey: {},
+        source: "payment_dummy",
+      }),
+    ).rejects.toThrow("assignment failed");
+
+    expect(mockedCreateSubscriptionWithSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+      }),
+    );
+    expect(mockedRevokeActiveAssignmentsBySubscriptionId).toHaveBeenCalledWith({
+      subscriptionId: "subscription-2",
+      revokeReason: "subscription_compensation",
+    });
+    expect(mockedCancelSubscriptionRow).toHaveBeenCalledWith({
+      subscriptionId: "subscription-2",
+      cancelReason: "payment_dummy_compensation",
+    });
+  });
+
+  it("restores the previous subscription when applySubscriptionStatus fails after replacement mutation", async () => {
+    mockedGetRunningSubscriptionByUserId.mockResolvedValueOnce(
+      createSubscriptionRow({
+        id: "subscription-old",
+        packageId: "package-old",
+        packageName: "Legacy Package",
+        accessKeys: ["fxreplay:share"],
+      }),
+    );
+    mockedListCurrentAssignmentsBySubscriptionId.mockResolvedValueOnce([
+      {
+        accessKey: "fxreplay:share",
+        assetId: "asset-old",
+        platform: "fxreplay",
+        assetType: "share",
+        note: null,
+        expiresAt: "2026-04-20T00:00:00.000Z",
+        assignmentId: "assignment-old",
+      },
+    ]);
+    mockedApplySubscriptionStatus.mockRejectedValueOnce(new Error("status failed"));
+
+    await expect(
+      activateSubscriptionWithCompensation({
+        userId: "user-1",
+        packageSnapshot: createPackageSnapshot({
+          packageId: "package-2",
+          name: "Replacement Package",
+          accessKeys: ["tradingview:private"],
+        }),
+        durationDays: 20,
+        manualAssignmentsByAccessKey: {},
+        source: "cdkey",
+      }),
+    ).rejects.toThrow("status failed");
+
+    expect(mockedCancelSubscriptionRow).toHaveBeenCalledWith({
+      subscriptionId: "subscription-old",
+      cancelReason: "replaced_by_cdkey",
+    });
+    expect(mockedCancelSubscriptionRow).toHaveBeenCalledWith({
+      subscriptionId: "subscription-2",
+      cancelReason: "cdkey_compensation",
+    });
+    expect(mockedRestoreSubscriptionRow).toHaveBeenCalledWith({
+      subscriptionId: "subscription-old",
+      status: "active",
+      endAt: "2026-04-20T00:00:00.000Z",
+    });
+    expect(mockedInsertManualAssignmentRow).toHaveBeenCalledWith({
+      subscriptionId: "subscription-old",
+      userId: "user-1",
+      accessKey: "fxreplay:share",
+      assetId: "asset-old",
+    });
+  });
+
+  it("creates, links, and finalizes a member payment transaction on success", async () => {
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
+      id: "package-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+      name: "Premium Package",
+      amountRp: 150000,
+      durationDays: 30,
+      isExtended: true,
+      accessKeys: ["tradingview:private"],
+      summary: "private",
+    });
+
+    const result = await purchaseSubscriptionWithPaymentDummy({
+      userId: "user-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      subscriptionId: "subscription-2",
+      transactionId: "transaction-member-1",
+      redirectTo: "/console",
+    });
+    expect(mockedCreateTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        source: "payment_dummy",
+        packageSnapshot: {
+          packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+          name: "Premium Package",
+          amountRp: 150000,
+        },
+      }),
+    );
+    expect(mockedCreateSubscriptionWithSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accessKeys: ["tradingview:private"],
+        packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+      }),
+    );
+    expect(mockedAttachTransactionToSubscription).toHaveBeenCalledWith("transaction-member-1", "subscription-2");
+    expect(mockedSucceedTransaction).toHaveBeenCalledWith("transaction-member-1");
+    expect(mockedFailTransaction).not.toHaveBeenCalled();
+  });
+
+  it("returns disabled-package when the selected package is no longer active", async () => {
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce(null);
+    mockedGetPackageByIdFromPackages.mockResolvedValueOnce({
+      id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+      name: "Premium Package",
+      amountRp: 150000,
+      durationDays: 30,
+      isExtended: true,
+      accessKeys: ["tradingview:private"],
+      checkoutUrl: null,
+      code: "PKG-1",
+      createdAt: "2026-04-01T00:00:00.000Z",
+      isActive: false,
+      updatedAt: "2026-04-01T00:00:00.000Z",
+    });
+
+    const result = await purchaseSubscriptionWithPaymentDummy({
+      userId: "user-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "disabled-package",
+      message: "Package sudah tidak tersedia untuk pembelian baru.",
+    });
+    expect(mockedCreateTransaction).not.toHaveBeenCalled();
+  });
+
+  it("fails the transient member transaction when checkout orchestration throws", async () => {
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
+      id: "package-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+      name: "Premium Package",
+      amountRp: 150000,
+      durationDays: 30,
+      isExtended: true,
+      accessKeys: ["tradingview:private"],
+      summary: "private",
+    });
+    mockedCreateSubscriptionWithSnapshot.mockRejectedValueOnce(new Error("assignment failure"));
+
+    const result = await purchaseSubscriptionWithPaymentDummy({
+      userId: "user-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "checkout-failed",
+      message: "Pembayaran dummy gagal diproses. Silakan coba lagi.",
+    });
+    expect(mockedFailTransaction).toHaveBeenCalledWith({
+      transactionId: "transaction-member-1",
+      failureReason: "assignment failure",
+    });
+    expect(mockedSucceedTransaction).not.toHaveBeenCalled();
+  });
+
+  it("compensates activation before failing the transaction when attach fails", async () => {
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
+      id: "package-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+      name: "Premium Package",
+      amountRp: 150000,
+      durationDays: 30,
+      isExtended: true,
+      accessKeys: ["tradingview:private"],
+      summary: "private",
+    });
+    mockedAttachTransactionToSubscription.mockRejectedValueOnce(new Error("attach failed"));
+
+    const result = await purchaseSubscriptionWithPaymentDummy({
+      userId: "user-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "checkout-failed",
+      message: "Pembayaran dummy gagal diproses. Silakan coba lagi.",
+    });
+    expect(mockedCancelSubscriptionRow).toHaveBeenCalledWith({
+      subscriptionId: "subscription-2",
+      cancelReason: "payment_dummy_compensation",
+    });
+    expect(mockedRevokeActiveAssignmentsBySubscriptionId).toHaveBeenCalledWith({
+      subscriptionId: "subscription-2",
+      revokeReason: "subscription_compensation",
+    });
+    expect(mockedFailTransaction).toHaveBeenCalledWith({
+      transactionId: "transaction-member-1",
+      failureReason: "attach failed",
+    });
+  });
+
+  it("uses source-aware cancel reasons for non-admin replacement flows", async () => {
+    mockedGetRunningSubscriptionByUserId.mockResolvedValueOnce(
+      createSubscriptionRow({
+        id: "subscription-old",
+        packageId: "package-old",
+        packageName: "Legacy Package",
+      }),
+    );
+    mockedCreateSubscriptionWithSnapshot.mockResolvedValueOnce(
+      createSubscriptionRow({
+        id: "subscription-new",
+        packageId: "package-2",
+        packageName: "Replacement Package",
+        accessKeys: ["fxreplay:share"],
+      }),
+    );
+
+    await activateSubscription({
+      userId: "user-1",
+      packageSnapshot: createPackageSnapshot({
+        packageId: "package-2",
+        name: "Replacement Package",
+        accessKeys: ["fxreplay:share"],
+        isExtended: false,
+      }),
+      durationDays: 20,
+      manualAssignmentsByAccessKey: {},
+      source: "payment_dummy",
+    });
+
+    expect(mockedCancelSubscriptionRow).toHaveBeenCalledWith({
+      subscriptionId: "subscription-old",
+      cancelReason: "replaced_by_payment_dummy",
+    });
+  });
+
+  it("does not mask the original failure when failTransaction rejects after a finalization race", async () => {
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
+      id: "package-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+      name: "Premium Package",
+      amountRp: 150000,
+      durationDays: 30,
+      isExtended: true,
+      accessKeys: ["tradingview:private"],
+      summary: "private",
+    });
+    mockedAttachTransactionToSubscription.mockRejectedValueOnce(new Error("attach failed"));
+    mockedFailTransaction.mockRejectedValueOnce(new Error("Transaction is missing or already finalized."));
+
+    const result = await purchaseSubscriptionWithPaymentDummy({
+      userId: "user-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "checkout-failed",
+      message: "Pembayaran dummy gagal diproses. Silakan coba lagi.",
+    });
+  });
+
+  it("keeps the original checkout failure when rollback also throws and still attempts failTransaction", async () => {
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
+      id: "package-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+      name: "Premium Package",
+      amountRp: 150000,
+      durationDays: 30,
+      isExtended: true,
+      accessKeys: ["tradingview:private"],
+      summary: "private",
+    });
+    mockedAttachTransactionToSubscription.mockRejectedValueOnce(new Error("attach failed"));
+    mockedCancelSubscriptionRow.mockRejectedValueOnce(new Error("rollback failed"));
+
+    const result = await purchaseSubscriptionWithPaymentDummy({
+      userId: "user-1",
+      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "checkout-failed",
+      message: "Pembayaran dummy gagal diproses. Silakan coba lagi.",
+    });
+    expect(mockedFailTransaction).toHaveBeenCalledWith({
+      transactionId: "transaction-member-1",
+      failureReason: "attach failed",
+    });
   });
 
   it("replaces the running subscription with carry-over when the next package is extended", async () => {

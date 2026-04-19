@@ -1,5 +1,9 @@
+import type { PackageActivationSnapshot } from "@/modules/packages/types";
+
 export type ActivationSource = "payment_dummy" | "cdkey" | "admin_manual";
 export type TransactionStatus = "pending" | "success" | "failed" | "canceled";
+
+export type TransactionPackageSnapshot = Pick<PackageActivationSnapshot, "packageId" | "name" | "amountRp">;
 
 export type TransactionRecord = {
   amountRp: number;
@@ -17,10 +21,8 @@ export type TransactionRecord = {
 };
 
 export type CreateTransactionInput = {
-  amountRp: number;
   cdKeyId?: string;
-  packageId: string;
-  packageName: string;
+  packageSnapshot: TransactionPackageSnapshot;
   source: ActivationSource;
   subscriptionId?: string;
   userId: string;
