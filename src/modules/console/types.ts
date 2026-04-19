@@ -37,6 +37,29 @@ export type ConsoleSnapshot = {
   transactions: ConsoleTransactionSnapshot[];
 };
 
+export type ConsoleState = "active" | "processed" | "expired" | "canceled" | "none";
+
+export type ConsoleStateLatestSubscription = {
+  endAt: string;
+  id: string;
+  packageId: string;
+  packageName: string;
+  startAt: string;
+  status: Exclude<ConsoleState, "none">;
+};
+
+export type ConsoleStateSnapshot = {
+  latestSubscription: ConsoleStateLatestSubscription | null;
+  state: ConsoleState;
+};
+
+export type ConsolePaymentError = "missing-package" | "invalid-package" | "disabled-package";
+
+export type PaymentDummyPackageSearchParamResult = {
+  packageId: string | null;
+  paymentError: Exclude<ConsolePaymentError, "disabled-package"> | null;
+};
+
 export type ConsoleAssetDetail = {
   accessKey: string;
   account: string;

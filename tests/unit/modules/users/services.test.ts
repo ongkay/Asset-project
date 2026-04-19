@@ -26,11 +26,18 @@ vi.mock("@/modules/auth/repositories", () => ({
   readAuthUserByEmail: vi.fn(),
 }));
 
+vi.mock("@/modules/auth/services", () => ({
+  readValidatedInsForgeAccessTokenForActiveAppSession: vi.fn(),
+}));
+
 import * as authRepositories from "@/modules/auth/repositories";
+import * as authServices from "@/modules/auth/services";
+import * as sessionServices from "@/modules/sessions/services";
 import * as userRepositories from "@/modules/users/repositories";
 import {
   createUserByAdmin,
   generateUniquePublicId,
+  getAuthenticatedAppUser,
   normalizeUsernameFromEmailLocalPart,
   resolveUniqueUsername,
   updateUserProfileByAdmin,
@@ -40,12 +47,16 @@ import {
 const mockedCreateAuthUserAsAdmin = vi.mocked(authRepositories.createAuthUserAsAdmin);
 const mockedDeleteAuthUserAsAdmin = vi.mocked(authRepositories.deleteAuthUserAsAdmin);
 const mockedReadAuthUserByEmail = vi.mocked(authRepositories.readAuthUserByEmail);
+const mockedReadValidatedInsForgeAccessTokenForActiveAppSession = vi.mocked(
+  authServices.readValidatedInsForgeAccessTokenForActiveAppSession,
+);
 const mockedInsertUserProfile = vi.mocked(userRepositories.insertUserProfile);
 const mockedIsPublicIdTaken = vi.mocked(userRepositories.isPublicIdTaken);
 const mockedIsUsernameTaken = vi.mocked(userRepositories.isUsernameTaken);
 const mockedReadProfileByEmail = vi.mocked(userRepositories.readProfileByEmail);
 const mockedUpdateUserBanState = vi.mocked(userRepositories.updateUserBanState);
 const mockedUpdateUserProfileFields = vi.mocked(userRepositories.updateUserProfileFields);
+const mockedValidateActiveAppSession = vi.mocked(sessionServices.validateActiveAppSession);
 
 describe("users/services", () => {
   beforeEach(() => {
@@ -56,9 +67,11 @@ describe("users/services", () => {
     mockedIsPublicIdTaken.mockReset();
     mockedIsUsernameTaken.mockReset();
     mockedReadAuthUserByEmail.mockReset();
+    mockedReadValidatedInsForgeAccessTokenForActiveAppSession.mockReset();
     mockedReadProfileByEmail.mockReset();
     mockedUpdateUserBanState.mockReset();
     mockedUpdateUserProfileFields.mockReset();
+    mockedValidateActiveAppSession.mockReset();
   });
 
   it("normalizes usernames from the email local-part", () => {
@@ -197,5 +210,27 @@ describe("users/services", () => {
     ).rejects.toThrow("Username is already used by another user.");
 
     expect(mockedUpdateUserProfileFields).not.toHaveBeenCalled();
+  });
+
+  it("treats a member app session without a valid InsForge token as unauthenticated", async () => {
+    mockedValidateActiveAppSession.mockResolvedValue({
+      createdAt: "2026-04-19T00:00:00.000Z",
+      lastSeenAt: "2026-04-19T00:00:00.000Z",
+      revokedAt: null,
+      sessionId: "session-1",
+      userId: "91000000-0000-4000-8000-000000000002",
+    });
+    mockedReadValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue(null);
+    vi.spyOn(userRepositories, "findUserProfileById").mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active.browser@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-BRW-01",
+      role: "member",
+      userId: "91000000-0000-4000-8000-000000000002",
+      username: "seed-active-browser",
+    });
+
+    await expect(getAuthenticatedAppUser()).resolves.toBeNull();
   });
 });

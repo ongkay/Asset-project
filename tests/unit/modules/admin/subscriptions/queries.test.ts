@@ -34,7 +34,13 @@ const mockedListSuccessfulTransactionTotalsByUserIds = vi.mocked(
 );
 const mockedSearchMemberProfiles = vi.mocked(subscriptionRepositories.searchMemberProfiles);
 
-function createSubscriptionTableRowFixture(overrides: Record<string, unknown> = {}) {
+type SubscriptionTableRowFixture = Awaited<
+  ReturnType<typeof subscriptionRepositories.listSubscriberSubscriptionsForTable>
+>[number];
+
+function createSubscriptionTableRowFixture(
+  overrides: Partial<SubscriptionTableRowFixture> = {},
+): SubscriptionTableRowFixture {
   return {
     subscriptionId: "subscription-1",
     userId: "user-1",

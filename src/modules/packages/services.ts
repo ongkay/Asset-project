@@ -6,9 +6,11 @@ import { packageFormSchema, packageToggleSchema } from "./schemas";
 import {
   countPackageTotalUsed,
   createPackageRow,
-  getPackageById,
+  getActivePackageRowByIdForMember,
+  getPackageById as getPackageRowByIdForAdmin,
   getPackageRowById,
   getPackageSummary,
+  listActivePackageRowsForMember,
   listPackageRowsByIds,
   togglePackageActiveRow,
   updatePackageRow,
@@ -16,8 +18,10 @@ import {
 import { derivePackageSummaryFromAccessKeys, sortPackageAccessKeysCanonical } from "./types";
 import type {
   PackageAdminRow,
+  PackageActivationSnapshot,
   PackageFormInput,
   PackageIssuableSnapshot,
+  MemberPurchasablePackage,
   PackageRow,
   PackageSummary,
   PackageToggleInput,
@@ -91,6 +95,45 @@ export async function derivePackageSummary(accessKeys: PackageFormInput["accessK
   return summary;
 }
 
+function mapPackageRowToIssuableSnapshot(packageRow: PackageRow): PackageIssuableSnapshot {
+  if (!packageRow.isActive) {
+    throw new Error("Package is disabled.");
+  }
+
+  const canonicalAccessKeys = sortPackageAccessKeysCanonical(packageRow.accessKeys);
+  const summary = derivePackageSummaryFromAccessKeys(canonicalAccessKeys);
+
+  if (!summary) {
+    throw new Error("Package summary cannot be derived from access keys.");
+  }
+
+  return {
+    packageId: packageRow.id,
+    accessKeys: canonicalAccessKeys,
+    amountRp: packageRow.amountRp,
+    durationDays: packageRow.durationDays,
+    id: packageRow.id,
+    isExtended: packageRow.isExtended,
+    name: packageRow.name,
+    summary,
+  };
+}
+
+export async function getPackageById(packageId: string) {
+  return getPackageRowByIdForAdmin(packageId);
+}
+
+export function toPackageActivationSnapshot(packageSnapshot: PackageIssuableSnapshot): PackageActivationSnapshot {
+  return {
+    packageId: packageSnapshot.packageId,
+    accessKeys: packageSnapshot.accessKeys,
+    amountRp: packageSnapshot.amountRp,
+    durationDays: packageSnapshot.durationDays,
+    isExtended: packageSnapshot.isExtended,
+    name: packageSnapshot.name,
+  };
+}
+
 export async function getIssuablePackageSnapshotById(packageId: string): Promise<PackageIssuableSnapshot> {
   const packageRow = await getPackageRowById(packageId);
 
@@ -102,17 +145,7 @@ export async function getIssuablePackageSnapshotById(packageId: string): Promise
     throw new Error("Package is disabled.");
   }
 
-  const canonicalAccessKeys = sortPackageAccessKeysCanonical(packageRow.accessKeys);
-
-  return {
-    accessKeys: canonicalAccessKeys,
-    amountRp: packageRow.amountRp,
-    durationDays: packageRow.durationDays,
-    id: packageRow.id,
-    isExtended: packageRow.isExtended,
-    name: packageRow.name,
-    summary: derivePackageSummaryFromAccessKeys(canonicalAccessKeys),
-  };
+  return mapPackageRowToIssuableSnapshot(packageRow);
 }
 
 export async function getIssuablePackageSnapshotsByIds(packageIds: string[]): Promise<PackageIssuableSnapshot[]> {
@@ -131,22 +164,24 @@ export async function getIssuablePackageSnapshotsByIds(packageIds: string[]): Pr
       throw new Error("Package not found.");
     }
 
-    if (!packageRow.isActive) {
-      throw new Error("Package is disabled.");
-    }
-
-    const canonicalAccessKeys = sortPackageAccessKeysCanonical(packageRow.accessKeys);
-
-    return {
-      accessKeys: canonicalAccessKeys,
-      amountRp: packageRow.amountRp,
-      durationDays: packageRow.durationDays,
-      id: packageRow.id,
-      isExtended: packageRow.isExtended,
-      name: packageRow.name,
-      summary: derivePackageSummaryFromAccessKeys(canonicalAccessKeys),
-    };
+    return mapPackageRowToIssuableSnapshot(packageRow);
   });
+}
+
+export async function listMemberPurchasablePackages(): Promise<MemberPurchasablePackage[]> {
+  const packageRows = await listActivePackageRowsForMember();
+
+  return packageRows.filter((packageRow) => packageRow.isActive).map(mapPackageRowToIssuableSnapshot);
+}
+
+export async function getMemberPurchasablePackageById(packageId: string): Promise<MemberPurchasablePackage | null> {
+  const packageRow = await getActivePackageRowByIdForMember(packageId);
+
+  if (!packageRow || !packageRow.isActive) {
+    return null;
+  }
+
+  return mapPackageRowToIssuableSnapshot(packageRow);
 }
 
 export async function buildPackageAdminRow(packageRow: PackageRow): Promise<PackageAdminRow> {
@@ -186,7 +221,7 @@ export async function createPackage(input: PackageFormInput): Promise<PackageAdm
 }
 
 export async function updatePackage(input: { id: string } & PackageFormInput): Promise<PackageAdminRow> {
-  const existingPackageRow = await getPackageById(input.id);
+  const existingPackageRow = await getPackageRowByIdForAdmin(input.id);
 
   if (!existingPackageRow) {
     throw new Error("Package not found.");

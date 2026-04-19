@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { CdKeyIssueFormInput, CdKeyIssueInput } from "./types";
+import type { CdKeyIssueFormInput, CdKeyIssueInput, RedeemCdKeyInput } from "./types";
 
 function normalizeBlankToNull(value: string | null | undefined): string | null {
   if (value === null || value === undefined) {
@@ -19,6 +19,13 @@ export function normalizeCdKeyManualCode(value: string | null | undefined): stri
   }
 
   return trimmedValue.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+}
+
+export function normalizeRedeemCdKeyCode(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toUpperCase();
 }
 
 const amountRpOverrideSchema = z
@@ -82,3 +89,10 @@ export const cdKeyIssueInputSchema = z.object({
 }) satisfies z.ZodType<CdKeyIssueInput>;
 
 export const cdKeyIssueFormSchema = cdKeyIssueInputSchema satisfies z.ZodType<CdKeyIssueFormInput>;
+
+export const redeemCdKeySchema = z.object({
+  code: z
+    .string({ error: "CD-Key is required." })
+    .transform(normalizeRedeemCdKeyCode)
+    .refine((value) => value.length > 0, "CD-Key is required."),
+}) satisfies z.ZodType<RedeemCdKeyInput>;

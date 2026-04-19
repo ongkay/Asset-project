@@ -60,15 +60,17 @@ export async function findCdKeyByCode(code: string): Promise<CdKeyActivationSnap
   }
 
   return {
-    accessKeys: data.access_keys_json,
-    amountRp: data.amount_rp,
     code: data.code,
-    durationDays: data.duration_days,
     id: data.id,
     isActive: data.is_active,
-    isExtended: data.is_extended,
-    packageName: data.package?.name ?? data.code,
-    packageId: data.package_id,
+    packageSnapshot: {
+      packageId: data.package_id,
+      accessKeys: data.access_keys_json,
+      amountRp: data.amount_rp,
+      durationDays: data.duration_days,
+      isExtended: data.is_extended,
+      name: data.package?.name ?? data.code,
+    },
     usedAt: data.used_at,
     usedBy: data.used_by,
   };
@@ -81,7 +83,9 @@ export async function reserveCdKeyUsage(cdKeyId: string, userId: string): Promis
     .from("cd_keys")
     .update({ used_at: reservedAt, used_by: userId })
     .eq("id", cdKeyId)
+    .eq("is_active", true)
     .is("used_at", null)
+    .is("used_by", null)
     .select("used_at")
     .maybeSingle<{ used_at: string }>();
 

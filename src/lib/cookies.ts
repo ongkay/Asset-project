@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { env } from "@/config/env.server";
 
 const DEFAULT_APP_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const DEFAULT_INSFORGE_ACCESS_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const INSFORGE_ACCESS_TOKEN_COOKIE_NAME = "insforge_access_token";
 
 type CookieWriteOptions = {
   expires?: Date;
@@ -64,4 +66,21 @@ export async function clearAppSessionCookie(): Promise<void> {
   await clearCookieValue(env.APP_SESSION_COOKIE_NAME);
 }
 
-export { DEFAULT_APP_SESSION_MAX_AGE_SECONDS };
+export async function readInsForgeAccessTokenCookie(): Promise<string | undefined> {
+  return readCookieValue(INSFORGE_ACCESS_TOKEN_COOKIE_NAME);
+}
+
+export async function writeInsForgeAccessTokenCookie(
+  accessToken: string,
+  maxAgeSeconds = DEFAULT_INSFORGE_ACCESS_TOKEN_MAX_AGE_SECONDS,
+): Promise<void> {
+  await writeCookieValue(INSFORGE_ACCESS_TOKEN_COOKIE_NAME, accessToken, {
+    maxAge: maxAgeSeconds,
+  });
+}
+
+export async function clearInsForgeAccessTokenCookie(): Promise<void> {
+  await clearCookieValue(INSFORGE_ACCESS_TOKEN_COOKIE_NAME);
+}
+
+export { DEFAULT_APP_SESSION_MAX_AGE_SECONDS, INSFORGE_ACCESS_TOKEN_COOKIE_NAME };

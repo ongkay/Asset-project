@@ -4,17 +4,23 @@ import { z } from "zod";
 
 import { createInsForgeServerDatabase } from "@/lib/insforge/database";
 import { readProfileByUserId } from "@/modules/auth/repositories";
+import { readValidatedInsForgeAccessTokenForActiveAppSession } from "@/modules/auth/services";
 import { validateActiveAppSession } from "@/modules/sessions/services";
 
-import type { ConsoleAssetDetail, ConsoleSnapshot } from "./types";
+import type { ConsoleAssetDetail, ConsoleSnapshot, ConsoleStateSnapshot } from "./types";
+
+const isoDateTimeSchema = z.iso.datetime({ offset: true });
+const canonicalUuidLikeSchema = z
+  .string()
+  .regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
 
 const consoleSubscriptionSchema = z.object({
   days_left: z.number().int().nonnegative(),
-  end_at: z.iso.datetime(),
+  end_at: isoDateTimeSchema,
   id: z.uuid(),
   package_id: z.uuid(),
   package_name: z.string(),
-  start_at: z.iso.datetime(),
+  start_at: isoDateTimeSchema,
   status: z.enum(["active", "processed"]),
 });
 
@@ -22,8 +28,8 @@ const consoleAssetSchema = z.object({
   access_key: z.string(),
   asset_type: z.enum(["private", "share"]),
   assignment_id: z.uuid(),
-  expires_at: z.iso.datetime(),
-  id: z.uuid(),
+  expires_at: isoDateTimeSchema,
+  id: z.string().min(1),
   note: z.string().nullable(),
   platform: z.enum(["tradingview", "fxreplay", "fxtester"]),
   proxy: z.string().nullable(),
@@ -32,11 +38,11 @@ const consoleAssetSchema = z.object({
 
 const consoleTransactionSchema = z.object({
   amount_rp: z.number().int().nonnegative(),
-  created_at: z.iso.datetime(),
-  id: z.uuid(),
+  created_at: isoDateTimeSchema,
+  id: canonicalUuidLikeSchema,
   package_id: z.uuid(),
   package_name: z.string(),
-  paid_at: z.iso.datetime().nullable(),
+  paid_at: isoDateTimeSchema.nullable(),
   source: z.enum(["payment_dummy", "cdkey", "admin_manual"]),
   status: z.enum(["pending", "success", "failed", "canceled"]),
 });
@@ -52,16 +58,41 @@ const consoleAssetDetailSchema = z.object({
   account: z.string(),
   asset_json: z.unknown(),
   asset_type: z.enum(["private", "share"]),
-  expires_at: z.iso.datetime(),
-  id: z.uuid(),
+  expires_at: isoDateTimeSchema,
+  id: canonicalUuidLikeSchema,
   note: z.string().nullable(),
   platform: z.enum(["tradingview", "fxreplay", "fxtester"]),
   proxy: z.string().nullable(),
-  subscription_id: z.uuid(),
+  subscription_id: canonicalUuidLikeSchema,
 });
 
-function createConsoleDatabase() {
-  return createInsForgeServerDatabase();
+const consoleStateSubscriptionSchema = z.object({
+  created_at: isoDateTimeSchema,
+  end_at: isoDateTimeSchema,
+  id: canonicalUuidLikeSchema,
+  package_id: z.uuid(),
+  package_name: z.string(),
+  start_at: isoDateTimeSchema,
+  status: z.enum(["active", "processed", "expired", "canceled"]),
+});
+
+type ConsoleStateSubscriptionRow = {
+  endAt: string;
+  id: string;
+  packageId: string;
+  packageName: string;
+  startAt: string;
+  status: "active" | "processed" | "expired" | "canceled";
+};
+
+async function createAuthenticatedConsoleDatabase() {
+  const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
+
+  if (!accessToken) {
+    return null;
+  }
+
+  return createInsForgeServerDatabase({ accessToken });
 }
 
 async function resolveConsoleTargetUserId(input: { userId?: string }) {
@@ -87,7 +118,16 @@ async function resolveConsoleTargetUserId(input: { userId?: string }) {
 }
 
 export async function getConsoleSnapshot(input: { userId?: string } = {}): Promise<ConsoleSnapshot> {
-  const database = createConsoleDatabase();
+  const database = await createAuthenticatedConsoleDatabase();
+
+  if (!database) {
+    return {
+      assets: [],
+      subscription: null,
+      transactions: [],
+    };
+  }
+
   const targetUserId = await resolveConsoleTargetUserId(input);
   const { data, error } = await database.rpc("get_user_console_snapshot", {
     p_user_id: targetUserId,
@@ -139,7 +179,16 @@ export async function getConsoleAssetDetail(input: {
   assetId: string;
   userId?: string;
 }): Promise<ConsoleAssetDetail | null> {
-  const database = createConsoleDatabase();
+  if (!canonicalUuidLikeSchema.safeParse(input.assetId).success) {
+    return null;
+  }
+
+  const database = await createAuthenticatedConsoleDatabase();
+
+  if (!database) {
+    return null;
+  }
+
   const targetUserId = await resolveConsoleTargetUserId(input);
   const { data, error } = await database.rpc("get_user_asset_detail", {
     p_asset_id: input.assetId,
@@ -168,4 +217,69 @@ export async function getConsoleAssetDetail(input: {
     proxy: detail.proxy,
     subscriptionId: detail.subscription_id,
   };
+}
+
+export function deriveConsoleStateSnapshot(
+  latestSubscription: ConsoleStateSubscriptionRow | null,
+  now = new Date(),
+): ConsoleStateSnapshot {
+  if (!latestSubscription) {
+    return {
+      latestSubscription: null,
+      state: "none",
+    };
+  }
+
+  const effectiveStatus =
+    latestSubscription.status !== "canceled" && new Date(latestSubscription.endAt).getTime() <= now.getTime()
+      ? "expired"
+      : latestSubscription.status;
+
+  return {
+    latestSubscription: {
+      endAt: latestSubscription.endAt,
+      id: latestSubscription.id,
+      packageId: latestSubscription.packageId,
+      packageName: latestSubscription.packageName,
+      startAt: latestSubscription.startAt,
+      status: effectiveStatus,
+    },
+    state: effectiveStatus,
+  };
+}
+
+export async function getConsoleStateSnapshot(input: { userId?: string } = {}): Promise<ConsoleStateSnapshot> {
+  const database = await createAuthenticatedConsoleDatabase();
+
+  if (!database) {
+    return deriveConsoleStateSnapshot(null);
+  }
+
+  const targetUserId = await resolveConsoleTargetUserId(input);
+  const { data, error } = await database
+    .from("subscriptions")
+    .select("id, package_id, package_name, status, start_at, end_at, created_at")
+    .eq("user_id", targetUserId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return deriveConsoleStateSnapshot(null);
+  }
+
+  const latestSubscription = consoleStateSubscriptionSchema.parse(data);
+
+  return deriveConsoleStateSnapshot({
+    endAt: latestSubscription.end_at,
+    id: latestSubscription.id,
+    packageId: latestSubscription.package_id,
+    packageName: latestSubscription.package_name,
+    startAt: latestSubscription.start_at,
+    status: latestSubscription.status,
+  });
 }

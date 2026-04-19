@@ -1,9 +1,9 @@
 "use server";
 
-import { adminActionClient } from "@/modules/auth/action-client";
+import { adminActionClient, memberActionClient } from "@/modules/auth/action-client";
 
-import { cdKeyIssueInputSchema } from "./schemas";
-import { createCdKey } from "./services";
+import { cdKeyIssueInputSchema, redeemCdKeySchema } from "./schemas";
+import { createCdKey, redeemCdKey } from "./services";
 
 export const createCdKeyAction = adminActionClient
   .metadata({ actionName: "cdkeys.create" })
@@ -18,4 +18,14 @@ export const createCdKeyAction = adminActionClient
         message: error instanceof Error ? error.message : "Failed to create CD-Key.",
       };
     }
+  });
+
+export const redeemCdKeyAction = memberActionClient
+  .metadata({ actionName: "cdkeys.redeem" })
+  .inputSchema(redeemCdKeySchema)
+  .action(async ({ ctx, parsedInput }) => {
+    return redeemCdKey({
+      userId: ctx.currentAppUser.profile.userId,
+      code: parsedInput.code,
+    });
   });

@@ -1,9 +1,19 @@
 "use server";
 
-import { adminActionClient } from "@/modules/auth/action-client";
+import { adminActionClient, memberActionClient } from "@/modules/auth/action-client";
 
-import { adminManualActivationFormSchema, subscriberCancelSchema, subscriberQuickAddAssetSchema } from "./schemas";
-import { activateSubscriptionManually, cancelSubscription, quickAddSubscriberAsset } from "./services";
+import {
+  adminManualActivationFormSchema,
+  memberPaymentDummySchema,
+  subscriberCancelSchema,
+  subscriberQuickAddAssetSchema,
+} from "./schemas";
+import {
+  activateSubscriptionManually,
+  cancelSubscription,
+  purchaseSubscriptionWithPaymentDummy,
+  quickAddSubscriberAsset,
+} from "./services";
 
 function getActionErrorMessage(error: unknown, fallbackMessage: string) {
   if (error instanceof Error) {
@@ -70,4 +80,14 @@ export const cancelSubscriptionAction = adminActionClient
         message: getActionErrorMessage(error, "Failed to cancel subscription."),
       };
     }
+  });
+
+export const purchaseSubscriptionWithPaymentDummyAction = memberActionClient
+  .metadata({ actionName: "subscriptions.purchase-payment-dummy" })
+  .inputSchema(memberPaymentDummySchema)
+  .action(async ({ ctx, parsedInput }) => {
+    return purchaseSubscriptionWithPaymentDummy({
+      userId: ctx.currentAppUser.profile.userId,
+      packageId: parsedInput.packageId,
+    });
   });

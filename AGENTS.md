@@ -61,6 +61,7 @@ Aturan ringkas:
 - hindari `any`
 - hindari `unknown` untuk kontrak domain final
 - utamakan type yang diturunkan dari schema
+- untuk validasi ID dengan Zod, gunakan `z.uuid()` hanya untuk input/kontrak yang memang wajib UUID RFC-valid; untuk legacy DB/RPC rows yang hanya UUID-like, gunakan `z.guid()` atau helper schema setara, agar parser read path tidak gagal pada data runtime lama
 - gunakan penamaan yang eksplisit, mudah dipahami, dan menjelaskan intent
 - hindari nama generik yang kabur seperti `data`, `item`, `temp`, `value2`, `handleSubmit`, atau `onSubmit` jika ada nama yang lebih spesifik
 - untuk event handler, action handler, dan form handler, gunakan nama berbasis use case atau intent, misalnya `onSubmitRegister`, `onSubmitLogin`, `handleRedeemCdKey`, atau `handleDisableAsset`

@@ -11,6 +11,7 @@ vi.mock("@/modules/users/services", () => ({
 
 vi.mock("@/modules/cdkeys/services", () => ({
   createCdKey: vi.fn(),
+  redeemCdKey: vi.fn(),
 }));
 
 vi.mock("@/modules/auth/action-client", () => ({
@@ -66,16 +67,67 @@ vi.mock("@/modules/auth/action-client", () => ({
       };
     },
   },
+  memberActionClient: {
+    metadata() {
+      return this;
+    },
+    inputSchema() {
+      return this;
+    },
+    action(
+      handler: (args: {
+        parsedInput: {
+          code: string;
+        };
+        ctx: {
+          currentAppUser: {
+            profile: {
+              userId: string;
+            };
+          };
+        };
+      }) => Promise<unknown>,
+    ) {
+      return async (input: unknown) => {
+        const parsed = await import("@/modules/cdkeys/schemas").then(({ redeemCdKeySchema }) =>
+          redeemCdKeySchema.safeParse(input),
+        );
+
+        if (!parsed.success) {
+          return {
+            validationErrors: {
+              fieldErrors: parsed.error.flatten().fieldErrors,
+            },
+          };
+        }
+
+        const data = await handler({
+          parsedInput: parsed.data,
+          ctx: {
+            currentAppUser: {
+              profile: {
+                userId: "member-user-id",
+              },
+            },
+          },
+        });
+
+        return { data };
+      };
+    },
+  },
 }));
 
 import * as cdKeyServices from "@/modules/cdkeys/services";
-import { createCdKeyAction } from "@/modules/cdkeys/actions";
+import { createCdKeyAction, redeemCdKeyAction } from "@/modules/cdkeys/actions";
 
 const mockedCreateCdKey = vi.mocked(cdKeyServices.createCdKey);
+const mockedRedeemCdKey = vi.mocked(cdKeyServices.redeemCdKey);
 
 describe("cdkeys/actions", () => {
   beforeEach(() => {
     mockedCreateCdKey.mockReset();
+    mockedRedeemCdKey.mockReset();
   });
 
   it("rejects invalid payload before service call", async () => {
@@ -154,6 +206,37 @@ describe("cdkeys/actions", () => {
     expect(result?.data).toEqual({
       ok: false,
       message: "Package is disabled.",
+    });
+  });
+
+  it("rejects invalid redeem payload before service call", async () => {
+    const result = await redeemCdKeyAction({
+      code: "   ",
+    });
+
+    expect(result?.validationErrors?.fieldErrors.code).toContain("CD-Key is required.");
+    expect(mockedRedeemCdKey).not.toHaveBeenCalled();
+  });
+
+  it("returns the structured redeem result from the member service", async () => {
+    mockedRedeemCdKey.mockResolvedValueOnce({
+      ok: true,
+      subscriptionId: "subscription-1",
+      transactionId: "transaction-1",
+    });
+
+    const result = await redeemCdKeyAction({
+      code: "ab12-cd34ef",
+    });
+
+    expect(mockedRedeemCdKey).toHaveBeenCalledWith({
+      userId: "member-user-id",
+      code: "AB12CD34EF",
+    });
+    expect(result?.data).toEqual({
+      ok: true,
+      subscriptionId: "subscription-1",
+      transactionId: "transaction-1",
     });
   });
 });
