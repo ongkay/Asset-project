@@ -121,6 +121,18 @@ function createSubscriptionsRepositoryDatabase() {
   return createInsForgeAdminDatabase();
 }
 
+function parseCronJobProcessedCount(jobName: string, data: unknown): number {
+  if (data == null) {
+    return 0;
+  }
+
+  if (typeof data === "number") {
+    return data;
+  }
+
+  throw new Error(`Unexpected ${jobName} RPC result: expected number, received ${typeof data}.`);
+}
+
 export async function runExpireSubscriptionsJobRpc(): Promise<number> {
   const database = createSubscriptionsRepositoryDatabase();
   const { data, error } = await database.rpc("expire_subscriptions_job");
@@ -129,7 +141,7 @@ export async function runExpireSubscriptionsJobRpc(): Promise<number> {
     throw error;
   }
 
-  return typeof data === "number" ? data : 0;
+  return parseCronJobProcessedCount("expire_subscriptions_job", data);
 }
 
 export async function runReconcileInvalidAssetsJobRpc(): Promise<number> {
@@ -140,7 +152,7 @@ export async function runReconcileInvalidAssetsJobRpc(): Promise<number> {
     throw error;
   }
 
-  return typeof data === "number" ? data : 0;
+  return parseCronJobProcessedCount("reconcile_invalid_assets_job", data);
 }
 
 function mapPackageDatabaseRow(row: PackageDatabaseRow): SubscriptionPackageSnapshot {
