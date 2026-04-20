@@ -89,7 +89,7 @@ Pekerjaan belum selesai sebelum semua gate yang relevan hijau.
 
 Gate yang benar-benar tersedia di repo saat ini:
 - `pnpm lint`
-- `pnpm check`
+- `pnpm typecheck`
 - `pnpm test`
 - browser verification untuk flow yang terdampak menggunakan `agent-browser CLI`
 - next-devtools-mcp tidak menunjukkan error runtime atau compilation yang relevan
