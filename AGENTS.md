@@ -94,6 +94,7 @@ Gate yang benar-benar tersedia di repo saat ini:
 - browser verification untuk flow yang terdampak menggunakan `agent-browser CLI`
 - next-devtools-mcp tidak menunjukkan error runtime atau compilation yang relevan
 - scan .next/dev/logs/*.log tidak ada temuan error relevan
+- sebelum commit wajib `pnpm check:fix`
 
 ## Required Skills and Tooling
 Skill dan tooling berikut wajib digunakan jika relevan terhadap tugas.
