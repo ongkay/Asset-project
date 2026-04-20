@@ -55,10 +55,15 @@ export type ConsoleStateSnapshot = {
 
 export type ConsolePaymentError = "missing-package" | "invalid-package" | "disabled-package";
 
-export type PaymentDummyPackageSearchParamResult = {
-  packageId: string | null;
-  paymentError: Exclude<ConsolePaymentError, "disabled-package"> | null;
-};
+export type PaymentDummyPackageSearchParamResult =
+  | {
+      packageId: string;
+      paymentError: null;
+    }
+  | {
+      packageId: null;
+      paymentError: Exclude<ConsolePaymentError, "disabled-package">;
+    };
 
 export type ConsoleAssetDetail = {
   accessKey: string;

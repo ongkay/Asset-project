@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAsset } from "@/modules/assets/services";
 import { parseAssetJsonText } from "@/modules/assets/schemas";
+import type { PackageAccessKey } from "@/modules/packages/types";
 import {
   getMemberPurchasablePackageById,
   getPackageById as getPackageByIdFromPackages,
@@ -373,7 +374,7 @@ export function buildQuickAddAssetInput(
   nowDate: Date = new Date(),
 ): SubscriberQuickAddAssetInput {
   const parsedInput = subscriberQuickAddAssetSchema.parse(input);
-  const accessKey = `${parsedInput.platform}:private`;
+  const accessKey = `${parsedInput.platform}:private` as PackageAccessKey;
 
   if (!packageSnapshot.accessKeys.includes(accessKey)) {
     throw new Error(`Selected package does not allow quick-add for ${accessKey}.`);

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
+import { parsePackageAccessKeys } from "@/modules/packages/types";
 
 import type {
   CdKeyActivationSnapshot,
@@ -10,7 +11,7 @@ import type {
 } from "./types";
 
 type CdKeyRow = {
-  access_keys_json: string[];
+  access_keys_json: unknown;
   amount_rp: number;
   code: string;
   duration_days: number;
@@ -65,7 +66,7 @@ export async function findCdKeyByCode(code: string): Promise<CdKeyActivationSnap
     isActive: data.is_active,
     packageSnapshot: {
       packageId: data.package_id,
-      accessKeys: data.access_keys_json,
+      accessKeys: parsePackageAccessKeys(data.access_keys_json),
       amountRp: data.amount_rp,
       durationDays: data.duration_days,
       isExtended: data.is_extended,

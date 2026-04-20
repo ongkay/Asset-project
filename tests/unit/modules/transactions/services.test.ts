@@ -50,9 +50,11 @@ describe("transactions/services", () => {
 
     await expect(
       createTransaction({
-        amountRp: 150000,
-        packageId: "package-1",
-        packageName: "Paket 1",
+        packageSnapshot: {
+          amountRp: 150000,
+          packageId: "package-1",
+          name: "Paket 1",
+        },
         source: "payment_dummy",
         userId: "user-1",
       }),
@@ -63,9 +65,11 @@ describe("transactions/services", () => {
     });
 
     expect(mockedInsertTransaction).toHaveBeenCalledWith({
-      amountRp: 150000,
-      packageId: "package-1",
-      packageName: "Paket 1",
+      packageSnapshot: {
+        amountRp: 150000,
+        packageId: "package-1",
+        name: "Paket 1",
+      },
       source: "payment_dummy",
       userId: "user-1",
     });

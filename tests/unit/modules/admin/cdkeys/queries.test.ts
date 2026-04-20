@@ -863,6 +863,7 @@ describe("admin/cdkeys/queries", () => {
     mockedGetIssuablePackageSnapshotsByIds.mockResolvedValueOnce([
       {
         id: "pkg-a",
+        packageId: "pkg-a",
         name: "A",
         amountRp: 1000,
         durationDays: 30,
@@ -872,6 +873,7 @@ describe("admin/cdkeys/queries", () => {
       },
       {
         id: "pkg-c",
+        packageId: "pkg-c",
         name: "C",
         amountRp: 2000,
         durationDays: 60,

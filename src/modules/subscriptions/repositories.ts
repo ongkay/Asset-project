@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { listAssetStatusesByIds } from "@/modules/assets/repositories";
 import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
+import { parsePackageAccessKeys } from "@/modules/packages/types";
 
 import type {
   SubscriptionAssignmentRow,
@@ -37,8 +38,6 @@ type SubscriptionDatabaseRow = {
   created_at: string;
   updated_at: string;
 };
-
-const accessKeysJsonSchema = z.array(z.string().min(1));
 
 const packageDatabaseRowSchema = z.object({
   id: z.string().min(1),
@@ -128,7 +127,7 @@ function mapPackageDatabaseRow(row: PackageDatabaseRow): SubscriptionPackageSnap
     amountRp: row.amount_rp,
     durationDays: row.duration_days,
     isExtended: row.is_extended,
-    accessKeys: accessKeysJsonSchema.parse(row.access_keys_json),
+    accessKeys: parsePackageAccessKeys(row.access_keys_json),
     isActive: row.is_active,
   };
 }
@@ -139,7 +138,7 @@ function mapSubscriptionDatabaseRow(row: SubscriptionDatabaseRow): SubscriptionR
     userId: row.user_id,
     packageId: row.package_id,
     packageName: row.package_name,
-    accessKeys: accessKeysJsonSchema.parse(row.access_keys_json),
+    accessKeys: parsePackageAccessKeys(row.access_keys_json),
     status: row.status,
     source: row.source,
     startAt: row.start_at,

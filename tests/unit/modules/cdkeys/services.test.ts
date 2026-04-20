@@ -22,6 +22,8 @@ import { redeemCdKey } from "@/modules/cdkeys/services";
 import * as subscriptionServices from "@/modules/subscriptions/services";
 import * as transactionServices from "@/modules/transactions/services";
 
+import type { CdKeyActivationSnapshot } from "@/modules/cdkeys/types";
+
 const mockedFindCdKeyByCode = vi.mocked(cdKeyRepositories.findCdKeyByCode);
 const mockedReleaseReservedCdKeyUsage = vi.mocked(cdKeyRepositories.releaseReservedCdKeyUsage);
 const mockedReserveCdKeyUsage = vi.mocked(cdKeyRepositories.reserveCdKeyUsage);
@@ -31,7 +33,7 @@ const mockedCreateTransaction = vi.mocked(transactionServices.createTransaction)
 const mockedFailTransaction = vi.mocked(transactionServices.failTransaction);
 const mockedSucceedTransaction = vi.mocked(transactionServices.succeedTransaction);
 
-function createCdKeySnapshot(overrides: Record<string, unknown> = {}) {
+function createCdKeySnapshot(overrides: Partial<CdKeyActivationSnapshot> = {}): CdKeyActivationSnapshot {
   return {
     id: "cdkey-1",
     code: "AB12CD34EF",

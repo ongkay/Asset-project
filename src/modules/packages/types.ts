@@ -9,6 +9,10 @@ export const PACKAGE_ACCESS_KEYS = [
 
 export type PackageAccessKey = (typeof PACKAGE_ACCESS_KEYS)[number];
 
+export function isPackageAccessKey(value: unknown): value is PackageAccessKey {
+  return typeof value === "string" && (PACKAGE_ACCESS_KEYS as readonly string[]).includes(value);
+}
+
 export type PackageSummary = "private" | "share" | "mixed";
 export type PackageTableSortKey = "status" | "updatedAt";
 export type PackageTableSortOrder = "asc" | "desc";
@@ -23,6 +27,28 @@ export function sortPackageAccessKeysCanonical(accessKeys: readonly PackageAcces
     const rightOrder = packageAccessKeyOrderMap.get(rightAccessKey) ?? Number.MAX_SAFE_INTEGER;
     return leftOrder - rightOrder;
   });
+}
+
+export function parsePackageAccessKeys(input: unknown): PackageAccessKey[] {
+  if (!Array.isArray(input)) {
+    throw new Error("Access keys JSON must be an array.");
+  }
+
+  if (input.length === 0) {
+    throw new Error("Access keys JSON must not be empty.");
+  }
+
+  const parsedAccessKeys: PackageAccessKey[] = [];
+
+  for (const accessKey of input) {
+    if (!isPackageAccessKey(accessKey)) {
+      throw new Error("Access keys JSON contains invalid access key.");
+    }
+
+    parsedAccessKeys.push(accessKey);
+  }
+
+  return sortPackageAccessKeysCanonical(parsedAccessKeys);
 }
 
 export function derivePackageSummaryFromAccessKeys(accessKeys: readonly PackageAccessKey[]): PackageSummary | null {

@@ -52,8 +52,9 @@ import {
 } from "@/app/(member)/console/_components/console-redeem-dialog/console-redeem-dialog";
 import { ConsoleExtendDialog } from "@/app/(member)/console/_components/console-extend-dialog/console-extend-dialog";
 import { ConsolePage } from "@/app/(member)/console/_components/console-page";
+import type { MemberPurchasablePackage } from "@/modules/packages/types";
 
-const packages = [
+const packages: MemberPurchasablePackage[] = [
   {
     accessKeys: ["tradingview:private"],
     amountRp: 120000,
@@ -74,7 +75,7 @@ const packages = [
     packageId: "22222222-2222-4222-8222-222222222222",
     summary: "mixed",
   },
-] as const;
+];
 
 describe("app/member/console UI", () => {
   it("renders the member console sections, exact paymentError copy, and non-running purchase entry points", () => {

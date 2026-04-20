@@ -236,7 +236,7 @@ describe("subscriptions/services", () => {
       packageSnapshot: createPackageSnapshot(),
       durationDays: 15,
       manualAssignmentsByAccessKey: {},
-      existingRunningSubscriptionId: "subscription-1",
+      source: "admin_manual",
     });
 
     expect(result).toEqual({
@@ -660,7 +660,7 @@ describe("subscriptions/services", () => {
       }),
       durationDays: 20,
       manualAssignmentsByAccessKey: {},
-      existingRunningSubscriptionId: "subscription-old",
+      source: "admin_manual",
     });
 
     expect(result).toEqual({

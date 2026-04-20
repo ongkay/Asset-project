@@ -7,7 +7,7 @@ import { readValidatedInsForgeAccessTokenForActiveAppSession } from "@/modules/a
 
 import {
   derivePackageSummaryFromAccessKeys,
-  PACKAGE_ACCESS_KEYS,
+  parsePackageAccessKeys,
   sortPackageAccessKeysCanonical,
   type PackageAccessKey,
   type PackageEditorData,
@@ -83,32 +83,6 @@ function createPackagesRepositoryDatabase() {
 const PACKAGE_BASE_SELECT_FIELDS =
   "id, code, name, amount_rp, duration_days, checkout_url, is_extended, is_active, access_keys_json, created_at, updated_at";
 
-function isPackageAccessKey(value: unknown): value is PackageAccessKey {
-  return typeof value === "string" && (PACKAGE_ACCESS_KEYS as readonly string[]).includes(value);
-}
-
-function parseAccessKeysJson(input: unknown): PackageAccessKey[] {
-  if (!Array.isArray(input)) {
-    throw new Error("Package access_keys_json must be an array.");
-  }
-
-  if (input.length === 0) {
-    throw new Error("Package access_keys_json must not be empty.");
-  }
-
-  const parsedAccessKeys: PackageAccessKey[] = [];
-
-  for (const accessKey of input) {
-    if (!isPackageAccessKey(accessKey)) {
-      throw new Error("Package access_keys_json contains invalid access key.");
-    }
-
-    parsedAccessKeys.push(accessKey);
-  }
-
-  return sortPackageAccessKeysCanonical(parsedAccessKeys);
-}
-
 function parsePackageDatabaseRows(data: unknown): PackageDatabaseRow[] {
   if (!Array.isArray(data)) {
     return [];
@@ -127,7 +101,7 @@ function parseCurrentSubscriptionsByPackageRows(data: unknown): CurrentSubscript
 
 function mapPackageDatabaseRow(data: PackageDatabaseRow): PackageRow {
   return {
-    accessKeys: parseAccessKeysJson(data.access_keys_json),
+    accessKeys: parsePackageAccessKeys(data.access_keys_json),
     amountRp: data.amount_rp,
     checkoutUrl: data.checkout_url,
     code: data.code,
@@ -240,7 +214,7 @@ export async function listPackages(input: PackageListInput): Promise<PackageTabl
 
   const summaryByPackageId = allCandidateRows.map((candidateRow) => ({
     packageId: candidateRow.id,
-    summary: derivePackageSummaryFromAccessKeys(parseAccessKeysJson(candidateRow.access_keys_json)),
+    summary: derivePackageSummaryFromAccessKeys(parsePackageAccessKeys(candidateRow.access_keys_json)),
   }));
 
   const matchedIds = new Set(
