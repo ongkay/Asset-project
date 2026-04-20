@@ -1,8 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CronAuthorizationError, assertTrustedCronRequest, buildCronErrorResponse } from "@/lib/cron";
 
+let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
 describe("lib/cron", () => {
+  beforeEach(() => {
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
   it("accepts configured bearer token", () => {
     const request = new Request("http://localhost/api/cron/expire-subscriptions", {
       headers: {
@@ -25,6 +35,7 @@ describe("lib/cron", () => {
     const response = buildCronErrorResponse(new CronAuthorizationError());
 
     expect(response.status).toBe(401);
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
     await expect(response.json()).resolves.toEqual({
       ok: false,
       error: {
@@ -35,9 +46,11 @@ describe("lib/cron", () => {
   });
 
   it("maps unexpected failures to 500 JSON response", async () => {
-    const response = buildCronErrorResponse(new Error("boom"));
+    const error = new Error("boom");
+    const response = buildCronErrorResponse(error);
 
     expect(response.status).toBe(500);
+    expect(consoleErrorSpy).toHaveBeenCalledWith("[cron] unexpected job failure", error);
     await expect(response.json()).resolves.toEqual({
       ok: false,
       error: {

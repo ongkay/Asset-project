@@ -34,6 +34,8 @@ export function buildCronErrorResponse(error: unknown) {
     );
   }
 
+  console.error("[cron] unexpected job failure", error);
+
   return Response.json(
     {
       ok: false,
