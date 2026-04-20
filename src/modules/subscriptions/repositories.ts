@@ -122,15 +122,13 @@ function createSubscriptionsRepositoryDatabase() {
 }
 
 function parseCronJobProcessedCount(jobName: string, data: unknown): number {
-  if (data == null) {
-    return 0;
-  }
-
   if (typeof data === "number") {
     return data;
   }
 
-  throw new Error(`Unexpected ${jobName} RPC result: expected number, received ${typeof data}.`);
+  throw new Error(
+    `Unexpected ${jobName} RPC result: expected number, received ${data === null ? "null" : typeof data}.`,
+  );
 }
 
 export async function runExpireSubscriptionsJobRpc(): Promise<number> {

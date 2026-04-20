@@ -39,14 +39,16 @@ describe("subscriptions/cron repositories", () => {
     expect(rpc).toHaveBeenCalledWith("reconcile_invalid_assets_job");
   });
 
-  it("returns 0 when expire_subscriptions_job rpc result is absent", async () => {
+  it("throws when expire_subscriptions_job rpc result is null", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
 
     databaseMocks.createInsForgeAdminDatabase.mockReturnValue({ rpc });
 
     const { runExpireSubscriptionsJobRpc } = await import("@/modules/subscriptions/repositories");
 
-    await expect(runExpireSubscriptionsJobRpc()).resolves.toBe(0);
+    await expect(runExpireSubscriptionsJobRpc()).rejects.toThrow(
+      "Unexpected expire_subscriptions_job RPC result: expected number, received null.",
+    );
   });
 
   it("throws when reconcile_invalid_assets_job rpc result is malformed", async () => {
