@@ -120,3 +120,12 @@ export type SubscriptionActivationResult = {
   subscriptionId: string;
   mode: SubscriptionActivationMode;
 };
+
+export type SubscriptionCronJobName = "expire-subscriptions" | "reconcile-invalid-assets";
+
+export type SubscriptionCronJobResult = {
+  ok: true;
+  job: SubscriptionCronJobName;
+  processedCount: number;
+  executedAt: string;
+};

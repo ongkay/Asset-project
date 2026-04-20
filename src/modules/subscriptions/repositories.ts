@@ -121,6 +121,28 @@ function createSubscriptionsRepositoryDatabase() {
   return createInsForgeAdminDatabase();
 }
 
+export async function runExpireSubscriptionsJobRpc(): Promise<number> {
+  const database = createSubscriptionsRepositoryDatabase();
+  const { data, error } = await database.rpc("expire_subscriptions_job");
+
+  if (error) {
+    throw error;
+  }
+
+  return typeof data === "number" ? data : 0;
+}
+
+export async function runReconcileInvalidAssetsJobRpc(): Promise<number> {
+  const database = createSubscriptionsRepositoryDatabase();
+  const { data, error } = await database.rpc("reconcile_invalid_assets_job");
+
+  if (error) {
+    throw error;
+  }
+
+  return typeof data === "number" ? data : 0;
+}
+
 function mapPackageDatabaseRow(row: PackageDatabaseRow): SubscriptionPackageSnapshot {
   return {
     packageId: row.id,
