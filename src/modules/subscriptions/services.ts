@@ -35,6 +35,8 @@ import {
   listCurrentAssignmentsBySubscriptionId,
   revokeActiveAssignmentsBySubscriptionId,
   restoreSubscriptionRow,
+  runExpireSubscriptionsJobRpc,
+  runReconcileInvalidAssetsJobRpc,
   updateSubscriptionWindow,
 } from "./repositories";
 
@@ -49,6 +51,8 @@ import type {
   SubscriberQuickAddAssetValues,
   SubscriptionActivationMode,
   SubscriptionActivationResult,
+  SubscriptionCronJobName,
+  SubscriptionCronJobResult,
   SubscriptionPackageSnapshot,
   SubscriptionRow,
 } from "./types";
@@ -63,6 +67,19 @@ function addDaysToIso(startAtIso: string, durationDays: number) {
 
 function toTransactionCode() {
   return `TX-ADM-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+}
+
+function buildSubscriptionCronJobResult(
+  job: SubscriptionCronJobName,
+  processedCount: number,
+  now: Date = new Date(),
+): SubscriptionCronJobResult {
+  return {
+    ok: true,
+    job,
+    processedCount,
+    executedAt: now.toISOString(),
+  };
 }
 
 const PAYMENT_DUMMY_INVALID_PACKAGE_MESSAGE = "Package yang dipilih tidak valid atau sudah tidak tersedia.";
@@ -567,4 +584,14 @@ export async function cancelSubscription(input: SubscriberCancelInput) {
   return {
     subscriptionId: parsedInput.subscriptionId,
   };
+}
+
+export async function runExpireSubscriptionsCronJob(now: Date = new Date()): Promise<SubscriptionCronJobResult> {
+  const processedCount = await runExpireSubscriptionsJobRpc();
+  return buildSubscriptionCronJobResult("expire-subscriptions", processedCount, now);
+}
+
+export async function runReconcileInvalidAssetsCronJob(now: Date = new Date()): Promise<SubscriptionCronJobResult> {
+  const processedCount = await runReconcileInvalidAssetsJobRpc();
+  return buildSubscriptionCronJobResult("reconcile-invalid-assets", processedCount, now);
 }
