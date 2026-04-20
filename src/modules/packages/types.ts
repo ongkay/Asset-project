@@ -29,28 +29,6 @@ export function sortPackageAccessKeysCanonical(accessKeys: readonly PackageAcces
   });
 }
 
-export function parsePackageAccessKeys(input: unknown): PackageAccessKey[] {
-  if (!Array.isArray(input)) {
-    throw new Error("Access keys JSON must be an array.");
-  }
-
-  if (input.length === 0) {
-    throw new Error("Access keys JSON must not be empty.");
-  }
-
-  const parsedAccessKeys: PackageAccessKey[] = [];
-
-  for (const accessKey of input) {
-    if (!isPackageAccessKey(accessKey)) {
-      throw new Error("Access keys JSON contains invalid access key.");
-    }
-
-    parsedAccessKeys.push(accessKey);
-  }
-
-  return sortPackageAccessKeysCanonical(parsedAccessKeys);
-}
-
 export function derivePackageSummaryFromAccessKeys(accessKeys: readonly PackageAccessKey[]): PackageSummary | null {
   if (accessKeys.length === 0) {
     return null;

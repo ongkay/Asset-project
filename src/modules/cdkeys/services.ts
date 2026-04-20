@@ -176,7 +176,7 @@ function getRedeemFailureReason(error: unknown) {
 async function getReservationRaceResult(code: string): Promise<RedeemCdKeyResult> {
   const latestSnapshot = await findCdKeyByCode(code);
 
-  if (!latestSnapshot || latestSnapshot.isActive === false) {
+  if (!latestSnapshot || latestSnapshot.isActive === false || latestSnapshot.packageSnapshot.accessKeys.length === 0) {
     return {
       ok: false,
       errorCode: "code-invalid",
@@ -204,6 +204,14 @@ export async function redeemCdKey(input: RedeemCdKeyServiceInput): Promise<Redee
   const cdKeySnapshot = await findCdKeyByCode(parsedInput.code);
 
   if (!cdKeySnapshot || cdKeySnapshot.isActive === false) {
+    return {
+      ok: false,
+      errorCode: "code-invalid",
+      message: REDEEM_INVALID_MESSAGE,
+    };
+  }
+
+  if (cdKeySnapshot.packageSnapshot.accessKeys.length === 0) {
     return {
       ok: false,
       errorCode: "code-invalid",

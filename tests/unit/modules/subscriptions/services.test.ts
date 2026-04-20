@@ -196,6 +196,20 @@ describe("subscriptions/services", () => {
     });
   });
 
+  it("rejects activation when a legacy package snapshot has no valid access keys", async () => {
+    await expect(
+      activateSubscriptionWithCompensation({
+        userId: "user-1",
+        packageSnapshot: createPackageSnapshot({ accessKeys: [] }),
+        durationDays: 30,
+        manualAssignmentsByAccessKey: {},
+        source: "payment_dummy",
+      }),
+    ).rejects.toThrow("Package access keys are invalid.");
+
+    expect(mockedGetRunningSubscriptionByUserId).not.toHaveBeenCalled();
+  });
+
   it("rejects quick-add when the package does not grant the matching private entitlement", () => {
     const packageSnapshot = createPackageSnapshot({ accessKeys: ["fxreplay:share"] });
 

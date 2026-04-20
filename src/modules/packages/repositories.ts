@@ -4,10 +4,10 @@ import { z } from "zod";
 
 import { createInsForgeAdminDatabase, createInsForgeServerDatabase } from "@/lib/insforge/database";
 import { readValidatedInsForgeAccessTokenForActiveAppSession } from "@/modules/auth/services";
+import { parsePackageAccessKeysFromReadPath } from "@/modules/packages/access-keys";
 
 import {
   derivePackageSummaryFromAccessKeys,
-  parsePackageAccessKeys,
   sortPackageAccessKeysCanonical,
   type PackageAccessKey,
   type PackageEditorData,
@@ -21,7 +21,7 @@ import {
 } from "./types";
 
 type PackageDatabaseRow = {
-  access_keys_json: string[];
+  access_keys_json: unknown;
   amount_rp: number;
   checkout_url: string | null;
   code: string;
@@ -37,13 +37,13 @@ type PackageDatabaseRow = {
 type GetPackageSummaryResponse = PackageSummary | null;
 
 const packageDatabaseRowSchema = z.object({
-  access_keys_json: z.array(z.string()),
+  access_keys_json: z.unknown(),
   amount_rp: z.number().int().safe(),
   checkout_url: z.string().nullable(),
   code: z.string().min(1),
   created_at: z.string().min(1),
   duration_days: z.number().int().safe(),
-  id: z.uuid(),
+  id: z.guid(),
   is_active: z.boolean(),
   is_extended: z.boolean(),
   name: z.string().min(1),
@@ -51,7 +51,7 @@ const packageDatabaseRowSchema = z.object({
 });
 
 const currentSubscriptionRowSchema = z.object({
-  package_id: z.uuid(),
+  package_id: z.guid(),
 });
 
 type CurrentSubscriptionRow = {
@@ -101,7 +101,7 @@ function parseCurrentSubscriptionsByPackageRows(data: unknown): CurrentSubscript
 
 function mapPackageDatabaseRow(data: PackageDatabaseRow): PackageRow {
   return {
-    accessKeys: parsePackageAccessKeys(data.access_keys_json),
+    accessKeys: parsePackageAccessKeysFromReadPath(data.access_keys_json),
     amountRp: data.amount_rp,
     checkoutUrl: data.checkout_url,
     code: data.code,
@@ -137,24 +137,6 @@ function sortPackageDatabaseRows(
   });
 }
 
-function applyPackageSort<TQuery extends { order: (column: string, options?: { ascending?: boolean }) => TQuery }>(
-  query: TQuery,
-  input: {
-    order: PackageTableSortOrder | null;
-    sort: PackageTableSortKey | null;
-  },
-) {
-  if (input.sort === "status" && input.order) {
-    return query.order("is_active", { ascending: input.order === "asc" });
-  }
-
-  if (input.sort === "updatedAt" && input.order) {
-    return query.order("updated_at", { ascending: input.order === "asc" });
-  }
-
-  return query.order("created_at", { ascending: false });
-}
-
 async function listPackagesBySearch(input: { search: string | null }) {
   const database = createPackagesRepositoryDatabase();
   let query = database.from("packages").select(PACKAGE_BASE_SELECT_FIELDS).order("created_at", { ascending: false });
@@ -172,64 +154,33 @@ async function listPackagesBySearch(input: { search: string | null }) {
   return parsePackageDatabaseRows(data);
 }
 
+function filterPackageRowsBySummary(packageRows: PackageDatabaseRow[], summary: PackageSummary | null) {
+  return packageRows.filter((packageRow) => {
+    const derivedSummary = derivePackageSummaryFromAccessKeys(
+      parsePackageAccessKeysFromReadPath(packageRow.access_keys_json),
+    );
+
+    if (!derivedSummary) {
+      return false;
+    }
+
+    if (!summary) {
+      return true;
+    }
+
+    return derivedSummary === summary;
+  });
+}
+
 export async function listPackages(input: PackageListInput): Promise<PackageTableResult<PackageRow>> {
-  const database = createPackagesRepositoryDatabase();
   const startIndex = (input.page - 1) * input.pageSize;
-  const endIndex = startIndex + input.pageSize - 1;
-
-  if (!input.summary) {
-    let query = applyPackageSort(
-      database.from("packages").select(PACKAGE_BASE_SELECT_FIELDS, {
-        count: "exact",
-      }),
-      {
-        order: input.order,
-        sort: input.sort,
-      },
-    ).range(startIndex, endIndex);
-
-    if (input.search) {
-      query = query.ilike("name", `%${input.search}%`);
-    }
-
-    const { count, data, error } = await query;
-
-    if (error) {
-      throw error;
-    }
-
-    const mappedRows = parsePackageDatabaseRows(data).map(mapPackageDatabaseRow);
-
-    return {
-      items: mappedRows,
-      page: input.page,
-      pageSize: input.pageSize,
-      totalCount: count ?? 0,
-    };
-  }
-
   const allCandidateRows = await listPackagesBySearch({
     search: input.search,
   });
-
-  const summaryByPackageId = allCandidateRows.map((candidateRow) => ({
-    packageId: candidateRow.id,
-    summary: derivePackageSummaryFromAccessKeys(parsePackageAccessKeys(candidateRow.access_keys_json)),
-  }));
-
-  const matchedIds = new Set(
-    summaryByPackageId
-      .filter((candidate) => candidate.summary === input.summary)
-      .map((candidate) => candidate.packageId),
-  );
-
-  const filteredRows = sortPackageDatabaseRows(
-    allCandidateRows.filter((candidateRow) => matchedIds.has(candidateRow.id)),
-    {
-      order: input.order,
-      sort: input.sort,
-    },
-  );
+  const filteredRows = sortPackageDatabaseRows(filterPackageRowsBySummary(allCandidateRows, input.summary), {
+    order: input.order,
+    sort: input.sort,
+  });
   const pagedRows = filteredRows.slice(startIndex, startIndex + input.pageSize).map(mapPackageDatabaseRow);
 
   return {

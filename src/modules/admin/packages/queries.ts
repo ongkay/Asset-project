@@ -10,14 +10,31 @@ import { derivePackageSummaryFromAccessKeys, sortPackageAccessKeysCanonical } fr
 import { packageTableFilterSchema } from "./schemas";
 import type { PackageEditorPrefill, PackageTablePage } from "./types";
 
-function requirePackageSummaryFromAccessKeys(accessKeys: Parameters<typeof derivePackageSummaryFromAccessKeys>[0]) {
-  const summary = derivePackageSummaryFromAccessKeys(accessKeys);
+function buildPackageAdminRowOrNull(
+  packageRow: Awaited<ReturnType<typeof listPackages>>["items"][number],
+  totalUsed: number,
+) {
+  const summary = derivePackageSummaryFromAccessKeys(packageRow.accessKeys);
 
   if (!summary) {
-    throw new Error("Package summary cannot be derived from access keys.");
+    return null;
   }
 
-  return summary;
+  return {
+    accessKeys: packageRow.accessKeys,
+    amountRp: packageRow.amountRp,
+    checkoutUrl: packageRow.checkoutUrl,
+    code: packageRow.code,
+    createdAt: packageRow.createdAt,
+    durationDays: packageRow.durationDays,
+    id: packageRow.id,
+    isActive: packageRow.isActive,
+    isExtended: packageRow.isExtended,
+    name: packageRow.name,
+    summary,
+    totalUsed,
+    updatedAt: packageRow.updatedAt,
+  };
 }
 
 export async function getPackageTablePage(input: {
@@ -53,27 +70,16 @@ export async function getPackageTablePage(input: {
     return counts;
   }, {});
 
-  const packageItems = packageRows.items.map((packageRow) => ({
-    accessKeys: packageRow.accessKeys,
-    amountRp: packageRow.amountRp,
-    checkoutUrl: packageRow.checkoutUrl,
-    code: packageRow.code,
-    createdAt: packageRow.createdAt,
-    durationDays: packageRow.durationDays,
-    id: packageRow.id,
-    isActive: packageRow.isActive,
-    isExtended: packageRow.isExtended,
-    name: packageRow.name,
-    summary: requirePackageSummaryFromAccessKeys(packageRow.accessKeys),
-    totalUsed: runningCountByPackageId[packageRow.id] ?? 0,
-    updatedAt: packageRow.updatedAt,
-  }));
+  const packageItems = packageRows.items
+    .map((packageRow) => buildPackageAdminRowOrNull(packageRow, runningCountByPackageId[packageRow.id] ?? 0))
+    .filter((packageRow) => packageRow !== null);
+  const invalidRowCount = packageRows.items.length - packageItems.length;
 
   return {
     items: packageItems,
     page: parsedFilters.page,
     pageSize: parsedFilters.pageSize,
-    totalCount: packageRows.totalCount,
+    totalCount: Math.max(0, packageRows.totalCount - invalidRowCount),
   };
 }
 

@@ -78,6 +78,12 @@ type ActivationExecutionResult = {
   result: SubscriptionActivationResult;
 };
 
+function assertPackageSnapshotHasAccessKeys(packageSnapshot: SubscriptionPackageSnapshot) {
+  if (packageSnapshot.accessKeys.length === 0) {
+    throw new Error("Package access keys are invalid.");
+  }
+}
+
 function isActivationInput(
   value: AdminManualActivationInput | AdminManualActivationFormValues,
 ): value is AdminManualActivationInput {
@@ -188,6 +194,8 @@ async function tryRollbackWithoutMasking(compensation: ActivationCompensation) {
 export async function activateSubscriptionWithCompensation(
   input: AdminManualActivationInput,
 ): Promise<ActivationExecutionResult> {
+  assertPackageSnapshotHasAccessKeys(input.packageSnapshot);
+
   const nowIso = new Date().toISOString();
   const runningSubscription = await getRunningSubscriptionByUserId(input.userId);
   const mode = getReplacementMode({

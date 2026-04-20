@@ -102,6 +102,30 @@ describe("cdkeys/services", () => {
     expect(mockedReserveCdKeyUsage).not.toHaveBeenCalled();
   });
 
+  it("returns code-invalid when a legacy cd-key snapshot has no valid access keys", async () => {
+    mockedFindCdKeyByCode.mockResolvedValueOnce(
+      createCdKeySnapshot({
+        packageSnapshot: {
+          packageId: "package-1",
+          name: "Premium Package",
+          amountRp: 150000,
+          durationDays: 30,
+          isExtended: true,
+          accessKeys: [],
+        },
+      }),
+    );
+
+    const result = await redeemCdKey({ userId: "user-1", code: "AB12CD34EF" });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "code-invalid",
+      message: "CD-Key tidak valid atau sudah terpakai.",
+    });
+    expect(mockedReserveCdKeyUsage).not.toHaveBeenCalled();
+  });
+
   it("returns code-used when the key is already consumed", async () => {
     mockedFindCdKeyByCode.mockResolvedValueOnce(
       createCdKeySnapshot({ usedAt: "2026-04-01T00:00:00.000Z", usedBy: "user-9" }),

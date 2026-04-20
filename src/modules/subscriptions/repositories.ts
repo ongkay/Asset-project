@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { listAssetStatusesByIds } from "@/modules/assets/repositories";
 import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
-import { parsePackageAccessKeys } from "@/modules/packages/types";
+import { parsePackageAccessKeysFromReadPath } from "@/modules/packages/access-keys";
+import { derivePackageSummaryFromAccessKeys } from "@/modules/packages/types";
 
 import type {
   SubscriptionAssignmentRow,
@@ -127,7 +128,7 @@ function mapPackageDatabaseRow(row: PackageDatabaseRow): SubscriptionPackageSnap
     amountRp: row.amount_rp,
     durationDays: row.duration_days,
     isExtended: row.is_extended,
-    accessKeys: parsePackageAccessKeys(row.access_keys_json),
+    accessKeys: parsePackageAccessKeysFromReadPath(row.access_keys_json),
     isActive: row.is_active,
   };
 }
@@ -138,7 +139,7 @@ function mapSubscriptionDatabaseRow(row: SubscriptionDatabaseRow): SubscriptionR
     userId: row.user_id,
     packageId: row.package_id,
     packageName: row.package_name,
-    accessKeys: parsePackageAccessKeys(row.access_keys_json),
+    accessKeys: parsePackageAccessKeysFromReadPath(row.access_keys_json),
     status: row.status,
     source: row.source,
     startAt: row.start_at,
@@ -154,17 +155,6 @@ function parseArrayRows<TRow>(data: unknown, schema: z.ZodType<TRow>): TRow[] {
   }
 
   return z.array(schema).parse(data);
-}
-
-function getPackageSummary(accessKeys: string[]) {
-  const hasPrivate = accessKeys.some((accessKey) => accessKey.endsWith(":private"));
-  const hasShare = accessKeys.some((accessKey) => accessKey.endsWith(":share"));
-
-  if (hasPrivate && hasShare) {
-    return "mixed" as const;
-  }
-
-  return hasPrivate ? ("private" as const) : ("share" as const);
 }
 
 function deriveAssetStatus(input: {
@@ -208,7 +198,13 @@ export async function getPackageById(packageId: string): Promise<SubscriptionPac
     return null;
   }
 
-  return mapPackageDatabaseRow(packageDatabaseRowSchema.parse(data));
+  const packageSnapshot = mapPackageDatabaseRow(packageDatabaseRowSchema.parse(data));
+
+  if (packageSnapshot.accessKeys.length === 0) {
+    return null;
+  }
+
+  return packageSnapshot;
 }
 
 export async function listPackagesForAdminSelection() {
@@ -223,14 +219,22 @@ export async function listPackagesForAdminSelection() {
     throw error;
   }
 
-  return parseArrayRows(data, packageDatabaseRowSchema).map((row) => {
-    const packageSnapshot = mapPackageDatabaseRow(row);
+  return parseArrayRows(data, packageDatabaseRowSchema)
+    .map((row) => {
+      const packageSnapshot = mapPackageDatabaseRow(row);
 
-    return {
-      ...packageSnapshot,
-      packageSummary: getPackageSummary(packageSnapshot.accessKeys),
-    };
-  });
+      if (packageSnapshot.accessKeys.length === 0) {
+        return null;
+      }
+
+      const packageSummary = derivePackageSummaryFromAccessKeys(packageSnapshot.accessKeys);
+
+      return {
+        ...packageSnapshot,
+        ...(packageSummary ? { packageSummary } : {}),
+      };
+    })
+    .filter((packageOption) => packageOption !== null);
 }
 
 export async function getRunningSubscriptionByUserId(userId: string): Promise<SubscriptionRow | null> {

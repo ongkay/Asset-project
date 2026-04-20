@@ -119,6 +119,26 @@ function mapPackageRowToIssuableSnapshot(packageRow: PackageRow): PackageIssuabl
   };
 }
 
+function tryMapPackageRowToIssuableSnapshot(packageRow: PackageRow): PackageIssuableSnapshot | null {
+  const canonicalAccessKeys = sortPackageAccessKeysCanonical(packageRow.accessKeys);
+  const summary = derivePackageSummaryFromAccessKeys(canonicalAccessKeys);
+
+  if (!packageRow.isActive || !summary) {
+    return null;
+  }
+
+  return {
+    packageId: packageRow.id,
+    accessKeys: canonicalAccessKeys,
+    amountRp: packageRow.amountRp,
+    durationDays: packageRow.durationDays,
+    id: packageRow.id,
+    isExtended: packageRow.isExtended,
+    name: packageRow.name,
+    summary,
+  };
+}
+
 export async function getPackageById(packageId: string) {
   return getPackageRowByIdForAdmin(packageId);
 }
@@ -157,21 +177,25 @@ export async function getIssuablePackageSnapshotsByIds(packageIds: string[]): Pr
   const packageRows = await listPackageRowsByIds(uniquePackageIds);
   const packageRowById = new Map(packageRows.map((packageRow) => [packageRow.id, packageRow]));
 
-  return uniquePackageIds.map((packageId) => {
+  return uniquePackageIds.flatMap((packageId) => {
     const packageRow = packageRowById.get(packageId);
 
     if (!packageRow) {
       throw new Error("Package not found.");
     }
 
-    return mapPackageRowToIssuableSnapshot(packageRow);
+    const packageSnapshot = tryMapPackageRowToIssuableSnapshot(packageRow);
+    return packageSnapshot ? [packageSnapshot] : [];
   });
 }
 
 export async function listMemberPurchasablePackages(): Promise<MemberPurchasablePackage[]> {
   const packageRows = await listActivePackageRowsForMember();
 
-  return packageRows.filter((packageRow) => packageRow.isActive).map(mapPackageRowToIssuableSnapshot);
+  return packageRows.flatMap((packageRow) => {
+    const packageSnapshot = tryMapPackageRowToIssuableSnapshot(packageRow);
+    return packageSnapshot ? [packageSnapshot] : [];
+  });
 }
 
 export async function getMemberPurchasablePackageById(packageId: string): Promise<MemberPurchasablePackage | null> {
@@ -181,7 +205,7 @@ export async function getMemberPurchasablePackageById(packageId: string): Promis
     return null;
   }
 
-  return mapPackageRowToIssuableSnapshot(packageRow);
+  return tryMapPackageRowToIssuableSnapshot(packageRow);
 }
 
 export async function buildPackageAdminRow(packageRow: PackageRow): Promise<PackageAdminRow> {

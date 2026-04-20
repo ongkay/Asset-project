@@ -74,4 +74,42 @@ describe("member purchasable package helpers", () => {
 
     await expect(getMemberPurchasablePackageById("missing-pkg")).resolves.toBeNull();
   });
+
+  it("skips member packages whose legacy access keys no longer derive a summary", async () => {
+    repositoryMocks.listActivePackageRowsForMember.mockResolvedValueOnce([
+      {
+        accessKeys: [],
+        amountRp: 150000,
+        checkoutUrl: null,
+        code: "PKG-INVALID",
+        createdAt: "2026-04-01T00:00:00.000Z",
+        durationDays: 30,
+        id: "pkg-invalid",
+        isActive: true,
+        isExtended: true,
+        name: "Legacy Invalid",
+        updatedAt: "2026-04-01T00:00:00.000Z",
+      },
+    ]);
+
+    await expect(listMemberPurchasablePackages()).resolves.toEqual([]);
+  });
+
+  it("returns null for a selected member package when legacy access keys are invalid", async () => {
+    repositoryMocks.getActivePackageRowByIdForMember.mockResolvedValueOnce({
+      accessKeys: [],
+      amountRp: 150000,
+      checkoutUrl: null,
+      code: "PKG-INVALID",
+      createdAt: "2026-04-01T00:00:00.000Z",
+      durationDays: 30,
+      id: "pkg-invalid",
+      isActive: true,
+      isExtended: true,
+      name: "Legacy Invalid",
+      updatedAt: "2026-04-01T00:00:00.000Z",
+    });
+
+    await expect(getMemberPurchasablePackageById("pkg-invalid")).resolves.toBeNull();
+  });
 });
