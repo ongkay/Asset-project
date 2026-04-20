@@ -8,7 +8,7 @@ const CRON_FAILED_MESSAGE = "Cron job failed.";
 export class CronAuthorizationError extends Error {
   constructor() {
     super(CRON_UNAUTHORIZED_MESSAGE);
-    this.name = CRON_UNAUTHORIZED_MESSAGE;
+    this.name = "CronAuthorizationError";
   }
 }
 

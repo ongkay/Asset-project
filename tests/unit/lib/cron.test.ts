@@ -18,6 +18,7 @@ describe("lib/cron", () => {
 
     expect(() => assertTrustedCronRequest(request)).toThrow(CronAuthorizationError);
     expect(() => assertTrustedCronRequest(request)).toThrow("Unauthorized cron request.");
+    expect(new CronAuthorizationError().name).toBe("CronAuthorizationError");
   });
 
   it("maps authorization failures to 401 JSON response", async () => {
