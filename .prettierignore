@@ -17,3 +17,5 @@ AGENTS.md
 .worktrees
 .bp
 test-results/
+asset-ext
+asset-ext/

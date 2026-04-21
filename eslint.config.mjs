@@ -30,6 +30,7 @@ export default defineConfig([
       "next-env.d.ts",
       ".agents/**",
       ".bp/**",
+      "asset-ext/**",
     ],
   },
   js.configs.recommended,
