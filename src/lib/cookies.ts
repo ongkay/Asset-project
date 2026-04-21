@@ -59,6 +59,7 @@ export async function writeAppSessionCookie(
 ): Promise<void> {
   await writeCookieValue(env.APP_SESSION_COOKIE_NAME, token, {
     maxAge: maxAgeSeconds,
+    sameSite: "none",
   });
 }
 
