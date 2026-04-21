@@ -18,11 +18,13 @@ type CookieWriteOptions = {
 };
 
 function buildCookieOptions(options: CookieWriteOptions = {}) {
+  const resolvedSameSite = options.sameSite ?? "lax";
+
   return {
     path: options.path ?? "/",
     httpOnly: options.httpOnly ?? true,
-    sameSite: options.sameSite ?? "lax",
-    secure: options.secure ?? process.env.NODE_ENV === "production",
+    sameSite: resolvedSameSite,
+    secure: options.secure ?? (resolvedSameSite === "none" || process.env.NODE_ENV === "production"),
     maxAge: options.maxAge,
     expires: options.expires,
   };

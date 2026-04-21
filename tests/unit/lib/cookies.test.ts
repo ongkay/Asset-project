@@ -37,4 +37,19 @@ describe("lib/cookies app_session transport", () => {
       }),
     );
   });
+
+  it("marks SameSite=None app_session cookies as Secure so browsers do not reject them", async () => {
+    const { writeAppSessionCookie } = await import("@/lib/cookies");
+
+    await writeAppSessionCookie("opaque-token");
+
+    expect(headerMocks.cookieStore.set).toHaveBeenCalledWith(
+      "app_session",
+      "opaque-token",
+      expect.objectContaining({
+        sameSite: "none",
+        secure: true,
+      }),
+    );
+  });
 });
