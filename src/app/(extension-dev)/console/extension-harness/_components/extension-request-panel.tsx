@@ -6,10 +6,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldTitle } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import type { ExtensionHarnessScenario } from "./extension-scenario-list";
 
 export function ExtensionRequestPanel(props: {
+  activeExtensionId: string;
   allowedIds: string[];
   allowedOrigins: string[];
   connectionState: "waiting" | "ready";
@@ -17,8 +19,15 @@ export function ExtensionRequestPanel(props: {
   editorValue: string;
   onChangeEditorValue: (value: string) => void;
   onRunScenario: () => Promise<void>;
+  onSelectVariant: (variant: "allowed" | "denied") => void;
   scenario: ExtensionHarnessScenario;
+  selectedVariant: "allowed" | "denied";
 }) {
+  const extensionIdentityLabel =
+    props.selectedVariant === "denied" && props.activeExtensionId === "denied-id"
+      ? "Waiting for denied extension"
+      : props.activeExtensionId;
+
   return (
     <Card>
       <CardHeader>
@@ -41,7 +50,7 @@ export function ExtensionRequestPanel(props: {
             <ShieldCheck className="size-4 text-muted-foreground" />
             <div className="flex min-w-0 flex-col gap-1">
               <p className="text-sm font-medium">Role {props.currentUser.role}</p>
-              <p className="truncate text-xs text-muted-foreground">Allowlist ID: {props.allowedIds.join(", ")}</p>
+              <p className="truncate text-xs text-muted-foreground">Active ID: {extensionIdentityLabel}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-3">
@@ -68,6 +77,38 @@ export function ExtensionRequestPanel(props: {
         <Separator />
 
         <FieldGroup>
+          <Field>
+            <FieldContent>
+              <FieldTitle>
+                <ShieldCheck className="size-4 text-muted-foreground" />
+                Extension Variant
+              </FieldTitle>
+              <FieldDescription>
+                Allowed memakai runtime allowlist. Denied memuat preset origin yang harus ditolak agar JSON tidak perlu
+                diubah manual.
+              </FieldDescription>
+              <ToggleGroup
+                aria-label="Select extension variant"
+                onValueChange={(value) => {
+                  if (value === "allowed" || value === "denied") {
+                    props.onSelectVariant(value);
+                  }
+                }}
+                size="sm"
+                type="single"
+                value={props.selectedVariant}
+                variant="outline"
+              >
+                <ToggleGroupItem aria-label="Use allowed extension variant" value="allowed">
+                  Allowed
+                </ToggleGroupItem>
+                <ToggleGroupItem aria-label="Use denied extension variant" value="denied">
+                  Denied
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </FieldContent>
+          </Field>
+
           <Field>
             <FieldContent>
               <FieldTitle>

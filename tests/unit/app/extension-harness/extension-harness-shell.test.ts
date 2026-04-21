@@ -87,6 +87,163 @@ describe("extension harness shell", () => {
     expect(runScenarioButton?.hasAttribute("disabled")).toBe(false);
   });
 
+  it("prefills the raw request editor with the allowlisted extension id by default", async () => {
+    await act(async () => {
+      root.render(
+        createElement(ExtensionHarnessShell, {
+          allowedIds: ["pogjmgcgpbabalmodjejhmopfoapmoeo"],
+          allowedOrigins: ["chrome-extension://pogjmgcgpbabalmodjejhmopfoapmoeo"],
+          currentUser: {
+            email: "seed.active.browser@assetnext.dev",
+            role: "member",
+            username: "seed-active-browser",
+          },
+        }),
+      );
+
+      await Promise.resolve();
+    });
+
+    const editor = container.querySelector("textarea");
+
+    expect(editor?.value).toContain("pogjmgcgpbabalmodjejhmopfoapmoeo");
+    expect(editor?.value).not.toContain("allowed-id");
+  });
+
+  it("switches to the denied variant and refills the raw request editor automatically", async () => {
+    const originalPostMessage = window.postMessage.bind(window) as typeof window.postMessage;
+
+    vi.spyOn(window, "postMessage").mockImplementation((...args: Parameters<typeof window.postMessage>) => {
+      const [message] = args;
+
+      if (
+        message &&
+        typeof message === "object" &&
+        "source" in message &&
+        message.source === "assetnext-extension-harness-page" &&
+        "type" in message &&
+        message.type === "handshake"
+      ) {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: {
+              extensionId: "pogjmgcgpbabalmodjejhmopfoapmoeo",
+              source: "assetnext-extension-harness-extension",
+              type: "ready",
+            },
+            origin: window.location.origin,
+          }),
+        );
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: {
+              extensionId: "kelpbmlhkdlofcpcpmkhmmdoaomloblb",
+              source: "assetnext-extension-harness-extension",
+              type: "ready",
+            },
+            origin: window.location.origin,
+          }),
+        );
+      }
+
+      return originalPostMessage(...args);
+    });
+
+    await act(async () => {
+      root.render(
+        createElement(ExtensionHarnessShell, {
+          allowedIds: ["pogjmgcgpbabalmodjejhmopfoapmoeo"],
+          allowedOrigins: ["chrome-extension://pogjmgcgpbabalmodjejhmopfoapmoeo"],
+          currentUser: {
+            email: "seed.active.browser@assetnext.dev",
+            role: "member",
+            username: "seed-active-browser",
+          },
+        }),
+      );
+
+      await Promise.resolve();
+    });
+
+    const deniedButton = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Denied"),
+    );
+
+    await act(async () => {
+      deniedButton?.click();
+      await Promise.resolve();
+    });
+
+    const editor = container.querySelector("textarea");
+
+    expect(container.textContent).toContain("Denied Origin");
+    expect(editor?.value).toContain("kelpbmlhkdlofcpcpmkhmmdoaomloblb");
+    expect(editor?.value).not.toContain("denied-id");
+  });
+
+  it("reuses the latest session nonce and first asset id for asset success", async () => {
+    await act(async () => {
+      root.render(
+        createElement(ExtensionHarnessShell, {
+          allowedIds: ["pogjmgcgpbabalmodjejhmopfoapmoeo"],
+          allowedOrigins: ["chrome-extension://pogjmgcgpbabalmodjejhmopfoapmoeo"],
+          currentUser: {
+            email: "seed.active.browser@assetnext.dev",
+            role: "member",
+            username: "seed-active-browser",
+          },
+        }),
+      );
+
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            response: {
+              body: {
+                requestNonce: {
+                  expiresAt: "2026-04-21T10:53:42.693Z",
+                  value: "nonce-from-session",
+                },
+                subscription: {
+                  assets: [
+                    {
+                      id: "21000000-0000-4000-8000-000000000002",
+                    },
+                  ],
+                },
+              },
+              status: 200,
+            },
+            source: "assetnext-extension-harness-extension",
+            type: "result",
+          },
+          origin: window.location.origin,
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    const assetSuccessButton = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Asset Success"),
+    );
+
+    await act(async () => {
+      assetSuccessButton?.click();
+      await Promise.resolve();
+    });
+
+    const editor = container.querySelector("textarea");
+
+    expect(editor?.value).toContain('"x-request-nonce": "nonce-from-session"');
+    expect(editor?.value).toContain("/api/extension/asset?id=21000000-0000-4000-8000-000000000002");
+    expect(editor?.value).not.toContain("replace-from-session-response");
+    expect(editor?.value).not.toContain("id=TV-001");
+  });
+
   it("ignores malformed result messages that do not include an extension response payload", async () => {
     await act(async () => {
       root.render(
