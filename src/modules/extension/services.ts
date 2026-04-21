@@ -1,6 +1,9 @@
 import "server-only";
 
 import { env } from "@/config/env.server";
+import { readAppSessionCookie } from "@/lib/cookies";
+import { ExtensionApiError } from "@/lib/extension-api/errors";
+import { readProfileByUserId } from "@/modules/auth/repositories";
 import {
   createSessionBoundRequestNonce,
   touchActiveAppSessionLastSeen,
@@ -8,14 +11,15 @@ import {
   verifySessionBoundRequestNonce,
 } from "@/modules/sessions/services";
 
-import { extensionRequestHeadersSchema, extensionTrackHeartbeatInputSchema } from "./schemas";
+import { doesExtensionAssetExist, getExtensionAssetDetailForUser, getExtensionConsoleSnapshotForUser } from "./queries";
 import { upsertExtensionTrackHeartbeat } from "./repositories";
+import { extensionRequestHeadersSchema, extensionTrackHeartbeatInputSchema } from "./schemas";
 
 import type { ExtensionNetworkMetadata, ExtensionRuntimeConfig } from "./types";
 
 function readHeaderValue(headers: Headers | Record<string, string | null | undefined>, key: string) {
   if (headers instanceof Headers) {
-    return headers.get(key);
+    return headers.get(key) ?? headers.get(key.toLowerCase());
   }
 
   return headers[key] ?? headers[key.toLowerCase()] ?? null;
@@ -33,19 +37,35 @@ export function getExtensionRuntimeConfig(): ExtensionRuntimeConfig {
   };
 }
 
-export function assertExtensionRequestAllowed(input: { extensionId: string; origin: string }) {
-  const headers = extensionRequestHeadersSchema.parse(input);
-  const config = getExtensionRuntimeConfig();
+export function assertExtensionRequestAllowed(input: { extensionId: string | null; origin: string | null }) {
+  const extensionId = input.extensionId?.trim() ?? "";
 
-  if (!config.allowedIds.includes(headers.extensionId)) {
-    throw new Error("Extension ID is not allowed.");
+  if (!extensionId) {
+    throw new ExtensionApiError("EXT_HEADER_REQUIRED", "Header x-extension-id is required.");
   }
 
-  if (!config.allowedOrigins.includes(headers.origin)) {
-    throw new Error("Extension origin is not allowed.");
-  }
+  try {
+    const parsedHeaders = extensionRequestHeadersSchema.parse({
+      extensionId,
+      origin: input.origin?.trim() ?? "",
+    });
+    const config = getExtensionRuntimeConfig();
 
-  return headers;
+    if (
+      !config.allowedIds.includes(parsedHeaders.extensionId) ||
+      !config.allowedOrigins.includes(parsedHeaders.origin)
+    ) {
+      throw new ExtensionApiError("EXT_ORIGIN_DENIED", "Extension origin is not allowed.");
+    }
+
+    return parsedHeaders;
+  } catch (error) {
+    if (error instanceof ExtensionApiError) {
+      throw error;
+    }
+
+    throw new ExtensionApiError("EXT_ORIGIN_DENIED", "Extension origin is not allowed.");
+  }
 }
 
 export function extractTrustedNetworkMetadata(
@@ -60,64 +80,144 @@ export function extractTrustedNetworkMetadata(
   };
 }
 
-async function requireActiveExtensionSession() {
+async function requireExtensionRequestContext(requestHeaders: Headers) {
+  const extensionRequest = assertExtensionRequestAllowed({
+    extensionId: readHeaderValue(requestHeaders, "x-extension-id"),
+    origin: readHeaderValue(requestHeaders, "origin"),
+  });
+
+  const rawSessionCookie = await readAppSessionCookie();
   const activeSession = await validateActiveAppSession();
 
-  if (!activeSession) {
-    throw new Error("An active app session is required.");
+  if (!rawSessionCookie) {
+    throw new ExtensionApiError("SESSION_MISSING", "An active app session is required.");
   }
 
-  return activeSession;
+  if (!activeSession) {
+    throw new ExtensionApiError("SESSION_REVOKED", "This app session is no longer valid.");
+  }
+
+  const profile = await readProfileByUserId(activeSession.userId);
+
+  if (!profile) {
+    throw new ExtensionApiError("SESSION_REVOKED", "This app session is no longer valid.");
+  }
+
+  if (profile.isBanned) {
+    throw new ExtensionApiError("USER_BANNED", "This user is not allowed to use the extension.");
+  }
+
+  const snapshot = await getExtensionConsoleSnapshotForUser({ userId: activeSession.userId });
+
+  if (!snapshot.subscription) {
+    throw new ExtensionApiError("SUBSCRIPTION_EXPIRED", "A valid subscription is required.");
+  }
+
+  const subscription = snapshot.subscription;
+
+  return {
+    extensionRequest,
+    profile,
+    session: activeSession,
+    snapshot,
+    subscription,
+  };
 }
 
-export async function issueExtensionRequestNonceForActiveSession() {
-  const activeSession = await requireActiveExtensionSession();
+export async function getExtensionSessionResponse(input: { requestHeaders: Headers }) {
+  const context = await requireExtensionRequestContext(input.requestHeaders);
   await touchActiveAppSessionLastSeen();
 
-  return createSessionBoundRequestNonce({
-    sessionId: activeSession.sessionId,
-    userId: activeSession.userId,
+  const requestNonce = await createSessionBoundRequestNonce({
+    sessionId: context.session.sessionId,
+    userId: context.session.userId,
   });
+
+  return {
+    requestNonce,
+    subscription: {
+      assets: context.snapshot.assets,
+      daysLeft: context.subscription.daysLeft,
+      endAt: context.subscription.endAt,
+      packageName: context.subscription.packageName,
+      status: context.subscription.status,
+    },
+    user: {
+      id: context.session.userId,
+      username: context.profile.username,
+    },
+  };
 }
 
-export async function verifyExtensionRequestNonceForSession(input: {
-  nonce: string;
-  sessionId: string;
-  userId: string;
+export async function getExtensionAssetResponse(input: {
+  assetId: string;
+  nonce: string | null;
+  requestHeaders: Headers;
 }) {
-  const payload = await verifySessionBoundRequestNonce(input.nonce);
-
-  if (payload.sessionId !== input.sessionId || payload.userId !== input.userId) {
-    throw new Error("Request nonce does not match the active session.");
+  if (!input.nonce?.trim()) {
+    throw new ExtensionApiError("NONCE_REQUIRED", "Header x-request-nonce is required.");
   }
 
-  return payload;
+  const context = await requireExtensionRequestContext(input.requestHeaders);
+  let noncePayload;
+
+  try {
+    noncePayload = await verifySessionBoundRequestNonce(input.nonce);
+  } catch {
+    throw new ExtensionApiError("NONCE_INVALID", "Request nonce is invalid.");
+  }
+
+  if (noncePayload.sessionId !== context.session.sessionId || noncePayload.userId !== context.session.userId) {
+    throw new ExtensionApiError("NONCE_INVALID", "Request nonce is invalid.");
+  }
+
+  const detail = await getExtensionAssetDetailForUser({
+    assetId: input.assetId,
+    userId: context.session.userId,
+  });
+
+  if (!detail) {
+    const assetExists = await doesExtensionAssetExist(input.assetId);
+
+    throw new ExtensionApiError(
+      assetExists ? "ASSET_NOT_ALLOWED" : "NOT_FOUND",
+      assetExists ? "This asset is not available to the active subscription." : "Asset was not found.",
+    );
+  }
+
+  await touchActiveAppSessionLastSeen();
+
+  return {
+    accessKey: detail.accessKey,
+    account: detail.account,
+    asset: detail.asset,
+    assetType: detail.assetType,
+    expiresAt: detail.expiresAt,
+    id: detail.id,
+    note: detail.note,
+    platform: detail.platform,
+    proxy: detail.proxy,
+  };
 }
 
-export async function trackExtensionHeartbeat(input: {
-  heartbeat: {
-    browser: string | null;
-    deviceId: string;
-    extensionId: string;
-    extensionVersion: string;
-    os: string | null;
-  };
-  requestHeaders: Headers | Record<string, string | null | undefined>;
-}) {
-  const activeSession = await requireActiveExtensionSession();
-  const { extensionId } = input.heartbeat;
+export async function createExtensionTrackResponse(input: { heartbeat: unknown; requestHeaders: Headers }) {
+  const context = await requireExtensionRequestContext(input.requestHeaders);
   const heartbeat = extensionTrackHeartbeatInputSchema.parse(input.heartbeat);
   const network = extractTrustedNetworkMetadata(input.requestHeaders);
 
   await touchActiveAppSessionLastSeen();
-
-  return upsertExtensionTrackHeartbeat({
+  await upsertExtensionTrackHeartbeat({
     heartbeat: {
       ...heartbeat,
-      extensionId,
-      sessionId: activeSession.sessionId,
-      userId: activeSession.userId,
+      extensionId: context.extensionRequest.extensionId,
+      sessionId: context.session.sessionId,
+      userId: context.session.userId,
     },
     network,
   });
+
+  return {
+    success: true,
+    timestamp: new Date().toISOString(),
+  };
 }
