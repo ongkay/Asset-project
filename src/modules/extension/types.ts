@@ -22,14 +22,46 @@ export type ExtensionRequestHeaders = {
 export type ExtensionTrackHeartbeatInput = {
   browser: string | null;
   deviceId: string;
-  extensionId: string;
   extensionVersion: string;
   os: string | null;
 };
 
 export type ExtensionTrackHeartbeatWriteInput = ExtensionTrackHeartbeatInput & {
+  extensionId: string;
   sessionId: string;
   userId: string;
+};
+
+export type ExtensionSessionSnapshot = {
+  assets: Array<{
+    accessKey: string;
+    assetType: "private" | "share";
+    expiresAt: string;
+    id: string;
+    platform: "tradingview" | "fxreplay" | "fxtester";
+  }>;
+  subscription: {
+    daysLeft: number;
+    endAt: string;
+    id: string;
+    packageId: string;
+    packageName: string;
+    startAt: string;
+    status: "active" | "processed";
+  } | null;
+};
+
+export type ExtensionAssetDetail = {
+  accessKey: string;
+  account: string;
+  asset: unknown;
+  assetType: "private" | "share";
+  expiresAt: string;
+  id: string;
+  note: string | null;
+  platform: "tradingview" | "fxreplay" | "fxtester";
+  proxy: string | null;
+  subscriptionId: string;
 };
 
 export type ExtensionTrackHeartbeatRecord = {

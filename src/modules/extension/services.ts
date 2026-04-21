@@ -105,6 +105,7 @@ export async function trackExtensionHeartbeat(input: {
   requestHeaders: Headers | Record<string, string | null | undefined>;
 }) {
   const activeSession = await requireActiveExtensionSession();
+  const { extensionId } = input.heartbeat;
   const heartbeat = extensionTrackHeartbeatInputSchema.parse(input.heartbeat);
   const network = extractTrustedNetworkMetadata(input.requestHeaders);
 
@@ -113,6 +114,7 @@ export async function trackExtensionHeartbeat(input: {
   return upsertExtensionTrackHeartbeat({
     heartbeat: {
       ...heartbeat,
+      extensionId,
       sessionId: activeSession.sessionId,
       userId: activeSession.userId,
     },
