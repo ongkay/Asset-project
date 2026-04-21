@@ -17,5 +17,5 @@
 
 ## Catatan MV3
 - `background.js` berjalan sebagai service worker Manifest V3
-- `content-script.js` hanya di-inject ke `/console/extension-harness`
+- `content-script.js` di-load pada host dev lokal, tetapi bridge hanya aktif saat pathname berada di `/console/extension-harness`
 - request dari background memakai `credentials: "include"` supaya browser mengirim `app_session` milik profile yang sama

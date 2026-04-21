@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
+import { createAuthenticatedInsForgeServerDatabase } from "@/lib/insforge/database";
 
 import type {
   ExtensionNetworkMetadata,
@@ -18,7 +18,7 @@ export async function upsertExtensionTrackHeartbeat(input: {
   heartbeat: ExtensionTrackHeartbeatWriteInput;
   network: ExtensionNetworkMetadata;
 }): Promise<ExtensionTrackHeartbeatRecord> {
-  const database = createInsForgeAdminDatabase();
+  const database = await createAuthenticatedInsForgeServerDatabase();
   const { data, error } = await database.rpc("upsert_extension_track", {
     p_browser: input.heartbeat.browser,
     p_city: input.network.city,
@@ -46,7 +46,7 @@ export async function upsertExtensionTrackHeartbeat(input: {
 }
 
 export async function readExtensionConsoleSnapshotRpc(userId: string) {
-  const database = createInsForgeAdminDatabase();
+  const database = await createAuthenticatedInsForgeServerDatabase();
   const { data, error } = await database.rpc("get_user_console_snapshot", {
     p_user_id: userId,
   });
@@ -59,7 +59,7 @@ export async function readExtensionConsoleSnapshotRpc(userId: string) {
 }
 
 export async function readExtensionAssetDetailRpc(input: { assetId: string; userId: string }) {
-  const database = createInsForgeAdminDatabase();
+  const database = await createAuthenticatedInsForgeServerDatabase();
   const { data, error } = await database.rpc("get_user_asset_detail", {
     p_asset_id: input.assetId,
     p_user_id: input.userId,
@@ -73,7 +73,7 @@ export async function readExtensionAssetDetailRpc(input: { assetId: string; user
 }
 
 export async function readExtensionAssetExistence(assetId: string) {
-  const database = createInsForgeAdminDatabase();
+  const database = await createAuthenticatedInsForgeServerDatabase();
   const { data, error } = await database.from("assets").select("id").eq("id", assetId).maybeSingle<{ id: string }>();
 
   if (error) {

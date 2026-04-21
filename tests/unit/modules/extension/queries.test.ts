@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const databaseMocks = vi.hoisted(() => ({
-  createInsForgeAdminDatabase: vi.fn(),
+  createAuthenticatedInsForgeServerDatabase: vi.fn(),
 }));
 
 vi.mock("@/lib/insforge/database", () => ({
-  createInsForgeAdminDatabase: databaseMocks.createInsForgeAdminDatabase,
+  createAuthenticatedInsForgeServerDatabase: databaseMocks.createAuthenticatedInsForgeServerDatabase,
 }));
 
 describe("extension queries", () => {
   beforeEach(() => {
-    databaseMocks.createInsForgeAdminDatabase.mockReset();
+    databaseMocks.createAuthenticatedInsForgeServerDatabase.mockReset();
   });
 
   it("reads the session snapshot through get_user_console_snapshot", async () => {
@@ -43,7 +43,7 @@ describe("extension queries", () => {
       error: null,
     });
 
-    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({ rpc });
+    databaseMocks.createAuthenticatedInsForgeServerDatabase.mockResolvedValue({ rpc });
 
     const { getExtensionConsoleSnapshotForUser } = await import("@/modules/extension/queries");
 
@@ -76,7 +76,7 @@ describe("extension queries", () => {
 
   it("returns null when get_user_asset_detail has no active row", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
-    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({ rpc });
+    databaseMocks.createAuthenticatedInsForgeServerDatabase.mockResolvedValue({ rpc });
 
     const { getExtensionAssetDetailForUser } = await import("@/modules/extension/queries");
 
@@ -94,7 +94,7 @@ describe("extension queries", () => {
       error: null,
     });
 
-    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({
+    databaseMocks.createAuthenticatedInsForgeServerDatabase.mockResolvedValue({
       from: vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({

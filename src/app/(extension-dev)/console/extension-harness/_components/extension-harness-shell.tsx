@@ -47,31 +47,29 @@ export function ExtensionHarnessShell(props: {
   allowedOrigins: string[];
   currentUser: { email: string; role: string; username: string };
 }) {
-  const initialScenario = getScenarioRequestById(
-    typeof window === "undefined" ? null : window.localStorage.getItem(EXTENSION_HARNESS_SCENARIO_STORAGE_KEY),
-  );
-  const [history, setHistory] = useState<ExtensionHarnessHistoryEntry[]>(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    return parseHarnessHistory(window.localStorage.getItem(EXTENSION_HARNESS_HISTORY_STORAGE_KEY));
-  });
-  const [selectedScenarioId, setSelectedScenarioId] = useState<ExtensionHarnessScenarioId>(initialScenario.id);
-  const [requestEditorValue, setRequestEditorValue] = useState(() => {
-    if (typeof window === "undefined") {
-      return JSON.stringify(initialScenario.request, null, 2);
-    }
-
-    return (
-      window.localStorage.getItem(EXTENSION_HARNESS_EDITOR_STORAGE_KEY) ??
-      JSON.stringify(initialScenario.request, null, 2)
-    );
-  });
+  const defaultScenario = extensionHarnessScenarios[0];
+  const [history, setHistory] = useState<ExtensionHarnessHistoryEntry[]>([]);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<ExtensionHarnessScenarioId>(defaultScenario.id);
+  const [requestEditorValue, setRequestEditorValue] = useState(JSON.stringify(defaultScenario.request, null, 2));
   const [latestResponse, setLatestResponse] = useState<HarnessBridgeResponse | null>(null);
   const [connectionState, setConnectionState] = useState<"waiting" | "ready">("waiting");
 
   const selectedScenario = getScenarioRequestById(selectedScenarioId);
+
+  useEffect(() => {
+    const persistedScenario = getScenarioRequestById(
+      window.localStorage.getItem(EXTENSION_HARNESS_SCENARIO_STORAGE_KEY),
+    );
+    const persistedEditorValue =
+      window.localStorage.getItem(EXTENSION_HARNESS_EDITOR_STORAGE_KEY) ??
+      JSON.stringify(persistedScenario.request, null, 2);
+
+    queueMicrotask(() => {
+      setHistory(parseHarnessHistory(window.localStorage.getItem(EXTENSION_HARNESS_HISTORY_STORAGE_KEY)));
+      setSelectedScenarioId(persistedScenario.id);
+      setRequestEditorValue(persistedEditorValue);
+    });
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(EXTENSION_HARNESS_HISTORY_STORAGE_KEY, JSON.stringify(history));
@@ -100,6 +98,10 @@ export function ExtensionHarnessShell(props: {
         return;
       }
 
+      if (!event.data.response) {
+        return;
+      }
+
       const nextResponse = {
         body: event.data.response.body,
         status: event.data.response.status,
@@ -119,6 +121,15 @@ export function ExtensionHarnessShell(props: {
     }
 
     window.addEventListener("message", handleWindowMessage);
+
+    window.postMessage(
+      {
+        source: "assetnext-extension-harness-page",
+        type: "handshake",
+      },
+      window.location.origin,
+    );
+
     return () => window.removeEventListener("message", handleWindowMessage);
   }, [selectedScenario.expectedStatus, selectedScenario.id]);
 

@@ -137,6 +137,53 @@ describe("extension services", () => {
     ).rejects.toMatchObject({ code: "EXT_ORIGIN_DENIED" });
   });
 
+  it("accepts allowlisted extension requests when service-worker fetch omits the Origin header", async () => {
+    cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
+    sessionServiceMocks.validateActiveAppSession.mockResolvedValue({
+      sessionId: "session-1",
+      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active.browser@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      username: "seed-active-browser",
+    });
+    extensionQueryMocks.getExtensionConsoleSnapshotForUser.mockResolvedValue({
+      assets: [{ id: "asset-1" }],
+      subscription: {
+        daysLeft: 10,
+        endAt: "2026-05-01T00:00:00.000Z",
+        packageName: "Starter",
+        status: "active",
+      },
+    });
+    sessionServiceMocks.createSessionBoundRequestNonce.mockResolvedValue({
+      expiresAt: "2026-05-01T00:00:00.000Z",
+      value: "nonce-1",
+    });
+
+    const { getExtensionSessionResponse } = await import("@/modules/extension/services");
+
+    await expect(
+      getExtensionSessionResponse({
+        requestHeaders: new Headers({
+          "x-extension-id": "allowed-id",
+        }),
+      }),
+    ).resolves.toMatchObject({
+      requestNonce: {
+        value: "nonce-1",
+      },
+      user: {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      },
+    });
+  });
+
   it("throws USER_BANNED before any extension data is read", async () => {
     cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
     sessionServiceMocks.validateActiveAppSession.mockResolvedValue({

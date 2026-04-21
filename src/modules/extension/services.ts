@@ -13,7 +13,12 @@ import {
 
 import { doesExtensionAssetExist, getExtensionAssetDetailForUser, getExtensionConsoleSnapshotForUser } from "./queries";
 import { upsertExtensionTrackHeartbeat } from "./repositories";
-import { extensionRequestHeadersSchema, extensionTrackHeartbeatInputSchema } from "./schemas";
+import {
+  extensionIdSchema,
+  extensionOriginSchema,
+  extensionRequestHeadersSchema,
+  extensionTrackHeartbeatInputSchema,
+} from "./schemas";
 
 import type { ExtensionNetworkMetadata, ExtensionRuntimeConfig } from "./types";
 
@@ -45,16 +50,21 @@ export function assertExtensionRequestAllowed(input: { extensionId: string | nul
   }
 
   try {
-    const parsedHeaders = extensionRequestHeadersSchema.parse({
-      extensionId,
-      origin: input.origin?.trim() ?? "",
-    });
+    const parsedExtensionId = extensionIdSchema.parse(extensionId);
     const config = getExtensionRuntimeConfig();
 
-    if (
-      !config.allowedIds.includes(parsedHeaders.extensionId) ||
-      !config.allowedOrigins.includes(parsedHeaders.origin)
-    ) {
+    if (!config.allowedIds.includes(parsedExtensionId)) {
+      throw new ExtensionApiError("EXT_ORIGIN_DENIED", "Extension origin is not allowed.");
+    }
+
+    const normalizedOrigin = input.origin?.trim() || `chrome-extension://${parsedExtensionId}`;
+    const parsedOrigin = extensionOriginSchema.parse(normalizedOrigin);
+    const parsedHeaders = extensionRequestHeadersSchema.parse({
+      extensionId: parsedExtensionId,
+      origin: parsedOrigin,
+    });
+
+    if (!config.allowedOrigins.includes(parsedHeaders.origin)) {
       throw new ExtensionApiError("EXT_ORIGIN_DENIED", "Extension origin is not allowed.");
     }
 

@@ -26,13 +26,10 @@ describe("extension harness manifests", () => {
     expect(denied.background.service_worker).toBe("background.js");
   });
 
-  it("limits content-script injection to the harness route", () => {
+  it("grants content-script access across local dev app hosts", () => {
     const allowed = readManifest("allowed");
 
-    expect(allowed.content_scripts[0]?.matches).toEqual([
-      "http://localhost:3000/console/extension-harness*",
-      "http://127.0.0.1:3000/console/extension-harness*",
-    ]);
+    expect(allowed.content_scripts[0]?.matches).toEqual(["http://localhost:3000/*", "http://127.0.0.1:3000/*"]);
     expect(allowed.content_scripts[0]?.js).toEqual(["content-script.js"]);
   });
 });
