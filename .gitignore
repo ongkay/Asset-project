@@ -69,5 +69,3 @@ dist/
 .playwright-cli
 test-results/
 test-results
-asset-ext/
-asset-ext
