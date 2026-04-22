@@ -4,6 +4,8 @@ import { env } from "@/config/env.server";
 import { readAppSessionCookie } from "@/lib/cookies";
 import { ExtensionApiError } from "@/lib/extension-api/errors";
 import { readProfileByUserId } from "@/modules/auth/repositories";
+import { signOutAndRevokeAppSession } from "@/modules/auth/services";
+import { getConsoleStateSnapshot } from "@/modules/console/queries";
 import {
   createSessionBoundRequestNonce,
   touchActiveAppSessionLastSeen,
@@ -20,7 +22,12 @@ import {
   extensionTrackHeartbeatInputSchema,
 } from "./schemas";
 
-import type { ExtensionNetworkMetadata, ExtensionRuntimeConfig } from "./types";
+import type {
+  ExtensionNetworkMetadata,
+  ExtensionRuntimeConfig,
+  ExtensionSessionResponse,
+  ExtensionSessionStatus,
+} from "./types";
 
 function readHeaderValue(headers: Headers | Record<string, string | null | undefined>, key: string) {
   if (headers instanceof Headers) {
@@ -28,6 +35,10 @@ function readHeaderValue(headers: Headers | Record<string, string | null | undef
   }
 
   return headers[key] ?? headers[key.toLowerCase()] ?? null;
+}
+
+function hasExtensionAssetAccess(status: ExtensionSessionStatus): status is "active" | "processed" {
+  return status === "active" || status === "processed";
 }
 
 export function getExtensionRuntimeConfig(): ExtensionRuntimeConfig {
@@ -118,14 +129,11 @@ async function requireExtensionRequestContext(requestHeaders: Headers) {
   }
 
   const snapshot = await getExtensionConsoleSnapshotForUser({ userId: activeSession.userId });
-
-  if (!snapshot.subscription) {
-    throw new ExtensionApiError("SUBSCRIPTION_EXPIRED", "A valid subscription is required.");
-  }
-
-  const subscription = snapshot.subscription;
+  const consoleState = await getConsoleStateSnapshot({ userId: activeSession.userId });
+  const subscription = hasExtensionAssetAccess(consoleState.state) ? snapshot.subscription : null;
 
   return {
+    consoleState,
     extensionRequest,
     profile,
     session: activeSession,
@@ -134,9 +142,39 @@ async function requireExtensionRequestContext(requestHeaders: Headers) {
   };
 }
 
-export async function getExtensionSessionResponse(input: { requestHeaders: Headers }) {
+function requireExtensionAssetAccess(context: Awaited<ReturnType<typeof requireExtensionRequestContext>>) {
+  if (!context.subscription || !hasExtensionAssetAccess(context.consoleState.state)) {
+    throw new ExtensionApiError("SUBSCRIPTION_EXPIRED", "A valid subscription is required.");
+  }
+
+  return context.subscription;
+}
+
+export async function getExtensionSessionResponse(input: {
+  requestHeaders: Headers;
+}): Promise<ExtensionSessionResponse> {
   const context = await requireExtensionRequestContext(input.requestHeaders);
   await touchActiveAppSessionLastSeen();
+
+  const user = {
+    email: context.profile.email,
+    id: context.session.userId,
+    publicId: context.profile.publicId,
+    username: context.profile.username,
+  };
+
+  if (!hasExtensionAssetAccess(context.consoleState.state) || !context.subscription) {
+    return {
+      subscription: {
+        assets: [],
+        daysLeft: 0,
+        endAt: context.consoleState.latestSubscription?.endAt ?? null,
+        packageName: context.consoleState.latestSubscription?.packageName ?? null,
+        status: context.consoleState.state,
+      },
+      user,
+    };
+  }
 
   const requestNonce = await createSessionBoundRequestNonce({
     sessionId: context.session.sessionId,
@@ -152,10 +190,7 @@ export async function getExtensionSessionResponse(input: { requestHeaders: Heade
       packageName: context.subscription.packageName,
       status: context.subscription.status,
     },
-    user: {
-      id: context.session.userId,
-      username: context.profile.username,
-    },
+    user,
   };
 }
 
@@ -169,6 +204,7 @@ export async function getExtensionAssetResponse(input: {
   }
 
   const context = await requireExtensionRequestContext(input.requestHeaders);
+  requireExtensionAssetAccess(context);
   let noncePayload;
 
   try {
@@ -229,5 +265,16 @@ export async function createExtensionTrackResponse(input: { heartbeat: unknown; 
   return {
     success: true,
     timestamp: new Date().toISOString(),
+  };
+}
+
+export async function createExtensionLogoutResponse(input: { requestHeaders: Headers }) {
+  await requireExtensionRequestContext(input.requestHeaders);
+
+  const payload = await signOutAndRevokeAppSession();
+
+  return {
+    redirectTo: payload.redirectTo,
+    success: payload.ok,
   };
 }

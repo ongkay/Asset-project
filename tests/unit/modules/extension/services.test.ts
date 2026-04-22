@@ -8,6 +8,14 @@ const authRepositoryMocks = vi.hoisted(() => ({
   readProfileByUserId: vi.fn(),
 }));
 
+const authServiceMocks = vi.hoisted(() => ({
+  signOutAndRevokeAppSession: vi.fn(),
+}));
+
+const consoleQueryMocks = vi.hoisted(() => ({
+  getConsoleStateSnapshot: vi.fn(),
+}));
+
 const extensionQueryMocks = vi.hoisted(() => ({
   doesExtensionAssetExist: vi.fn(),
   getExtensionAssetDetailForUser: vi.fn(),
@@ -43,6 +51,14 @@ vi.mock("@/modules/auth/repositories", () => ({
   readProfileByUserId: authRepositoryMocks.readProfileByUserId,
 }));
 
+vi.mock("@/modules/auth/services", () => ({
+  signOutAndRevokeAppSession: authServiceMocks.signOutAndRevokeAppSession,
+}));
+
+vi.mock("@/modules/console/queries", () => ({
+  getConsoleStateSnapshot: consoleQueryMocks.getConsoleStateSnapshot,
+}));
+
 vi.mock("@/modules/extension/queries", () => ({
   doesExtensionAssetExist: extensionQueryMocks.doesExtensionAssetExist,
   getExtensionAssetDetailForUser: extensionQueryMocks.getExtensionAssetDetailForUser,
@@ -76,6 +92,8 @@ describe("extension services", () => {
   beforeEach(() => {
     cookieMocks.readAppSessionCookie.mockReset();
     authRepositoryMocks.readProfileByUserId.mockReset();
+    authServiceMocks.signOutAndRevokeAppSession.mockReset();
+    consoleQueryMocks.getConsoleStateSnapshot.mockReset();
     extensionQueryMocks.doesExtensionAssetExist.mockReset();
     extensionQueryMocks.getExtensionAssetDetailForUser.mockReset();
     extensionQueryMocks.getExtensionConsoleSnapshotForUser.mockReset();
@@ -84,6 +102,17 @@ describe("extension services", () => {
     sessionServiceMocks.touchActiveAppSessionLastSeen.mockReset();
     sessionServiceMocks.validateActiveAppSession.mockReset();
     sessionServiceMocks.verifySessionBoundRequestNonce.mockReset();
+    consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2026-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2026-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
   });
 
   it("throws SESSION_MISSING when the browser has no app_session cookie", async () => {
@@ -129,6 +158,31 @@ describe("extension services", () => {
 
     await expect(
       getExtensionSessionResponse({
+        requestHeaders: new Headers({
+          origin: "chrome-extension://denied-id",
+          "x-extension-id": "denied-id",
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "EXT_ORIGIN_DENIED" });
+  });
+
+  it("rejects extension logout when x-extension-id header is missing", async () => {
+    const { createExtensionLogoutResponse } = await import("@/modules/extension/services");
+
+    await expect(
+      createExtensionLogoutResponse({
+        requestHeaders: new Headers({
+          origin: "chrome-extension://allowed-id",
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "EXT_HEADER_REQUIRED" });
+  });
+
+  it("rejects extension logout when the extension origin is not allowlisted", async () => {
+    const { createExtensionLogoutResponse } = await import("@/modules/extension/services");
+
+    await expect(
+      createExtensionLogoutResponse({
         requestHeaders: new Headers({
           origin: "chrome-extension://denied-id",
           "x-extension-id": "denied-id",
@@ -214,37 +268,113 @@ describe("extension services", () => {
     expect(extensionQueryMocks.getExtensionConsoleSnapshotForUser).not.toHaveBeenCalled();
   });
 
-  it("throws SUBSCRIPTION_EXPIRED when the active user has no running extension-eligible subscription", async () => {
-    cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
-    sessionServiceMocks.validateActiveAppSession.mockResolvedValue({
-      sessionId: "session-1",
-      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    });
-    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
-      avatarUrl: null,
-      email: "seed.none.browser@assetnext.dev",
-      isBanned: false,
-      publicId: "MEM-001",
-      role: "member",
-      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      username: "seed-none-browser",
-    });
-    extensionQueryMocks.getExtensionConsoleSnapshotForUser.mockResolvedValue({
-      assets: [],
-      subscription: null,
-    });
+  it.each([
+    {
+      expectedSubscription: {
+        assets: [],
+        daysLeft: 0,
+        endAt: null,
+        packageName: null,
+        status: "none",
+      },
+      stateSnapshot: {
+        latestSubscription: null,
+        state: "none",
+      },
+    },
+    {
+      expectedSubscription: {
+        assets: [],
+        daysLeft: 0,
+        endAt: "2026-03-01T00:00:00.000Z",
+        packageName: "Starter",
+        status: "expired",
+      },
+      stateSnapshot: {
+        latestSubscription: {
+          endAt: "2026-03-01T00:00:00.000Z",
+          id: "sub-1",
+          packageId: "pkg-1",
+          packageName: "Starter",
+          startAt: "2026-02-01T00:00:00.000Z",
+          status: "expired",
+        },
+        state: "expired",
+      },
+    },
+    {
+      expectedSubscription: {
+        assets: [],
+        daysLeft: 0,
+        endAt: "2026-03-01T00:00:00.000Z",
+        packageName: "Starter",
+        status: "canceled",
+      },
+      stateSnapshot: {
+        latestSubscription: {
+          endAt: "2026-03-01T00:00:00.000Z",
+          id: "sub-1",
+          packageId: "pkg-1",
+          packageName: "Starter",
+          startAt: "2026-02-01T00:00:00.000Z",
+          status: "canceled",
+        },
+        state: "canceled",
+      },
+    },
+  ])(
+    "builds a successful extension session payload without asset access for $expectedSubscription.status users",
+    async ({ expectedSubscription, stateSnapshot }) => {
+      cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
+      sessionServiceMocks.validateActiveAppSession.mockResolvedValue({
+        sessionId: "session-1",
+        userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      });
+      authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+        avatarUrl: null,
+        email: "seed.none.browser@assetnext.dev",
+        isBanned: false,
+        publicId: "MEM-001",
+        role: "member",
+        userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        username: "seed-none-browser",
+      });
+      extensionQueryMocks.getExtensionConsoleSnapshotForUser.mockResolvedValue({
+        assets: [
+          {
+            accessKey: "tradingview:private",
+            assetType: "private",
+            expiresAt: "2026-05-01T00:00:00.000Z",
+            id: "TV-001",
+            platform: "tradingview",
+          },
+        ],
+        subscription: null,
+      });
+      consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue(stateSnapshot);
 
-    const { getExtensionSessionResponse } = await import("@/modules/extension/services");
+      const { getExtensionSessionResponse } = await import("@/modules/extension/services");
 
-    await expect(
-      getExtensionSessionResponse({
-        requestHeaders: new Headers({
-          origin: "chrome-extension://allowed-id",
-          "x-extension-id": "allowed-id",
+      await expect(
+        getExtensionSessionResponse({
+          requestHeaders: new Headers({
+            origin: "chrome-extension://allowed-id",
+            "x-extension-id": "allowed-id",
+          }),
         }),
-      }),
-    ).rejects.toMatchObject({ code: "SUBSCRIPTION_EXPIRED" });
-  });
+      ).resolves.toEqual({
+        subscription: expectedSubscription,
+        user: {
+          email: "seed.none.browser@assetnext.dev",
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          publicId: "MEM-001",
+          username: "seed-none-browser",
+        },
+      });
+
+      expect(sessionServiceMocks.createSessionBoundRequestNonce).not.toHaveBeenCalled();
+    },
+  );
 
   it("builds the extension session payload for an active user", async () => {
     cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
@@ -316,10 +446,205 @@ describe("extension services", () => {
         status: "active",
       },
       user: {
+        email: "seed.active.browser@assetnext.dev",
         id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        publicId: "MEM-001",
         username: "seed-active-browser",
       },
     });
+  });
+
+  it("builds the extension session payload for a processed user with assets and request nonce", async () => {
+    cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
+    sessionServiceMocks.validateActiveAppSession.mockResolvedValue({
+      sessionId: "session-1",
+      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.processed.browser@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      username: "seed-processed-browser",
+    });
+    extensionQueryMocks.getExtensionConsoleSnapshotForUser.mockResolvedValue({
+      assets: [
+        {
+          accessKey: "tradingview:private",
+          assetType: "private",
+          expiresAt: "2026-05-01T00:00:00.000Z",
+          id: "TV-001",
+          platform: "tradingview",
+        },
+      ],
+      subscription: {
+        daysLeft: 12,
+        endAt: "2026-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2026-04-01T00:00:00.000Z",
+        status: "processed",
+      },
+    });
+    consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2026-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2026-04-01T00:00:00.000Z",
+        status: "processed",
+      },
+      state: "processed",
+    });
+    sessionServiceMocks.createSessionBoundRequestNonce.mockResolvedValue({
+      expiresAt: "2026-04-21T13:01:00.000Z",
+      value: "nonce-1",
+    });
+
+    const { getExtensionSessionResponse } = await import("@/modules/extension/services");
+
+    await expect(
+      getExtensionSessionResponse({
+        requestHeaders: new Headers({
+          origin: "chrome-extension://allowed-id",
+          "x-extension-id": "allowed-id",
+        }),
+      }),
+    ).resolves.toEqual({
+      requestNonce: {
+        expiresAt: "2026-04-21T13:01:00.000Z",
+        value: "nonce-1",
+      },
+      subscription: {
+        assets: [
+          {
+            accessKey: "tradingview:private",
+            assetType: "private",
+            expiresAt: "2026-05-01T00:00:00.000Z",
+            id: "TV-001",
+            platform: "tradingview",
+          },
+        ],
+        daysLeft: 12,
+        endAt: "2026-05-01T00:00:00.000Z",
+        packageName: "Starter",
+        status: "processed",
+      },
+      user: {
+        email: "seed.processed.browser@assetnext.dev",
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        publicId: "MEM-001",
+        username: "seed-processed-browser",
+      },
+    });
+  });
+
+  it("allows extension tracking for logged-in users even when asset access is expired", async () => {
+    cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
+    sessionServiceMocks.validateActiveAppSession.mockResolvedValue({
+      sessionId: "session-1",
+      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active.browser@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      username: "seed-active-browser",
+    });
+    extensionQueryMocks.getExtensionConsoleSnapshotForUser.mockResolvedValue({
+      assets: [],
+      subscription: null,
+    });
+    consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2026-03-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2026-02-01T00:00:00.000Z",
+        status: "expired",
+      },
+      state: "expired",
+    });
+    extensionRepositoryMocks.upsertExtensionTrackHeartbeat.mockResolvedValue({
+      firstSeenAt: "2026-04-21T13:05:00.000Z",
+      id: "track-1",
+      lastSeenAt: "2026-04-21T13:05:00.000Z",
+    });
+
+    const { createExtensionTrackResponse } = await import("@/modules/extension/services");
+
+    await expect(
+      createExtensionTrackResponse({
+        heartbeat: {
+          browser: "Chrome",
+          deviceId: "m11-allowed-primary",
+          extensionVersion: "0.0.1",
+          os: "macOS",
+        },
+        requestHeaders: new Headers({
+          origin: "chrome-extension://allowed-id",
+          "x-extension-id": "allowed-id",
+        }),
+      }),
+    ).resolves.toEqual({
+      success: true,
+      timestamp: expect.any(String),
+    });
+  });
+
+  it("keeps extension asset access strict for expired users", async () => {
+    cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
+    sessionServiceMocks.validateActiveAppSession.mockResolvedValue({
+      sessionId: "session-1",
+      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active.browser@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      username: "seed-active-browser",
+    });
+    extensionQueryMocks.getExtensionConsoleSnapshotForUser.mockResolvedValue({
+      assets: [],
+      subscription: null,
+    });
+    consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2026-03-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2026-02-01T00:00:00.000Z",
+        status: "expired",
+      },
+      state: "expired",
+    });
+
+    const { getExtensionAssetResponse } = await import("@/modules/extension/services");
+
+    await expect(
+      getExtensionAssetResponse({
+        assetId: "TV-001",
+        nonce: "nonce-1",
+        requestHeaders: new Headers({
+          origin: "chrome-extension://allowed-id",
+          "x-extension-id": "allowed-id",
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "SUBSCRIPTION_EXPIRED" });
+
+    expect(sessionServiceMocks.verifySessionBoundRequestNonce).not.toHaveBeenCalled();
   });
 
   it("builds the raw asset response after nonce verification", async () => {

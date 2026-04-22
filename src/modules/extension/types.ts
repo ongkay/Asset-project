@@ -32,6 +32,10 @@ export type ExtensionTrackHeartbeatWriteInput = ExtensionTrackHeartbeatInput & {
   userId: string;
 };
 
+export type ExtensionSessionAccessStatus = "active" | "processed";
+
+export type ExtensionSessionStatus = ExtensionSessionAccessStatus | "expired" | "canceled" | "none";
+
 export type ExtensionSessionSnapshot = {
   assets: Array<{
     accessKey: string;
@@ -47,8 +51,28 @@ export type ExtensionSessionSnapshot = {
     packageId: string;
     packageName: string;
     startAt: string;
-    status: "active" | "processed";
+    status: ExtensionSessionAccessStatus;
   } | null;
+};
+
+export type ExtensionSessionResponse = {
+  requestNonce?: {
+    expiresAt: string;
+    value: string;
+  };
+  subscription: {
+    assets: ExtensionSessionSnapshot["assets"];
+    daysLeft: number;
+    endAt: string | null;
+    packageName: string | null;
+    status: ExtensionSessionStatus;
+  };
+  user: {
+    email: string;
+    id: string;
+    publicId: string;
+    username: string;
+  };
 };
 
 export type ExtensionAssetDetail = {

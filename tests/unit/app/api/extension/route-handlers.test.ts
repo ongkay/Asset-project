@@ -1,21 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/modules/extension/services", () => ({
+  createExtensionLogoutResponse: vi.fn(),
   createExtensionTrackResponse: vi.fn(),
   getExtensionAssetResponse: vi.fn(),
   getExtensionSessionResponse: vi.fn(),
 }));
 
 import { GET as getExtensionAsset } from "@/app/api/extension/asset/route";
+import { POST as postExtensionLogout } from "@/app/api/extension/logout/route";
 import { GET as getExtensionSession } from "@/app/api/extension/session/route";
 import { POST as postExtensionTrack } from "@/app/api/extension/track/route";
 import { ExtensionApiError } from "@/lib/extension-api/errors";
 import {
+  createExtensionLogoutResponse,
   createExtensionTrackResponse,
   getExtensionAssetResponse,
   getExtensionSessionResponse,
 } from "@/modules/extension/services";
 
+const mockedCreateExtensionLogoutResponse = vi.mocked(createExtensionLogoutResponse);
 const mockedGetExtensionSessionResponse = vi.mocked(getExtensionSessionResponse);
 const mockedGetExtensionAssetResponse = vi.mocked(getExtensionAssetResponse);
 const mockedCreateExtensionTrackResponse = vi.mocked(createExtensionTrackResponse);
@@ -31,7 +35,12 @@ describe("extension route handlers", () => {
         packageName: "Starter",
         status: "active",
       },
-      user: { id: "user-1", username: "seed-active-browser" },
+      user: {
+        email: "seed.active.browser@assetnext.dev",
+        id: "user-1",
+        publicId: "MEM-001",
+        username: "seed-active-browser",
+      },
     });
 
     const response = await getExtensionSession(
@@ -53,7 +62,57 @@ describe("extension route handlers", () => {
         packageName: "Starter",
         status: "active",
       },
-      user: { id: "user-1", username: "seed-active-browser" },
+      user: {
+        email: "seed.active.browser@assetnext.dev",
+        id: "user-1",
+        publicId: "MEM-001",
+        username: "seed-active-browser",
+      },
+    });
+  });
+
+  it("maps sign-out to a successful extension logout payload", async () => {
+    mockedCreateExtensionLogoutResponse.mockResolvedValue({
+      redirectTo: "/login",
+      success: true,
+    });
+
+    const request = new Request("http://localhost/api/extension/logout", {
+      method: "POST",
+      headers: {
+        origin: "chrome-extension://allowed-id",
+        "x-extension-id": "allowed-id",
+      },
+    });
+    const response = await postExtensionLogout(request);
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateExtensionLogoutResponse).toHaveBeenCalledWith({
+      requestHeaders: request.headers,
+    });
+    await expect(response.json()).resolves.toEqual({
+      redirectTo: "/login",
+      success: true,
+    });
+  });
+
+  it("maps logout ExtensionApiError to a JSON error response", async () => {
+    mockedCreateExtensionLogoutResponse.mockRejectedValue(
+      new ExtensionApiError("EXT_HEADER_REQUIRED", "Header x-extension-id is required."),
+    );
+
+    const response = await postExtensionLogout(
+      new Request("http://localhost/api/extension/logout", {
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "EXT_HEADER_REQUIRED",
+        message: "Header x-extension-id is required.",
+      },
     });
   });
 
