@@ -96,6 +96,31 @@ describe("extension route handlers", () => {
     });
   });
 
+  it("returns logout cleanup success when the service clears a stale extension session", async () => {
+    mockedCreateExtensionLogoutResponse.mockResolvedValue({
+      redirectTo: "/login",
+      success: true,
+    });
+
+    const request = new Request("http://localhost/api/extension/logout", {
+      method: "POST",
+      headers: {
+        origin: "chrome-extension://allowed-id",
+        "x-extension-id": "allowed-id",
+      },
+    });
+    const response = await postExtensionLogout(request);
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateExtensionLogoutResponse).toHaveBeenCalledWith({
+      requestHeaders: request.headers,
+    });
+    await expect(response.json()).resolves.toEqual({
+      redirectTo: "/login",
+      success: true,
+    });
+  });
+
   it("maps logout ExtensionApiError to a JSON error response", async () => {
     mockedCreateExtensionLogoutResponse.mockRejectedValue(
       new ExtensionApiError("EXT_HEADER_REQUIRED", "Header x-extension-id is required."),

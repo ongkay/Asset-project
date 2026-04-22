@@ -191,6 +191,31 @@ describe("extension services", () => {
     ).rejects.toMatchObject({ code: "EXT_ORIGIN_DENIED" });
   });
 
+  it("allows extension logout cleanup when the cookie exists but the active session row is gone", async () => {
+    cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
+    sessionServiceMocks.validateActiveAppSession.mockResolvedValue(null);
+    authServiceMocks.signOutAndRevokeAppSession.mockResolvedValue({
+      ok: true,
+      redirectTo: "/login",
+    });
+
+    const { createExtensionLogoutResponse } = await import("@/modules/extension/services");
+
+    await expect(
+      createExtensionLogoutResponse({
+        requestHeaders: new Headers({
+          origin: "chrome-extension://allowed-id",
+          "x-extension-id": "allowed-id",
+        }),
+      }),
+    ).resolves.toEqual({
+      redirectTo: "/login",
+      success: true,
+    });
+
+    expect(authServiceMocks.signOutAndRevokeAppSession).toHaveBeenCalledTimes(1);
+  });
+
   it("accepts allowlisted extension requests when service-worker fetch omits the Origin header", async () => {
     cookieMocks.readAppSessionCookie.mockResolvedValue("opaque-token");
     sessionServiceMocks.validateActiveAppSession.mockResolvedValue({

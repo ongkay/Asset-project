@@ -269,7 +269,10 @@ export async function createExtensionTrackResponse(input: { heartbeat: unknown; 
 }
 
 export async function createExtensionLogoutResponse(input: { requestHeaders: Headers }) {
-  await requireExtensionRequestContext(input.requestHeaders);
+  assertExtensionRequestAllowed({
+    extensionId: readHeaderValue(input.requestHeaders, "x-extension-id"),
+    origin: readHeaderValue(input.requestHeaders, "origin"),
+  });
 
   const payload = await signOutAndRevokeAppSession();
 
