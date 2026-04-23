@@ -1,49 +1,50 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const databaseMocks = vi.hoisted(() => ({
-  createAuthenticatedInsForgeServerDatabase: vi.fn(),
+const repositoryMocks = vi.hoisted(() => ({
+  readExtensionAssetDetailRpc: vi.fn(),
+  readExtensionAssetExistence: vi.fn(),
+  readExtensionConsoleSnapshotRpc: vi.fn(),
 }));
 
-vi.mock("@/lib/insforge/database", () => ({
-  createAuthenticatedInsForgeServerDatabase: databaseMocks.createAuthenticatedInsForgeServerDatabase,
+vi.mock("@/modules/extension/repositories", () => ({
+  readExtensionAssetDetailRpc: repositoryMocks.readExtensionAssetDetailRpc,
+  readExtensionAssetExistence: repositoryMocks.readExtensionAssetExistence,
+  readExtensionConsoleSnapshotRpc: repositoryMocks.readExtensionConsoleSnapshotRpc,
 }));
 
 describe("extension queries", () => {
   beforeEach(() => {
-    databaseMocks.createAuthenticatedInsForgeServerDatabase.mockReset();
+    repositoryMocks.readExtensionAssetDetailRpc.mockReset();
+    repositoryMocks.readExtensionAssetExistence.mockReset();
+    repositoryMocks.readExtensionConsoleSnapshotRpc.mockReset();
   });
 
-  it("reads the session snapshot through get_user_console_snapshot", async () => {
-    const rpc = vi.fn().mockResolvedValue({
-      data: {
-        subscription: {
-          days_left: 12,
-          end_at: "2026-05-01T00:00:00.000Z",
-          id: "11111111-1111-4111-8111-111111111111",
-          package_id: "22222222-2222-4222-8222-222222222222",
-          package_name: "Starter",
-          start_at: "2026-04-01T00:00:00.000Z",
-          status: "active",
-        },
-        assets: [
-          {
-            access_key: "tradingview:private",
-            asset_type: "private",
-            assignment_id: "33333333-3333-4333-8333-333333333333",
-            expires_at: "2026-05-01T00:00:00.000Z",
-            id: "TV-001",
-            note: null,
-            platform: "tradingview",
-            proxy: null,
-            subscription_id: "11111111-1111-4111-8111-111111111111",
-          },
-        ],
-        transactions: [],
+  it("maps the session snapshot from the trusted repository read model", async () => {
+    repositoryMocks.readExtensionConsoleSnapshotRpc.mockResolvedValue({
+      subscription: {
+        days_left: 12,
+        end_at: "2026-05-01T00:00:00.000Z",
+        id: "11111111-1111-4111-8111-111111111111",
+        package_id: "22222222-2222-4222-8222-222222222222",
+        package_name: "Starter",
+        start_at: "2026-04-01T00:00:00.000Z",
+        status: "active",
       },
-      error: null,
+      assets: [
+        {
+          access_key: "tradingview:private",
+          asset_type: "private",
+          assignment_id: "33333333-3333-4333-8333-333333333333",
+          expires_at: "2026-05-01T00:00:00.000Z",
+          id: "TV-001",
+          note: null,
+          platform: "tradingview",
+          proxy: null,
+          subscription_id: "11111111-1111-4111-8111-111111111111",
+        },
+      ],
+      transactions: [],
     });
-
-    databaseMocks.createAuthenticatedInsForgeServerDatabase.mockResolvedValue({ rpc });
 
     const { getExtensionConsoleSnapshotForUser } = await import("@/modules/extension/queries");
 
@@ -69,14 +70,13 @@ describe("extension queries", () => {
         },
       ],
     });
-    expect(rpc).toHaveBeenCalledWith("get_user_console_snapshot", {
-      p_user_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    });
+    expect(repositoryMocks.readExtensionConsoleSnapshotRpc).toHaveBeenCalledWith(
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    );
   });
 
-  it("returns null when get_user_asset_detail has no active row", async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
-    databaseMocks.createAuthenticatedInsForgeServerDatabase.mockResolvedValue({ rpc });
+  it("returns null when the trusted asset detail repository has no active row", async () => {
+    repositoryMocks.readExtensionAssetDetailRpc.mockResolvedValue(null);
 
     const { getExtensionAssetDetailForUser } = await import("@/modules/extension/queries");
 
@@ -89,20 +89,7 @@ describe("extension queries", () => {
   });
 
   it("checks whether the requested asset id still exists in the inventory table", async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({
-      data: { id: "20000000-0000-0000-0000-000000000003" },
-      error: null,
-    });
-
-    databaseMocks.createAuthenticatedInsForgeServerDatabase.mockResolvedValue({
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle,
-          })),
-        })),
-      })),
-    });
+    repositoryMocks.readExtensionAssetExistence.mockResolvedValue({ id: "20000000-0000-0000-0000-000000000003" });
 
     const { doesExtensionAssetExist } = await import("@/modules/extension/queries");
 

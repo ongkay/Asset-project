@@ -26,12 +26,8 @@ vi.mock("@/modules/auth/repositories", () => ({
   readAuthUserByEmail: vi.fn(),
 }));
 
-vi.mock("@/modules/auth/services", () => ({
-  readValidatedInsForgeAccessTokenForActiveAppSession: vi.fn(),
-}));
-
 import * as authRepositories from "@/modules/auth/repositories";
-import * as authServices from "@/modules/auth/services";
+import type { AuthProfile } from "@/modules/auth/types";
 import * as sessionServices from "@/modules/sessions/services";
 import * as userRepositories from "@/modules/users/repositories";
 import {
@@ -47,9 +43,7 @@ import {
 const mockedCreateAuthUserAsAdmin = vi.mocked(authRepositories.createAuthUserAsAdmin);
 const mockedDeleteAuthUserAsAdmin = vi.mocked(authRepositories.deleteAuthUserAsAdmin);
 const mockedReadAuthUserByEmail = vi.mocked(authRepositories.readAuthUserByEmail);
-const mockedReadValidatedInsForgeAccessTokenForActiveAppSession = vi.mocked(
-  authServices.readValidatedInsForgeAccessTokenForActiveAppSession,
-);
+const mockedFindUserProfileById = vi.mocked(userRepositories.findUserProfileById);
 const mockedInsertUserProfile = vi.mocked(userRepositories.insertUserProfile);
 const mockedIsPublicIdTaken = vi.mocked(userRepositories.isPublicIdTaken);
 const mockedIsUsernameTaken = vi.mocked(userRepositories.isUsernameTaken);
@@ -67,7 +61,7 @@ describe("users/services", () => {
     mockedIsPublicIdTaken.mockReset();
     mockedIsUsernameTaken.mockReset();
     mockedReadAuthUserByEmail.mockReset();
-    mockedReadValidatedInsForgeAccessTokenForActiveAppSession.mockReset();
+    mockedFindUserProfileById.mockReset();
     mockedReadProfileByEmail.mockReset();
     mockedUpdateUserBanState.mockReset();
     mockedUpdateUserProfileFields.mockReset();
@@ -212,16 +206,15 @@ describe("users/services", () => {
     expect(mockedUpdateUserProfileFields).not.toHaveBeenCalled();
   });
 
-  it("treats a member app session without a valid InsForge token as unauthenticated", async () => {
-    mockedValidateActiveAppSession.mockResolvedValue({
+  it("keeps a member authenticated from the app session and matching profile lookup alone", async () => {
+    const activeSession = {
       createdAt: "2026-04-19T00:00:00.000Z",
       lastSeenAt: "2026-04-19T00:00:00.000Z",
       revokedAt: null,
       sessionId: "session-1",
       userId: "91000000-0000-4000-8000-000000000002",
-    });
-    mockedReadValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue(null);
-    vi.spyOn(userRepositories, "findUserProfileById").mockResolvedValue({
+    };
+    const profile: AuthProfile = {
       avatarUrl: null,
       email: "seed.active.browser@assetnext.dev",
       isBanned: false,
@@ -229,8 +222,16 @@ describe("users/services", () => {
       role: "member",
       userId: "91000000-0000-4000-8000-000000000002",
       username: "seed-active-browser",
-    });
+    };
 
-    await expect(getAuthenticatedAppUser()).resolves.toBeNull();
+    mockedValidateActiveAppSession.mockResolvedValue(activeSession);
+    mockedFindUserProfileById.mockResolvedValue(profile);
+
+    await expect(getAuthenticatedAppUser()).resolves.toEqual({
+      profile,
+      session: activeSession,
+    });
+    expect(mockedValidateActiveAppSession).toHaveBeenCalledTimes(1);
+    expect(mockedFindUserProfileById).toHaveBeenCalledWith(activeSession.userId);
   });
 });

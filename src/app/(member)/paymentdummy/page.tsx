@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { PaymentDummyPage } from "./_components/paymentdummy-page";
 
-import { readValidatedInsForgeAccessTokenForActiveAppSession } from "@/modules/auth/services";
 import { getConsoleSnapshot } from "@/modules/console/queries";
 import { parsePaymentDummyPackageIdSearchParam } from "@/modules/console/schemas";
 import { getMemberPurchasablePackageById, getPackageById } from "@/modules/packages/services";
@@ -32,14 +31,6 @@ export default async function PaymentDummyRoutePage({ searchParams }: PaymentDum
 
   if (!selectedPackage) {
     const packageRow = await getPackageById(packageId);
-
-    if (packageRow?.isActive) {
-      const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
-
-      if (!accessToken) {
-        redirect("/login");
-      }
-    }
 
     redirectToConsole(packageRow?.isActive === false ? "disabled-package" : "invalid-package");
   }

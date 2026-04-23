@@ -2,9 +2,10 @@ import "server-only";
 
 import { z } from "zod";
 
-import { createInsForgeAdminDatabase, createInsForgeServerDatabase } from "@/lib/insforge/database";
-import { readValidatedInsForgeAccessTokenForActiveAppSession } from "@/modules/auth/services";
+import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
+import { readProfileByUserId } from "@/modules/auth/repositories";
 import { parsePackageAccessKeysFromReadPath } from "@/modules/packages/access-keys";
+import { validateActiveAppSession } from "@/modules/sessions/services";
 
 import {
   derivePackageSummaryFromAccessKeys,
@@ -78,6 +79,22 @@ type UpdatePackageRowInput = PackageFormInput & {
 
 function createPackagesRepositoryDatabase() {
   return createInsForgeAdminDatabase();
+}
+
+async function authorizeMemberPackageRead() {
+  const activeSession = await validateActiveAppSession();
+
+  if (!activeSession) {
+    return null;
+  }
+
+  const profile = await readProfileByUserId(activeSession.userId);
+
+  if (!profile || profile.role !== "member" || profile.isBanned) {
+    return null;
+  }
+
+  return activeSession.userId;
 }
 
 const PACKAGE_BASE_SELECT_FIELDS =
@@ -234,13 +251,13 @@ export async function getPackageById(packageId: string): Promise<PackageRow | nu
 }
 
 export async function listActivePackageRowsForMember(): Promise<PackageRow[]> {
-  const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
+  const authorizedUserId = await authorizeMemberPackageRead();
 
-  if (!accessToken) {
+  if (!authorizedUserId) {
     return [];
   }
 
-  const database = createInsForgeServerDatabase({ accessToken });
+  const database = createInsForgeAdminDatabase();
   const { data, error } = await database
     .from("packages")
     .select(PACKAGE_BASE_SELECT_FIELDS)
@@ -255,13 +272,13 @@ export async function listActivePackageRowsForMember(): Promise<PackageRow[]> {
 }
 
 export async function getActivePackageRowByIdForMember(packageId: string): Promise<PackageRow | null> {
-  const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
+  const authorizedUserId = await authorizeMemberPackageRead();
 
-  if (!accessToken) {
+  if (!authorizedUserId) {
     return null;
   }
 
-  const database = createInsForgeServerDatabase({ accessToken });
+  const database = createInsForgeAdminDatabase();
   const { data, error } = await database
     .from("packages")
     .select(PACKAGE_BASE_SELECT_FIELDS)
