@@ -91,7 +91,7 @@ Gate yang benar-benar tersedia di repo saat ini:
 - `pnpm lint`
 - `pnpm typecheck`
 - `pnpm test`
-- browser verification untuk flow yang terdampak menggunakan `agent-browser CLI`
+- browser verification untuk flow yang terdampak menggunakan `agent-browser CLI` atau `playwright` dengan `headless=true`
 - next-devtools-mcp tidak menunjukkan error runtime atau compilation yang relevan
 - scan .next/dev/logs/*.log tidak ada temuan error relevan
 - sebelum commit wajib `pnpm check:fix`
