@@ -1,25 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const databaseMocks = vi.hoisted(() => ({
-  createAuthenticatedInsForgeServerDatabase: vi.fn(),
-  createInsForgeServerDatabase: vi.fn(),
-}));
-
 const authRepositoryMocks = vi.hoisted(() => ({
   readProfileByUserId: vi.fn(),
 }));
 
-const authServiceMocks = vi.hoisted(() => ({
-  readValidatedInsForgeAccessTokenForActiveAppSession: vi.fn(),
+const consoleRepositoryMocks = vi.hoisted(() => ({
+  readConsoleAssetDetailByUserId: vi.fn(),
+  readConsoleSnapshotByUserId: vi.fn(),
+  readLatestConsoleSubscriptionByUserId: vi.fn(),
 }));
 
 const sessionServiceMocks = vi.hoisted(() => ({
   validateActiveAppSession: vi.fn(),
-}));
-
-vi.mock("@/lib/insforge/database", () => ({
-  createAuthenticatedInsForgeServerDatabase: databaseMocks.createAuthenticatedInsForgeServerDatabase,
-  createInsForgeServerDatabase: databaseMocks.createInsForgeServerDatabase,
 }));
 
 vi.mock("@/modules/auth/repositories", async () => {
@@ -31,9 +23,10 @@ vi.mock("@/modules/auth/repositories", async () => {
   };
 });
 
-vi.mock("@/modules/auth/services", () => ({
-  readValidatedInsForgeAccessTokenForActiveAppSession:
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession,
+vi.mock("@/modules/console/repositories", () => ({
+  readConsoleAssetDetailByUserId: consoleRepositoryMocks.readConsoleAssetDetailByUserId,
+  readConsoleSnapshotByUserId: consoleRepositoryMocks.readConsoleSnapshotByUserId,
+  readLatestConsoleSubscriptionByUserId: consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId,
 }));
 
 vi.mock("@/modules/sessions/services", async () => {
@@ -47,10 +40,10 @@ vi.mock("@/modules/sessions/services", async () => {
 
 describe("console query read paths", () => {
   beforeEach(() => {
-    databaseMocks.createAuthenticatedInsForgeServerDatabase.mockReset();
-    databaseMocks.createInsForgeServerDatabase.mockReset();
     authRepositoryMocks.readProfileByUserId.mockReset();
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockReset();
+    consoleRepositoryMocks.readConsoleAssetDetailByUserId.mockReset();
+    consoleRepositoryMocks.readConsoleSnapshotByUserId.mockReset();
+    consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId.mockReset();
     sessionServiceMocks.validateActiveAppSession.mockReset();
 
     sessionServiceMocks.validateActiveAppSession.mockResolvedValue({
@@ -59,29 +52,23 @@ describe("console query read paths", () => {
     });
   });
 
-  it("uses the authenticated server database path for getConsoleSnapshot", async () => {
-    const rpc = vi.fn().mockResolvedValue({
-      data: {
-        assets: [],
-        subscription: null,
-        transactions: [
-          {
-            amount_rp: 100000,
-            created_at: "2026-04-07T09:45:22.805008+00:00",
-            id: "93000000-0000-4000-8000-000000000008",
-            package_id: "3cd291dd-5403-4417-8e9b-92d9ced54f8a",
-            package_name: "Paket 3",
-            paid_at: null,
-            source: "payment_dummy",
-            status: "pending",
-          },
-        ],
-      },
-      error: null,
+  it("reads the member console snapshot via trusted repository using the active session user id", async () => {
+    consoleRepositoryMocks.readConsoleSnapshotByUserId.mockResolvedValue({
+      assets: [],
+      subscription: null,
+      transactions: [
+        {
+          amount_rp: 100000,
+          created_at: "2026-04-07T09:45:22.805008+00:00",
+          id: "93000000-0000-4000-8000-000000000008",
+          package_id: "3cd291dd-5403-4417-8e9b-92d9ced54f8a",
+          package_name: "Paket 3",
+          paid_at: null,
+          source: "payment_dummy",
+          status: "pending",
+        },
+      ],
     });
-
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
-    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
 
     const { getConsoleSnapshot } = await import("@/modules/console/queries");
 
@@ -102,34 +89,31 @@ describe("console query read paths", () => {
       ],
     });
 
-    expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledTimes(1);
-    expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledWith({ accessToken: "member-access-token" });
+    expect(consoleRepositoryMocks.readConsoleSnapshotByUserId).toHaveBeenCalledTimes(1);
+    expect(consoleRepositoryMocks.readConsoleSnapshotByUserId).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+    );
+    expect(authRepositoryMocks.readProfileByUserId).not.toHaveBeenCalled();
   });
 
   it("accepts legacy non-uuid asset ids from the console snapshot read model", async () => {
-    const rpc = vi.fn().mockResolvedValue({
-      data: {
-        assets: [
-          {
-            access_key: "tradingview:private",
-            asset_type: "private",
-            assignment_id: "11111111-1111-4111-8111-111111111111",
-            expires_at: "2026-05-01T00:00:00.000Z",
-            id: "TV-001",
-            note: "Legacy asset key",
-            platform: "tradingview",
-            proxy: null,
-            subscription_id: "22222222-2222-4222-8222-222222222222",
-          },
-        ],
-        subscription: null,
-        transactions: [],
-      },
-      error: null,
+    consoleRepositoryMocks.readConsoleSnapshotByUserId.mockResolvedValue({
+      assets: [
+        {
+          access_key: "tradingview:private",
+          asset_type: "private",
+          assignment_id: "11111111-1111-4111-8111-111111111111",
+          expires_at: "2026-05-01T00:00:00.000Z",
+          id: "TV-001",
+          note: "Legacy asset key",
+          platform: "tradingview",
+          proxy: null,
+          subscription_id: "22222222-2222-4222-8222-222222222222",
+        },
+      ],
+      subscription: null,
+      transactions: [],
     });
-
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
-    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
 
     const { getConsoleSnapshot } = await import("@/modules/console/queries");
 
@@ -153,28 +137,22 @@ describe("console query read paths", () => {
   });
 
   it("accepts canonical transaction ids that do not satisfy zod uuid version checks", async () => {
-    const rpc = vi.fn().mockResolvedValue({
-      data: {
-        assets: [],
-        subscription: null,
-        transactions: [
-          {
-            amount_rp: 100000,
-            created_at: "2026-04-06T09:45:22.805008+00:00",
-            id: "50000000-0000-0000-0000-000000000004",
-            package_id: "3cd291dd-5403-4417-8e9b-92d9ced54f8a",
-            package_name: "Paket 3",
-            paid_at: null,
-            source: "payment_dummy",
-            status: "success",
-          },
-        ],
-      },
-      error: null,
+    consoleRepositoryMocks.readConsoleSnapshotByUserId.mockResolvedValue({
+      assets: [],
+      subscription: null,
+      transactions: [
+        {
+          amount_rp: 100000,
+          created_at: "2026-04-06T09:45:22.805008+00:00",
+          id: "50000000-0000-0000-0000-000000000004",
+          package_id: "3cd291dd-5403-4417-8e9b-92d9ced54f8a",
+          package_name: "Paket 3",
+          paid_at: null,
+          source: "payment_dummy",
+          status: "success",
+        },
+      ],
     });
-
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
-    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
 
     const { getConsoleSnapshot } = await import("@/modules/console/queries");
 
@@ -196,8 +174,8 @@ describe("console query read paths", () => {
     });
   });
 
-  it("returns an empty snapshot instead of throwing when the member token is unavailable", async () => {
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue(null);
+  it("returns an empty snapshot when there is no active app session", async () => {
+    sessionServiceMocks.validateActiveAppSession.mockResolvedValue(null);
 
     const { getConsoleSnapshot } = await import("@/modules/console/queries");
 
@@ -207,28 +185,22 @@ describe("console query read paths", () => {
       transactions: [],
     });
 
-    expect(databaseMocks.createInsForgeServerDatabase).not.toHaveBeenCalled();
+    expect(consoleRepositoryMocks.readConsoleSnapshotByUserId).not.toHaveBeenCalled();
   });
 
-  it("uses the authenticated server database path for getConsoleAssetDetail", async () => {
-    const rpc = vi.fn().mockResolvedValue({
-      data: {
-        access_key: "tradingview:private",
-        account: "account-1",
-        asset_json: { foo: "bar" },
-        asset_type: "private",
-        expires_at: "2026-05-01T00:00:00.000Z",
-        id: "22222222-2222-4222-8222-222222222222",
-        note: null,
-        platform: "tradingview",
-        proxy: null,
-        subscription_id: "33333333-3333-4333-8333-333333333333",
-      },
-      error: null,
+  it("reads member asset detail via trusted repository using the active session user id", async () => {
+    consoleRepositoryMocks.readConsoleAssetDetailByUserId.mockResolvedValue({
+      access_key: "tradingview:private",
+      account: "account-1",
+      asset_json: { foo: "bar" },
+      asset_type: "private",
+      expires_at: "2026-05-01T00:00:00.000Z",
+      id: "22222222-2222-4222-8222-222222222222",
+      note: null,
+      platform: "tradingview",
+      proxy: null,
+      subscription_id: "33333333-3333-4333-8333-333333333333",
     });
-
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
-    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
 
     const { getConsoleAssetDetail } = await import("@/modules/console/queries");
 
@@ -245,29 +217,26 @@ describe("console query read paths", () => {
       subscriptionId: "33333333-3333-4333-8333-333333333333",
     });
 
-    expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledTimes(1);
-    expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledWith({ accessToken: "member-access-token" });
+    expect(consoleRepositoryMocks.readConsoleAssetDetailByUserId).toHaveBeenCalledTimes(1);
+    expect(consoleRepositoryMocks.readConsoleAssetDetailByUserId).toHaveBeenCalledWith({
+      assetId: "22222222-2222-4222-8222-222222222222",
+      userId: "11111111-1111-4111-8111-111111111111",
+    });
   });
 
   it("accepts canonical Postgres-style asset ids that do not satisfy zod uuid version checks", async () => {
-    const rpc = vi.fn().mockResolvedValue({
-      data: {
-        access_key: "tradingview:share",
-        account: "seed-browser-tv-share-active@assetnext.dev",
-        asset_json: [{ name: "session", value: "seed-browser-tv-active" }],
-        asset_type: "share",
-        expires_at: "2026-07-18T00:00:00.000Z",
-        id: "20000000-0000-0000-0000-000000000003",
-        note: "seed_tv_share_1",
-        platform: "tradingview",
-        proxy: "http://proxy.tv.share.1",
-        subscription_id: "30000000-0000-0000-0000-000000000001",
-      },
-      error: null,
+    consoleRepositoryMocks.readConsoleAssetDetailByUserId.mockResolvedValue({
+      access_key: "tradingview:share",
+      account: "seed-browser-tv-share-active@assetnext.dev",
+      asset_json: [{ name: "session", value: "seed-browser-tv-active" }],
+      asset_type: "share",
+      expires_at: "2026-07-18T00:00:00.000Z",
+      id: "20000000-0000-0000-0000-000000000003",
+      note: "seed_tv_share_1",
+      platform: "tradingview",
+      proxy: "http://proxy.tv.share.1",
+      subscription_id: "30000000-0000-0000-0000-000000000001",
     });
-
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
-    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ rpc });
 
     const { getConsoleAssetDetail } = await import("@/modules/console/queries");
 
@@ -285,37 +254,69 @@ describe("console query read paths", () => {
     });
   });
 
-  it("returns null for asset detail when the member token is unavailable", async () => {
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue(null);
+  it("accepts legacy non-canonical asset ids for asset detail reads", async () => {
+    consoleRepositoryMocks.readConsoleAssetDetailByUserId.mockResolvedValue({
+      access_key: "tradingview:private",
+      account: "legacy-account",
+      asset_json: { legacy: true },
+      asset_type: "private",
+      expires_at: "2026-07-18T00:00:00.000Z",
+      id: "TV-001",
+      note: "Legacy detail",
+      platform: "tradingview",
+      proxy: null,
+      subscription_id: "30000000-0000-0000-0000-000000000001",
+    });
+
+    const { getConsoleAssetDetail } = await import("@/modules/console/queries");
+
+    await expect(getConsoleAssetDetail({ assetId: "TV-001" })).resolves.toEqual({
+      accessKey: "tradingview:private",
+      account: "legacy-account",
+      asset: { legacy: true },
+      assetType: "private",
+      expiresAt: "2026-07-18T00:00:00.000Z",
+      id: "TV-001",
+      note: "Legacy detail",
+      platform: "tradingview",
+      proxy: null,
+      subscriptionId: "30000000-0000-0000-0000-000000000001",
+    });
+
+    expect(consoleRepositoryMocks.readConsoleAssetDetailByUserId).toHaveBeenCalledWith({
+      assetId: "TV-001",
+      userId: "11111111-1111-4111-8111-111111111111",
+    });
+  });
+
+  it("returns null for truly invalid asset detail ids", async () => {
+    const { getConsoleAssetDetail } = await import("@/modules/console/queries");
+
+    await expect(getConsoleAssetDetail({ assetId: "" })).resolves.toBeNull();
+
+    expect(consoleRepositoryMocks.readConsoleAssetDetailByUserId).not.toHaveBeenCalled();
+  });
+
+  it("returns null for asset detail when there is no active app session", async () => {
+    sessionServiceMocks.validateActiveAppSession.mockResolvedValue(null);
 
     const { getConsoleAssetDetail } = await import("@/modules/console/queries");
 
     await expect(getConsoleAssetDetail({ assetId: "22222222-2222-4222-8222-222222222222" })).resolves.toBeNull();
 
-    expect(databaseMocks.createInsForgeServerDatabase).not.toHaveBeenCalled();
+    expect(consoleRepositoryMocks.readConsoleAssetDetailByUserId).not.toHaveBeenCalled();
   });
 
-  it("uses the authenticated server database path for getConsoleStateSnapshot", async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({
-      data: {
-        created_at: "2026-04-01T00:00:00.000Z",
-        end_at: "2026-05-01T00:00:00.000Z",
-        id: "44444444-4444-4444-8444-444444444444",
-        package_id: "55555555-5555-4555-8555-555555555555",
-        package_name: "Paket 5",
-        start_at: "2026-04-01T00:00:00.000Z",
-        status: "active",
-      },
-      error: null,
+  it("reads the latest console subscription via trusted repository using the active session user id", async () => {
+    consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId.mockResolvedValue({
+      created_at: "2026-04-01T00:00:00.000Z",
+      end_at: "2026-05-01T00:00:00.000Z",
+      id: "44444444-4444-4444-8444-444444444444",
+      package_id: "55555555-5555-4555-8555-555555555555",
+      package_name: "Paket 5",
+      start_at: "2026-04-01T00:00:00.000Z",
+      status: "active",
     });
-    const limit = vi.fn().mockReturnValue({ maybeSingle });
-    const order = vi.fn().mockReturnValue({ limit });
-    const eqUserId = vi.fn().mockReturnValue({ order });
-    const select = vi.fn().mockReturnValue({ eq: eqUserId });
-    const from = vi.fn().mockReturnValue({ select });
-
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
-    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ from });
 
     const { getConsoleStateSnapshot } = await import("@/modules/console/queries");
 
@@ -331,31 +332,21 @@ describe("console query read paths", () => {
       state: "active",
     });
 
-    expect(authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession).toHaveBeenCalledTimes(1);
-    expect(databaseMocks.createInsForgeServerDatabase).toHaveBeenCalledWith({ accessToken: "member-access-token" });
+    expect(consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+    );
   });
 
   it("accepts canonical subscription ids that do not satisfy zod uuid version checks in console state reads", async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({
-      data: {
-        created_at: "2026-04-01T00:00:00.000Z",
-        end_at: "2026-04-18T00:00:00.000Z",
-        id: "40000000-0000-0000-0000-000000000004",
-        package_id: "55555555-5555-4555-8555-555555555555",
-        package_name: "Paket Legacy",
-        start_at: "2026-03-19T00:00:00.000Z",
-        status: "active",
-      },
-      error: null,
+    consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId.mockResolvedValue({
+      created_at: "2026-04-01T00:00:00.000Z",
+      end_at: "2026-04-18T00:00:00.000Z",
+      id: "40000000-0000-0000-0000-000000000004",
+      package_id: "55555555-5555-4555-8555-555555555555",
+      package_name: "Paket Legacy",
+      start_at: "2026-03-19T00:00:00.000Z",
+      status: "active",
     });
-    const limit = vi.fn().mockReturnValue({ maybeSingle });
-    const order = vi.fn().mockReturnValue({ limit });
-    const eqUserId = vi.fn().mockReturnValue({ order });
-    const select = vi.fn().mockReturnValue({ eq: eqUserId });
-    const from = vi.fn().mockReturnValue({ select });
-
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue("member-access-token");
-    databaseMocks.createInsForgeServerDatabase.mockReturnValue({ from });
 
     const { getConsoleStateSnapshot } = await import("@/modules/console/queries");
 
@@ -372,8 +363,8 @@ describe("console query read paths", () => {
     });
   });
 
-  it("returns none for console state instead of throwing when the member token is unavailable", async () => {
-    authServiceMocks.readValidatedInsForgeAccessTokenForActiveAppSession.mockResolvedValue(null);
+  it("returns none for console state when there is no active app session", async () => {
+    sessionServiceMocks.validateActiveAppSession.mockResolvedValue(null);
 
     const { getConsoleStateSnapshot } = await import("@/modules/console/queries");
 
@@ -382,6 +373,141 @@ describe("console query read paths", () => {
       state: "none",
     });
 
-    expect(databaseMocks.createInsForgeServerDatabase).not.toHaveBeenCalled();
+    expect(consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId).not.toHaveBeenCalled();
+  });
+
+  it("allows an admin to read another user's snapshot", async () => {
+    consoleRepositoryMocks.readConsoleSnapshotByUserId.mockResolvedValue({
+      assets: [],
+      subscription: null,
+      transactions: [],
+    });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({ role: "admin" });
+
+    const { getConsoleSnapshot } = await import("@/modules/console/queries");
+
+    await expect(getConsoleSnapshot({ userId: "99999999-9999-4999-8999-999999999999" })).resolves.toEqual({
+      assets: [],
+      subscription: null,
+      transactions: [],
+    });
+
+    expect(authRepositoryMocks.readProfileByUserId).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111");
+    expect(consoleRepositoryMocks.readConsoleSnapshotByUserId).toHaveBeenCalledWith(
+      "99999999-9999-4999-8999-999999999999",
+    );
+  });
+
+  it("rejects non-admin attempts to read another user's snapshot", async () => {
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({ role: "member" });
+
+    const { getConsoleSnapshot } = await import("@/modules/console/queries");
+
+    await expect(getConsoleSnapshot({ userId: "99999999-9999-4999-8999-999999999999" })).rejects.toThrow(
+      "Admin access is required to read another user's console snapshot.",
+    );
+
+    expect(consoleRepositoryMocks.readConsoleSnapshotByUserId).not.toHaveBeenCalled();
+  });
+
+  it("allows an admin to read another user's asset detail", async () => {
+    consoleRepositoryMocks.readConsoleAssetDetailByUserId.mockResolvedValue({
+      access_key: "tradingview:private",
+      account: "admin-read-account",
+      asset_json: { ok: true },
+      asset_type: "private",
+      expires_at: "2026-05-01T00:00:00.000Z",
+      id: "22222222-2222-4222-8222-222222222222",
+      note: null,
+      platform: "tradingview",
+      proxy: null,
+      subscription_id: "33333333-3333-4333-8333-333333333333",
+    });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({ role: "admin" });
+
+    const { getConsoleAssetDetail } = await import("@/modules/console/queries");
+
+    await expect(
+      getConsoleAssetDetail({
+        assetId: "22222222-2222-4222-8222-222222222222",
+        userId: "99999999-9999-4999-8999-999999999999",
+      }),
+    ).resolves.toEqual({
+      accessKey: "tradingview:private",
+      account: "admin-read-account",
+      asset: { ok: true },
+      assetType: "private",
+      expiresAt: "2026-05-01T00:00:00.000Z",
+      id: "22222222-2222-4222-8222-222222222222",
+      note: null,
+      platform: "tradingview",
+      proxy: null,
+      subscriptionId: "33333333-3333-4333-8333-333333333333",
+    });
+
+    expect(authRepositoryMocks.readProfileByUserId).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111");
+    expect(consoleRepositoryMocks.readConsoleAssetDetailByUserId).toHaveBeenCalledWith({
+      assetId: "22222222-2222-4222-8222-222222222222",
+      userId: "99999999-9999-4999-8999-999999999999",
+    });
+  });
+
+  it("rejects non-admin attempts to read another user's asset detail", async () => {
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({ role: "member" });
+
+    const { getConsoleAssetDetail } = await import("@/modules/console/queries");
+
+    await expect(
+      getConsoleAssetDetail({
+        assetId: "22222222-2222-4222-8222-222222222222",
+        userId: "99999999-9999-4999-8999-999999999999",
+      }),
+    ).rejects.toThrow("Admin access is required to read another user's console snapshot.");
+
+    expect(consoleRepositoryMocks.readConsoleAssetDetailByUserId).not.toHaveBeenCalled();
+  });
+
+  it("allows an admin to read another user's console state", async () => {
+    consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId.mockResolvedValue({
+      created_at: "2026-04-01T00:00:00.000Z",
+      end_at: "2026-05-01T00:00:00.000Z",
+      id: "44444444-4444-4444-8444-444444444444",
+      package_id: "55555555-5555-4555-8555-555555555555",
+      package_name: "Paket 5",
+      start_at: "2026-04-01T00:00:00.000Z",
+      status: "active",
+    });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({ role: "admin" });
+
+    const { getConsoleStateSnapshot } = await import("@/modules/console/queries");
+
+    await expect(getConsoleStateSnapshot({ userId: "99999999-9999-4999-8999-999999999999" })).resolves.toEqual({
+      latestSubscription: {
+        endAt: "2026-05-01T00:00:00.000Z",
+        id: "44444444-4444-4444-8444-444444444444",
+        packageId: "55555555-5555-4555-8555-555555555555",
+        packageName: "Paket 5",
+        startAt: "2026-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
+
+    expect(authRepositoryMocks.readProfileByUserId).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111");
+    expect(consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId).toHaveBeenCalledWith(
+      "99999999-9999-4999-8999-999999999999",
+    );
+  });
+
+  it("rejects non-admin attempts to read another user's console state", async () => {
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({ role: "member" });
+
+    const { getConsoleStateSnapshot } = await import("@/modules/console/queries");
+
+    await expect(getConsoleStateSnapshot({ userId: "99999999-9999-4999-8999-999999999999" })).rejects.toThrow(
+      "Admin access is required to read another user's console snapshot.",
+    );
+
+    expect(consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId).not.toHaveBeenCalled();
   });
 });

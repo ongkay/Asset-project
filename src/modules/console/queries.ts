@@ -2,11 +2,14 @@ import "server-only";
 
 import { z } from "zod";
 
-import { createInsForgeServerDatabase } from "@/lib/insforge/database";
 import { readProfileByUserId } from "@/modules/auth/repositories";
-import { readValidatedInsForgeAccessTokenForActiveAppSession } from "@/modules/auth/services";
 import { validateActiveAppSession } from "@/modules/sessions/services";
 
+import {
+  readConsoleAssetDetailByUserId,
+  readConsoleSnapshotByUserId,
+  readLatestConsoleSubscriptionByUserId,
+} from "./repositories";
 import type { ConsoleAssetDetail, ConsoleSnapshot, ConsoleStateSnapshot } from "./types";
 
 const isoDateTimeSchema = z.iso.datetime({ offset: true });
@@ -59,7 +62,7 @@ const consoleAssetDetailSchema = z.object({
   asset_json: z.unknown(),
   asset_type: z.enum(["private", "share"]),
   expires_at: isoDateTimeSchema,
-  id: canonicalUuidLikeSchema,
+  id: z.string().min(1),
   note: z.string().nullable(),
   platform: z.enum(["tradingview", "fxreplay", "fxtester"]),
   proxy: z.string().nullable(),
@@ -85,21 +88,11 @@ type ConsoleStateSubscriptionRow = {
   status: "active" | "processed" | "expired" | "canceled";
 };
 
-async function createAuthenticatedConsoleDatabase() {
-  const accessToken = await readValidatedInsForgeAccessTokenForActiveAppSession();
-
-  if (!accessToken) {
-    return null;
-  }
-
-  return createInsForgeServerDatabase({ accessToken });
-}
-
 async function resolveConsoleTargetUserId(input: { userId?: string }) {
   const activeSession = await validateActiveAppSession();
 
   if (!activeSession) {
-    throw new Error("An active app session is required.");
+    return null;
   }
 
   const targetUserId = input.userId ?? activeSession.userId;
@@ -118,9 +111,9 @@ async function resolveConsoleTargetUserId(input: { userId?: string }) {
 }
 
 export async function getConsoleSnapshot(input: { userId?: string } = {}): Promise<ConsoleSnapshot> {
-  const database = await createAuthenticatedConsoleDatabase();
+  const targetUserId = await resolveConsoleTargetUserId(input);
 
-  if (!database) {
+  if (!targetUserId) {
     return {
       assets: [],
       subscription: null,
@@ -128,16 +121,7 @@ export async function getConsoleSnapshot(input: { userId?: string } = {}): Promi
     };
   }
 
-  const targetUserId = await resolveConsoleTargetUserId(input);
-  const { data, error } = await database.rpc("get_user_console_snapshot", {
-    p_user_id: targetUserId,
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  const snapshot = consoleSnapshotSchema.parse(data);
+  const snapshot = consoleSnapshotSchema.parse(await readConsoleSnapshotByUserId(targetUserId));
 
   return {
     assets: snapshot.assets.map((asset) => ({
@@ -179,31 +163,26 @@ export async function getConsoleAssetDetail(input: {
   assetId: string;
   userId?: string;
 }): Promise<ConsoleAssetDetail | null> {
-  if (!canonicalUuidLikeSchema.safeParse(input.assetId).success) {
-    return null;
-  }
-
-  const database = await createAuthenticatedConsoleDatabase();
-
-  if (!database) {
+  if (!z.string().min(1).safeParse(input.assetId).success) {
     return null;
   }
 
   const targetUserId = await resolveConsoleTargetUserId(input);
-  const { data, error } = await database.rpc("get_user_asset_detail", {
-    p_asset_id: input.assetId,
-    p_user_id: targetUserId,
-  });
 
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
+  if (!targetUserId) {
     return null;
   }
 
-  const detail = consoleAssetDetailSchema.parse(data);
+  const detailRow = await readConsoleAssetDetailByUserId({
+    assetId: input.assetId,
+    userId: targetUserId,
+  });
+
+  if (!detailRow) {
+    return null;
+  }
+
+  const detail = consoleAssetDetailSchema.parse(detailRow);
 
   return {
     accessKey: detail.access_key,
@@ -249,30 +228,19 @@ export function deriveConsoleStateSnapshot(
 }
 
 export async function getConsoleStateSnapshot(input: { userId?: string } = {}): Promise<ConsoleStateSnapshot> {
-  const database = await createAuthenticatedConsoleDatabase();
-
-  if (!database) {
-    return deriveConsoleStateSnapshot(null);
-  }
-
   const targetUserId = await resolveConsoleTargetUserId(input);
-  const { data, error } = await database
-    .from("subscriptions")
-    .select("id, package_id, package_name, status, start_at, end_at, created_at")
-    .eq("user_id", targetUserId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
 
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
+  if (!targetUserId) {
     return deriveConsoleStateSnapshot(null);
   }
 
-  const latestSubscription = consoleStateSubscriptionSchema.parse(data);
+  const latestSubscriptionRow = await readLatestConsoleSubscriptionByUserId(targetUserId);
+
+  if (!latestSubscriptionRow) {
+    return deriveConsoleStateSnapshot(null);
+  }
+
+  const latestSubscription = consoleStateSubscriptionSchema.parse(latestSubscriptionRow);
 
   return deriveConsoleStateSnapshot({
     endAt: latestSubscription.end_at,
