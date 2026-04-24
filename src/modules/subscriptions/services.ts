@@ -459,30 +459,36 @@ export async function activateSubscriptionManually(
     throw new Error("Package is disabled.");
   }
 
-  const activationResult = await activateSubscription({
+  const activationExecution = await activateSubscriptionWithCompensation({
     ...resolvedInput,
     source: "admin_manual",
   });
+  const activationResult = activationExecution.result;
 
   const nowIso = new Date().toISOString();
 
-  const transaction = await createTransactionRow({
-    code: toTransactionCode(),
-    userId: resolvedInput.userId,
-    subscriptionId: activationResult.subscriptionId,
-    packageId: resolvedInput.packageSnapshot.packageId,
-    packageName: resolvedInput.packageSnapshot.name,
-    source: "admin_manual",
-    status: "success",
-    amountRp: resolvedInput.packageSnapshot.amountRp,
-    paidAt: nowIso,
-  });
+  try {
+    const transaction = await createTransactionRow({
+      code: toTransactionCode(),
+      userId: resolvedInput.userId,
+      subscriptionId: activationResult.subscriptionId,
+      packageId: resolvedInput.packageSnapshot.packageId,
+      packageName: resolvedInput.packageSnapshot.name,
+      source: "admin_manual",
+      status: "success",
+      amountRp: resolvedInput.packageSnapshot.amountRp,
+      paidAt: nowIso,
+    });
 
-  return {
-    subscriptionId: activationResult.subscriptionId,
-    transactionId: transaction.id,
-    mode: activationResult.mode,
-  };
+    return {
+      subscriptionId: activationResult.subscriptionId,
+      transactionId: transaction.id,
+      mode: activationResult.mode,
+    };
+  } catch (error) {
+    await tryRollbackWithoutMasking(activationExecution.compensation);
+    throw error;
+  }
 }
 
 function getFailureReason(error: unknown) {
@@ -576,10 +582,21 @@ export async function cancelSubscription(input: SubscriberCancelInput) {
     subscriptionId: parsedInput.subscriptionId,
     cancelReason: "admin_canceled",
   });
-  await revokeActiveAssignmentsBySubscriptionId({
-    subscriptionId: parsedInput.subscriptionId,
-    revokeReason: "subscription_canceled",
-  });
+
+  try {
+    await revokeActiveAssignmentsBySubscriptionId({
+      subscriptionId: parsedInput.subscriptionId,
+      revokeReason: "subscription_canceled",
+    });
+  } catch (error) {
+    await restoreSubscriptionRow({
+      subscriptionId: parsedInput.subscriptionId,
+      status: subscription.status,
+      endAt: subscription.endAt,
+    });
+
+    throw error;
+  }
 
   return {
     subscriptionId: parsedInput.subscriptionId,

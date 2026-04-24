@@ -19,6 +19,7 @@ import {
   signUpInputSchema,
 } from "./schemas";
 import {
+  deleteAuthUserAsAdmin,
   exchangeResetPasswordToken,
   updateAuthUserPasswordAsAdmin,
   insertLoginLog,
@@ -303,17 +304,20 @@ export async function signUpAndCreateAppSession(input: {
     };
   }
 
-  const profile = await provisionMemberProfile({
-    email: credentials.email,
-    userId: result.data.user.id,
-  });
-
-  await createAlignedAppSession({
-    accessToken: result.data.accessToken,
-    userId: result.data.user.id,
-  });
+  let hasAlignedAppSession = false;
 
   try {
+    const profile = await provisionMemberProfile({
+      email: credentials.email,
+      userId: result.data.user.id,
+    });
+
+    await createAlignedAppSession({
+      accessToken: result.data.accessToken,
+      userId: result.data.user.id,
+    });
+    hasAlignedAppSession = true;
+
     await writeAuthenticationLog({
       browser: metadata.browser,
       email: credentials.email,
@@ -323,16 +327,24 @@ export async function signUpAndCreateAppSession(input: {
       os: metadata.os,
       userId: result.data.user.id,
     });
+    return {
+      message: `Welcome, ${profile.username}.`,
+      ok: true,
+      redirectTo: "/console",
+    };
   } catch (error) {
-    await revokeActiveAppSession();
+    if (hasAlignedAppSession) {
+      await revokeActiveAppSession();
+    }
+
+    try {
+      await deleteAuthUserAsAdmin({ userId: result.data.user.id });
+    } catch {
+      // Preserve the original signup failure and avoid masking it with rollback issues.
+    }
+
     throw error;
   }
-
-  return {
-    message: `Welcome, ${profile.username}.`,
-    ok: true,
-    redirectTo: "/console",
-  };
 }
 
 export async function signOutAndRevokeAppSession() {

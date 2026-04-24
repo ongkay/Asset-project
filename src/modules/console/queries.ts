@@ -20,8 +20,8 @@ const canonicalUuidLikeSchema = z
 const consoleSubscriptionSchema = z.object({
   days_left: z.number().int().nonnegative(),
   end_at: isoDateTimeSchema,
-  id: z.uuid(),
-  package_id: z.uuid(),
+  id: canonicalUuidLikeSchema,
+  package_id: canonicalUuidLikeSchema,
   package_name: z.string(),
   start_at: isoDateTimeSchema,
   status: z.enum(["active", "processed"]),
@@ -30,20 +30,20 @@ const consoleSubscriptionSchema = z.object({
 const consoleAssetSchema = z.object({
   access_key: z.string(),
   asset_type: z.enum(["private", "share"]),
-  assignment_id: z.uuid(),
+  assignment_id: canonicalUuidLikeSchema,
   expires_at: isoDateTimeSchema,
   id: z.string().min(1),
   note: z.string().nullable(),
   platform: z.enum(["tradingview", "fxreplay", "fxtester"]),
   proxy: z.string().nullable(),
-  subscription_id: z.uuid(),
+  subscription_id: canonicalUuidLikeSchema,
 });
 
 const consoleTransactionSchema = z.object({
   amount_rp: z.number().int().nonnegative(),
   created_at: isoDateTimeSchema,
   id: canonicalUuidLikeSchema,
-  package_id: z.uuid(),
+  package_id: canonicalUuidLikeSchema,
   package_name: z.string(),
   paid_at: isoDateTimeSchema.nullable(),
   source: z.enum(["payment_dummy", "cdkey", "admin_manual"]),
@@ -73,7 +73,7 @@ const consoleStateSubscriptionSchema = z.object({
   created_at: isoDateTimeSchema,
   end_at: isoDateTimeSchema,
   id: canonicalUuidLikeSchema,
-  package_id: z.uuid(),
+  package_id: canonicalUuidLikeSchema,
   package_name: z.string(),
   start_at: isoDateTimeSchema,
   status: z.enum(["active", "processed", "expired", "canceled"]),
