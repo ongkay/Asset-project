@@ -89,7 +89,21 @@ describe("ext route handlers", () => {
   it("passes parsed POST body and headers to redeem service", async () => {
     mockedCreateExtRedeemResponse.mockResolvedValue({
       bootstrap: {
+        assets: [],
         auth: { status: "authenticated" },
+        subscription: {
+          countdownSeconds: 0,
+          endAt: null,
+          packageName: null,
+          status: "active",
+        },
+        user: {
+          avatarUrl: null,
+          email: "seed.active@assetnext.dev",
+          id: "user-1",
+          publicId: "MEM-001",
+          username: "seed-active",
+        },
         version: { status: "supported" },
       },
       message: "CD-Key berhasil diredeem.",
@@ -114,7 +128,21 @@ describe("ext route handlers", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       bootstrap: {
+        assets: [],
         auth: { status: "authenticated" },
+        subscription: {
+          countdownSeconds: 0,
+          endAt: null,
+          packageName: null,
+          status: "active",
+        },
+        user: {
+          avatarUrl: null,
+          email: "seed.active@assetnext.dev",
+          id: "user-1",
+          publicId: "MEM-001",
+          username: "seed-active",
+        },
         version: { status: "supported" },
       },
       message: "CD-Key berhasil diredeem.",
