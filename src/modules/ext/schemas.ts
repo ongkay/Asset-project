@@ -4,13 +4,19 @@ export const extPlatformSchema = z.enum(["tradingview", "fxreplay", "fxtester"])
 
 export const extModeSchema = z.enum(["private", "share"]);
 
+const extVersionSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(/^\d+(?:\.\d+)*$/, "Must be a dot-separated numeric version.");
+
 export const extRequestHeadersSchema = z.object({
   extensionId: z
     .string()
     .trim()
     .min(1)
     .refine((value) => !value.includes("://") && !value.includes("/"), "Must be a raw extension ID."),
-  extensionVersion: z.string().trim().min(1).optional(),
+  extensionVersion: extVersionSchema.optional(),
   origin: z
     .string()
     .trim()
@@ -22,7 +28,7 @@ export const extRequestHeadersSchema = z.object({
 });
 
 export const extBootstrapQuerySchema = z.object({
-  version: z.string().trim().min(1).optional(),
+  version: extVersionSchema.optional(),
 });
 
 export const extAssetQuerySchema = z.object({

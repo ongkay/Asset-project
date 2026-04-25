@@ -27,13 +27,32 @@ describe("ext schemas", () => {
     expect(extBootstrapQuerySchema.parse({ version: " 2.0.0 " })).toEqual({ version: "2.0.0" });
   });
 
+  it("rejects malformed bootstrap query versions", () => {
+    expect(() => extBootstrapQuerySchema.parse({ version: "2.bad.0" })).toThrow();
+  });
+
   it("requires raw extension id plus trusted origin", () => {
     expect(
       extRequestHeadersSchema.parse({
         extensionId: "allowed-id",
+        extensionVersion: "2.0.0",
         origin: "chrome-extension://allowed-id",
       }),
-    ).toMatchObject({ extensionId: "allowed-id", origin: "chrome-extension://allowed-id" });
+    ).toMatchObject({
+      extensionId: "allowed-id",
+      extensionVersion: "2.0.0",
+      origin: "chrome-extension://allowed-id",
+    });
+  });
+
+  it("rejects malformed extension versions in request headers", () => {
+    expect(() =>
+      extRequestHeadersSchema.parse({
+        extensionId: "allowed-id",
+        extensionVersion: "2.bad.0",
+        origin: "chrome-extension://allowed-id",
+      }),
+    ).toThrow();
   });
 
   it("rejects malformed origins before allowlist checks", () => {
