@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
 
+import { EXT_PLATFORMS } from "./platforms";
 import { extModeSchema, extPlatformSchema } from "./schemas";
 
 const extAppConfigRowSchema = z.object({
@@ -20,7 +21,7 @@ const extPlatformAccessRowSchema = z.object({
 });
 
 const extAssetCookieSchema = z.object({
-  domain: z.string().min(1),
+  domain: z.string().min(1).optional(),
   expirationDate: z.number().int().optional(),
   httpOnly: z.boolean().default(false),
   name: z.string().min(1),
@@ -168,9 +169,13 @@ export async function readExtAssetSecretByUserId(input: {
   }
 
   const asset = extAssetSecretRowSchema.parse(data.assets);
+  const defaultCookieDomain = EXT_PLATFORMS[input.platform].cookieDomains[0];
 
   return {
-    cookies: asset.asset_json,
+    cookies: asset.asset_json.map((cookie) => ({
+      ...cookie,
+      domain: cookie.domain ?? defaultCookieDomain,
+    })),
     proxy: asset.proxy,
   };
 }

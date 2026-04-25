@@ -6,7 +6,7 @@ import { readTrustedRequestMetadataFromHeaders } from "@/lib/request-metadata";
 import { readProfileByUserId } from "@/modules/auth/repositories";
 import { signOutAndRevokeAppSession } from "@/modules/auth/services";
 import { redeemCdKey } from "@/modules/cdkeys/services";
-import { getConsoleStateSnapshot } from "@/modules/console/queries";
+import { getConsoleStateSnapshotByUserId } from "@/modules/console/queries";
 import {
   touchAppSessionLastSeen,
   validateActiveAppSession,
@@ -219,7 +219,7 @@ export async function getExtBootstrapResponse(input: { query: unknown; requestHe
     throw new ExtApiError("EXT_USER_BANNED", "This user is not allowed to use the extension.");
   }
 
-  const consoleState = await getConsoleStateSnapshot({ userId: activeSession.userId });
+  const consoleState = await getConsoleStateSnapshotByUserId(activeSession.userId);
   const user = {
     avatarUrl: profile.avatarUrl,
     email: profile.email,

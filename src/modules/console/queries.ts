@@ -227,14 +227,8 @@ export function deriveConsoleStateSnapshot(
   };
 }
 
-export async function getConsoleStateSnapshot(input: { userId?: string } = {}): Promise<ConsoleStateSnapshot> {
-  const targetUserId = await resolveConsoleTargetUserId(input);
-
-  if (!targetUserId) {
-    return deriveConsoleStateSnapshot(null);
-  }
-
-  const latestSubscriptionRow = await readLatestConsoleSubscriptionByUserId(targetUserId);
+export async function getConsoleStateSnapshotByUserId(userId: string): Promise<ConsoleStateSnapshot> {
+  const latestSubscriptionRow = await readLatestConsoleSubscriptionByUserId(userId);
 
   if (!latestSubscriptionRow) {
     return deriveConsoleStateSnapshot(null);
@@ -250,4 +244,14 @@ export async function getConsoleStateSnapshot(input: { userId?: string } = {}): 
     startAt: latestSubscription.start_at,
     status: latestSubscription.status,
   });
+}
+
+export async function getConsoleStateSnapshot(input: { userId?: string } = {}): Promise<ConsoleStateSnapshot> {
+  const targetUserId = await resolveConsoleTargetUserId(input);
+
+  if (!targetUserId) {
+    return deriveConsoleStateSnapshot(null);
+  }
+
+  return getConsoleStateSnapshotByUserId(targetUserId);
 }

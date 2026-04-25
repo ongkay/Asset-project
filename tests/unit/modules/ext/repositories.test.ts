@@ -139,6 +139,49 @@ describe("ext/repositories", () => {
     expect(isRevoked).toHaveBeenCalledWith("revoked_at", null);
   });
 
+  it("fills the default cookie domain when stored asset cookies omit it", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        assets: {
+          asset_json: [
+            {
+              name: "sessionid",
+              value: "secret",
+            },
+          ],
+          proxy: "http://proxy.local",
+        },
+      },
+      error: null,
+    });
+    const isRevoked = vi.fn().mockReturnValue({ maybeSingle });
+    const eqAccessKey = vi.fn().mockReturnValue({ is: isRevoked });
+    const eqUserId = vi.fn().mockReturnValue({ eq: eqAccessKey });
+
+    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({ eq: eqUserId }),
+      }),
+    });
+
+    await expect(
+      readExtAssetSecretByUserId({ mode: "share", platform: "tradingview", userId: "user-1" }),
+    ).resolves.toEqual({
+      cookies: [
+        {
+          domain: ".tradingview.com",
+          httpOnly: false,
+          name: "sessionid",
+          path: "/",
+          sameSite: "no_restriction",
+          secure: true,
+          value: "secret",
+        },
+      ],
+      proxy: "http://proxy.local",
+    });
+  });
+
   it("maps active packages into the ext checkout payload", async () => {
     const order = vi.fn().mockResolvedValue({
       data: [

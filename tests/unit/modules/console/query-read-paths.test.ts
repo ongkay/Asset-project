@@ -337,6 +337,37 @@ describe("console query read paths", () => {
     );
   });
 
+  it("reads console state directly by explicit user id without requiring an active session", async () => {
+    consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId.mockResolvedValue({
+      created_at: "2026-04-01T00:00:00.000Z",
+      end_at: "2026-05-01T00:00:00.000Z",
+      id: "44444444-4444-4444-8444-444444444444",
+      package_id: "55555555-5555-4555-8555-555555555555",
+      package_name: "Paket 5",
+      start_at: "2026-04-01T00:00:00.000Z",
+      status: "active",
+    });
+
+    const { getConsoleStateSnapshotByUserId } = await import("@/modules/console/queries");
+
+    await expect(getConsoleStateSnapshotByUserId("99999999-9999-4999-8999-999999999999")).resolves.toEqual({
+      latestSubscription: {
+        endAt: "2026-05-01T00:00:00.000Z",
+        id: "44444444-4444-4444-8444-444444444444",
+        packageId: "55555555-5555-4555-8555-555555555555",
+        packageName: "Paket 5",
+        startAt: "2026-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
+
+    expect(sessionServiceMocks.validateActiveAppSession).not.toHaveBeenCalled();
+    expect(consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId).toHaveBeenCalledWith(
+      "99999999-9999-4999-8999-999999999999",
+    );
+  });
+
   it("accepts canonical subscription ids that do not satisfy zod uuid version checks in console state reads", async () => {
     consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId.mockResolvedValue({
       created_at: "2026-04-01T00:00:00.000Z",

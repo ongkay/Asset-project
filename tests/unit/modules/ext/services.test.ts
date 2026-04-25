@@ -22,7 +22,7 @@ const cdKeyServiceMocks = vi.hoisted(() => ({
 }));
 
 const consoleQueryMocks = vi.hoisted(() => ({
-  getConsoleStateSnapshot: vi.fn(),
+  getConsoleStateSnapshotByUserId: vi.fn(),
 }));
 
 const extRepositoryMocks = vi.hoisted(() => ({
@@ -61,7 +61,7 @@ describe("ext/services bootstrap", () => {
     authRepositoryMocks.readProfileByUserId.mockReset();
     authServiceMocks.signOutAndRevokeAppSession.mockReset();
     cdKeyServiceMocks.redeemCdKey.mockReset();
-    consoleQueryMocks.getConsoleStateSnapshot.mockReset();
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockReset();
     extRepositoryMocks.readExtAppConfig.mockReset();
     extRepositoryMocks.readExtAssetSecretByUserId.mockReset();
     extRepositoryMocks.readExtPlatformAccessByUserId.mockReset();
@@ -118,7 +118,7 @@ describe("ext/services bootstrap", () => {
       userId: "user-1",
       username: "seed-active",
     });
-    consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue({
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
       latestSubscription: {
         endAt: "2099-05-01T00:00:00.000Z",
         id: "sub-1",
@@ -186,7 +186,7 @@ describe("ext/services bootstrap", () => {
       userId: "user-1",
       username: "seed-expired",
     });
-    consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue({
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
       latestSubscription: {
         endAt: "2026-04-01T00:00:00.000Z",
         id: "sub-2",
@@ -413,7 +413,7 @@ describe("ext/services bootstrap", () => {
       userId: "user-1",
       username: "seed-active",
     });
-    consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue({
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
       latestSubscription: {
         endAt: "2099-05-01T00:00:00.000Z",
         id: "sub-1",
@@ -643,7 +643,7 @@ describe("ext/services bootstrap", () => {
       userId: "user-1",
       username: "seed-active",
     });
-    consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue({
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
       latestSubscription: {
         endAt: "2026-05-01T00:00:00.000Z",
         id: "sub-1",
