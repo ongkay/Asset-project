@@ -1,0 +1,315 @@
+{
+  "info": {
+    "name": "Extension V2 API",
+    "description": "Manual verification collection for /api/ext/*.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Bootstrap Unauthenticated",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-extension-version", "value": "{{extension_version}}" },
+          { "key": "x-ext-dev-origin", "value": "{{dev_origin}}" },
+          { "key": "x-ext-dev-extension-id", "value": "{{dev_extension_id}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ext/bootstrap?version={{extension_version}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ext", "bootstrap"],
+          "query": [{ "key": "version", "value": "{{extension_version}}" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('unauthenticated bootstrap', function () { pm.expect(body.auth.status).to.eql('unauthenticated'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bootstrap Authenticated",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-extension-version", "value": "{{extension_version}}" },
+          { "key": "x-ext-dev-origin", "value": "{{dev_origin}}" },
+          { "key": "x-ext-dev-extension-id", "value": "{{dev_extension_id}}" },
+          { "key": "x-ext-dev-app-session", "value": "{{dev_app_session}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ext/bootstrap?version={{extension_version}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ext", "bootstrap"],
+          "query": [{ "key": "version", "value": "{{extension_version}}" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('authenticated bootstrap', function () { pm.expect(body.auth.status).to.eql('authenticated'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Asset Authenticated",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-extension-version", "value": "{{extension_version}}" },
+          { "key": "x-ext-dev-origin", "value": "{{dev_origin}}" },
+          { "key": "x-ext-dev-extension-id", "value": "{{dev_extension_id}}" },
+          { "key": "x-ext-dev-app-session", "value": "{{dev_app_session}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ext/asset?platform={{platform}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ext", "asset"],
+          "query": [{ "key": "platform", "value": "{{platform}}" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('asset status valid', function () { pm.expect(['ready', 'selection_required', 'forbidden']).to.include(body.status); });",
+              "pm.test('asset platform tradingview when present', function () { if (body.platform) pm.expect(body.platform).to.eql('tradingview'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Heartbeat Authenticated",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "content-type", "value": "application/json" },
+          { "key": "x-extension-version", "value": "{{extension_version}}" },
+          { "key": "x-ext-dev-origin", "value": "{{dev_origin}}" },
+          { "key": "x-ext-dev-extension-id", "value": "{{dev_extension_id}}" },
+          { "key": "x-ext-dev-app-session", "value": "{{dev_app_session}}" },
+          { "key": "x-forwarded-for", "value": "127.0.0.1" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deviceId\": \"{{device_id}}\",\n  \"extensionVersion\": \"{{extension_version}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/ext/heartbeat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ext", "heartbeat"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('heartbeat ok', function () { pm.expect(body.ok).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Redeem Invalid",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "content-type", "value": "application/json" },
+          { "key": "x-extension-version", "value": "{{extension_version}}" },
+          { "key": "x-ext-dev-origin", "value": "{{dev_origin}}" },
+          { "key": "x-ext-dev-extension-id", "value": "{{dev_extension_id}}" },
+          { "key": "x-ext-dev-app-session", "value": "{{dev_app_session}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{invalid_cd_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/ext/redeem",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ext", "redeem"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 400', function () { pm.response.to.have.status(400); });",
+              "const body = pm.response.json();",
+              "pm.test('invalid redeem code', function () { pm.expect(body.error.code).to.eql('EXT_REDEEM_INVALID'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Redeem Success",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "content-type", "value": "application/json" },
+          { "key": "x-extension-version", "value": "{{extension_version}}" },
+          { "key": "x-ext-dev-origin", "value": "{{dev_origin}}" },
+          { "key": "x-ext-dev-extension-id", "value": "{{dev_extension_id}}" },
+          { "key": "x-ext-dev-app-session", "value": "{{dev_app_session}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{valid_cd_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/ext/redeem",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ext", "redeem"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('redeem success shape', function () { pm.expect(body.ok).to.eql(true); pm.expect(body.message).to.eql('CD-Key berhasil diredeem.'); pm.expect(body.bootstrap).to.be.an('object'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Asset Authenticated Explicit Mode",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-extension-version", "value": "{{extension_version}}" },
+          { "key": "x-ext-dev-origin", "value": "{{dev_origin}}" },
+          { "key": "x-ext-dev-extension-id", "value": "{{dev_extension_id}}" },
+          { "key": "x-ext-dev-app-session", "value": "{{dev_app_session}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ext/asset?platform={{platform}}&mode=share",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ext", "asset"],
+          "query": [
+            { "key": "platform", "value": "{{platform}}" },
+            { "key": "mode", "value": "share" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('explicit mode respected', function () { pm.expect(body.mode).to.eql('share'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logout With Cookie",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-extension-version", "value": "{{extension_version}}" },
+          { "key": "x-ext-dev-origin", "value": "{{dev_origin}}" },
+          { "key": "x-ext-dev-extension-id", "value": "{{dev_extension_id}}" },
+          { "key": "Cookie", "value": "app_session={{cookie_app_session}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ext/logout",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ext", "logout"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('logout ok', function () { pm.expect(body.ok).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bootstrap After Logout",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-extension-version", "value": "{{extension_version}}" },
+          { "key": "x-ext-dev-origin", "value": "{{dev_origin}}" },
+          { "key": "x-ext-dev-extension-id", "value": "{{dev_extension_id}}" },
+          { "key": "x-ext-dev-app-session", "value": "{{dev_app_session}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ext/bootstrap?version={{extension_version}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ext", "bootstrap"],
+          "query": [{ "key": "version", "value": "{{extension_version}}" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('token is now unauthenticated', function () { pm.expect(body.auth.status).to.eql('unauthenticated'); });"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "extension_version", "value": "2.0.0" },
+    { "key": "dev_origin", "value": "chrome-extension://allowed-id" },
+    { "key": "dev_extension_id", "value": "allowed-id" },
+    { "key": "platform", "value": "tradingview" },
+    { "key": "device_id", "value": "manual-ext-device-2" },
+    { "key": "invalid_cd_key", "value": "INVALID0000" },
+    { "key": "valid_cd_key", "value": "", "description": "Isi dengan CD-Key valid jika ingin menguji redeem sukses." },
+    { "key": "dev_app_session", "value": "", "description": "Isi dengan raw app_session untuk bootstrap/authenticated flow." },
+    { "key": "cookie_app_session", "value": "", "description": "Isi dengan token yang sama seperti dev_app_session saat menguji logout + bootstrap_after_logout." }
+  ]
+}

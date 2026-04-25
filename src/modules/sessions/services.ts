@@ -10,7 +10,13 @@ import {
   writeAppSessionCookie,
 } from "@/lib/cookies";
 
-import { createSessionRecordInputSchema, revokeSessionInputSchema, sessionNoncePayloadSchema } from "./schemas";
+import {
+  createSessionRecordInputSchema,
+  revokeSessionInputSchema,
+  sessionIdSchema,
+  sessionNoncePayloadSchema,
+  sessionTokenSchema,
+} from "./schemas";
 import {
   createOpaqueSessionToken,
   findActiveSessionByTokenHash,
@@ -57,15 +63,32 @@ export async function createAppSession(userId: string) {
   };
 }
 
-export async function validateActiveAppSession() {
-  const rawToken = await readAppSessionCookie();
+export async function validateAppSessionToken(rawToken: string | null | undefined) {
+  const normalizedToken = rawToken?.trim();
 
-  if (!rawToken) {
+  if (!normalizedToken) {
     return null;
   }
 
-  const tokenHash = hashSessionToken(rawToken);
-  return findActiveSessionByTokenHash(tokenHash);
+  const sessionToken = sessionTokenSchema.parse(normalizedToken);
+
+  return findActiveSessionByTokenHash(hashSessionToken(sessionToken));
+}
+
+export async function validateActiveAppSession() {
+  const rawToken = await readAppSessionCookie();
+
+  if (!rawToken?.trim()) {
+    return null;
+  }
+
+  const parsedToken = sessionTokenSchema.safeParse(rawToken);
+
+  if (!parsedToken.success) {
+    return null;
+  }
+
+  return validateAppSessionToken(parsedToken.data);
 }
 
 export async function revokeActiveAppSession() {
@@ -105,6 +128,10 @@ export async function revokeActiveAppSessionRecord() {
   );
 }
 
+export async function touchAppSessionLastSeen(sessionId: string) {
+  await touchSessionLastSeen(sessionIdSchema.parse(sessionId));
+}
+
 export async function touchActiveAppSessionLastSeen() {
   const activeSession = await validateActiveAppSession();
 
@@ -112,7 +139,7 @@ export async function touchActiveAppSessionLastSeen() {
     return null;
   }
 
-  await touchSessionLastSeen(activeSession.sessionId);
+  await touchAppSessionLastSeen(activeSession.sessionId);
   return activeSession;
 }
 

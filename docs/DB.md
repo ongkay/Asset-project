@@ -110,9 +110,10 @@ Pada baseline migration project ini, dedup item di dalam JSON juga dijaga di lev
 | `asset_assignments` | assignment asset aktif dan historis  |
 | `transactions`      | histori transaksi                    |
 | `cd_keys`           | redeem code                          |
+| `extension_app_configs` | version gate extension v2       |
 | `extension_tracks`  | heartbeat extension                  |
 
-Total: `10` tabel.
+Total: `11` tabel.
 
 Yang sengaja tidak dipakai di versi ini:
 - `package_items`
@@ -403,7 +404,24 @@ Constraint dan index minimum:
 - index `(package_id, is_active, used_at)`
 - index `(used_by, used_at desc)`
 
-### 5.10. `extension_tracks`
+### 5.10. `extension_app_configs`
+Version gate dan download URL extension v2.
+
+| Kolom             | Tipe          | Wajib | Catatan                     |
+| ----------------- | ------------- | ----- | --------------------------- |
+| `id`              | `uuid`        | ya    | PK                          |
+| `extension_key`   | `text`        | ya    | key unik extension          |
+| `latest_version`  | `text`        | ya    | versi terbaru               |
+| `minimum_version` | `text`        | ya    | versi minimum yang diizinkan |
+| `download_url`    | `text`        | ya    | link update extension       |
+| `is_active`       | `boolean`     | ya    | toggle version gate         |
+| `updated_at`      | `timestamptz` | ya    | terakhir config diubah      |
+
+Constraint dan index minimum:
+- primary key `id`
+- unique `extension_key`
+
+### 5.11. `extension_tracks`
 Heartbeat extension. Satu tabel cukup untuk MVP.
 
 | Kolom               | Tipe          | Wajib | Catatan                           |
@@ -414,11 +432,12 @@ Heartbeat extension. Satu tabel cukup untuk MVP.
 | `extension_id`      | `text`        | ya    | extension id                      |
 | `device_id`         | `text`        | ya    | device id dari extension          |
 | `extension_version` | `text`        | ya    | versi extension                   |
+| `origin`            | `text`        | ya    | origin request extension/browser  |
 | `ip_address`        | `text`        | ya    | IP hasil ekstraksi server         |
 | `city`              | `text`        | tidak | geolocation                       |
 | `country`           | `text`        | tidak | geolocation                       |
-| `browser`           | `text`        | tidak | browser                           |
-| `os`                | `text`        | tidak | OS                                |
+| `browser`           | `text`        | ya    | browser fingerprint final         |
+| `os`                | `text`        | ya    | OS fingerprint final              |
 | `first_seen_at`     | `timestamptz` | ya    | pertama kali kombinasi ini muncul |
 | `last_seen_at`      | `timestamptz` | ya    | heartbeat terakhir                |
 
@@ -426,9 +445,13 @@ Constraint dan index minimum:
 - primary key `id`
 - foreign key `user_id -> profiles.user_id`
 - foreign key `session_id -> app_sessions.id` nullable
-- unique `(user_id, device_id, ip_address, extension_id)`
+- unique fingerprint `(user_id, device_id, extension_id, origin, ip_address, browser, os)`
 - index `(user_id, last_seen_at desc)`
 - index `last_seen_at desc`
+
+Catatan:
+- jika fingerprint final sama, row heartbeat lama hanya update `last_seen_at`, `session_id`, dan `extension_version`
+- jika fingerprint final berubah, insert row heartbeat baru
 
 ---
 
