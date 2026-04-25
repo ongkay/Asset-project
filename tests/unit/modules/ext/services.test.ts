@@ -10,6 +10,14 @@ const authRepositoryMocks = vi.hoisted(() => ({
   readProfileByUserId: vi.fn(),
 }));
 
+const authServiceMocks = vi.hoisted(() => ({
+  signOutAndRevokeAppSession: vi.fn(),
+}));
+
+const cdKeyServiceMocks = vi.hoisted(() => ({
+  redeemCdKey: vi.fn(),
+}));
+
 const consoleQueryMocks = vi.hoisted(() => ({
   getConsoleStateSnapshot: vi.fn(),
 }));
@@ -22,6 +30,10 @@ const extRepositoryMocks = vi.hoisted(() => ({
   upsertExtHeartbeatByFingerprint: vi.fn(),
 }));
 
+const requestMetadataMocks = vi.hoisted(() => ({
+  readTrustedRequestMetadataFromHeaders: vi.fn(),
+}));
+
 const sessionServiceMocks = vi.hoisted(() => ({
   touchAppSessionLastSeen: vi.fn(),
   validateActiveAppSession: vi.fn(),
@@ -30,20 +42,29 @@ const sessionServiceMocks = vi.hoisted(() => ({
 
 vi.mock("@/config/env.server", () => ({ env: envMocks }));
 vi.mock("@/modules/auth/repositories", () => authRepositoryMocks);
+vi.mock("@/modules/auth/services", () => authServiceMocks);
+vi.mock("@/modules/cdkeys/services", () => cdKeyServiceMocks);
 vi.mock("@/modules/console/queries", () => consoleQueryMocks);
 vi.mock("@/modules/ext/repositories", () => extRepositoryMocks);
+vi.mock("@/lib/request-metadata", () => requestMetadataMocks);
 vi.mock("@/modules/sessions/services", () => sessionServiceMocks);
 
 describe("ext/services bootstrap", () => {
   beforeEach(() => {
     envMocks.EXT_API_DEV_HEADER_OVERRIDE = true;
+    envMocks.TRUSTED_PROXY_CITY_HEADER = "x-vercel-ip-city";
+    envMocks.TRUSTED_PROXY_COUNTRY_HEADER = "x-vercel-ip-country";
+    envMocks.TRUSTED_PROXY_IP_HEADER = "x-forwarded-for";
     authRepositoryMocks.readProfileByUserId.mockReset();
+    authServiceMocks.signOutAndRevokeAppSession.mockReset();
+    cdKeyServiceMocks.redeemCdKey.mockReset();
     consoleQueryMocks.getConsoleStateSnapshot.mockReset();
     extRepositoryMocks.readExtAppConfig.mockReset();
     extRepositoryMocks.readExtAssetSecretByUserId.mockReset();
     extRepositoryMocks.readExtPlatformAccessByUserId.mockReset();
     extRepositoryMocks.readExtPurchasablePackages.mockReset();
     extRepositoryMocks.upsertExtHeartbeatByFingerprint.mockReset();
+    requestMetadataMocks.readTrustedRequestMetadataFromHeaders.mockReset();
     sessionServiceMocks.touchAppSessionLastSeen.mockReset();
     sessionServiceMocks.validateActiveAppSession.mockReset();
     sessionServiceMocks.validateAppSessionToken.mockReset();
@@ -292,6 +313,62 @@ describe("ext/services bootstrap", () => {
     ).rejects.toMatchObject({ code: "EXT_UNAUTHENTICATED" });
   });
 
+  it("rejects requireExtSessionContext with EXT_UPDATE_REQUIRED when version is missing", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+
+    const { requireExtSessionContext } = await import("@/modules/ext/services");
+
+    await expect(
+      requireExtSessionContext(
+        new Headers({
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+        }),
+        { versionFallback: null },
+      ),
+    ).rejects.toMatchObject({ code: "EXT_UPDATE_REQUIRED" });
+  });
+
+  it("rejects requireExtSessionContext with EXT_USER_BANNED when session profile is banned", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.banned@assetnext.dev",
+      isBanned: true,
+      publicId: "MEM-003",
+      role: "member",
+      userId: "user-1",
+      username: "seed-banned",
+    });
+
+    const { requireExtSessionContext } = await import("@/modules/ext/services");
+
+    await expect(
+      requireExtSessionContext(
+        new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+        { versionFallback: null },
+      ),
+    ).rejects.toMatchObject({ code: "EXT_USER_BANNED" });
+  });
+
   it("rejects malformed versions in bootstrap requests with EXT_REQUEST_INVALID", async () => {
     extRepositoryMocks.readExtAppConfig.mockResolvedValue({
       downloadUrl: "https://github.com/example",
@@ -447,5 +524,215 @@ describe("ext/services bootstrap", () => {
         status: "update_required",
       },
     });
+  });
+
+  it("returns selection_required when a platform has both private and share access", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
+      { hasPrivateAccess: true, hasShareAccess: true, platform: "tradingview" },
+    ]);
+
+    const { getExtAssetResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtAssetResponse({
+        query: { platform: "tradingview" },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).resolves.toEqual({
+      availableModes: ["private", "share"],
+      defaultMode: "private",
+      platform: "tradingview",
+      selectionTimeoutSeconds: 10,
+      status: "selection_required",
+    });
+  });
+
+  it("normalizes browser and os to Unknown before writing a heartbeat row", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    requestMetadataMocks.readTrustedRequestMetadataFromHeaders.mockReturnValue({
+      browser: null,
+      host: null,
+      ipAddress: "127.0.0.1",
+      origin: "chrome-extension://allowed-id",
+      os: null,
+      protocol: "https",
+    });
+    extRepositoryMocks.upsertExtHeartbeatByFingerprint.mockResolvedValue({ id: "track-1" });
+
+    const { createExtHeartbeatResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      createExtHeartbeatResponse({
+        body: { deviceId: "device-1", extensionVersion: "2.0.0" },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+          "x-forwarded-for": "127.0.0.1",
+        }),
+      }),
+    ).resolves.toMatchObject({ ok: true });
+
+    expect(extRepositoryMocks.upsertExtHeartbeatByFingerprint).toHaveBeenCalledWith(
+      expect.objectContaining({
+        browser: "Unknown",
+        os: "Unknown",
+        origin: "chrome-extension://allowed-id",
+      }),
+    );
+  });
+
+  it("maps a successful redeem result into bootstrap refresh payload", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    cdKeyServiceMocks.redeemCdKey.mockResolvedValue({ ok: true });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    consoleQueryMocks.getConsoleStateSnapshot.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2026-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2026-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
+    extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
+      { hasPrivateAccess: true, hasShareAccess: false, platform: "tradingview" },
+    ]);
+
+    const { createExtRedeemResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      createExtRedeemResponse({
+        body: { code: "ABCD123456" },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).resolves.toMatchObject({
+      bootstrap: expect.objectContaining({ auth: { status: "authenticated" } }),
+      message: "CD-Key berhasil diredeem.",
+      ok: true,
+    });
+  });
+
+  it("maps logout payload through the auth sign-out service", async () => {
+    authServiceMocks.signOutAndRevokeAppSession.mockResolvedValue({ ok: true, redirectTo: "/login" });
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+
+    const { createExtLogoutResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      createExtLogoutResponse({
+        requestHeaders: new Headers({
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).resolves.toEqual({ ok: true, redirectTo: "/login" });
+  });
+
+  it("surfaces redeem-failed as a server error instead of EXT_REDEEM_INVALID", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    cdKeyServiceMocks.redeemCdKey.mockResolvedValue({
+      errorCode: "redeem-failed",
+      message: "Redeem CD-Key gagal diproses. Silakan coba lagi.",
+      ok: false,
+    });
+
+    const { createExtRedeemResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      createExtRedeemResponse({
+        body: { code: "ABCD123456" },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).rejects.not.toMatchObject({ code: "EXT_REDEEM_INVALID" });
   });
 });
