@@ -11,13 +11,12 @@ export type ExtPlatformAccessSummary = {
   platform: ExtPlatform;
 };
 
-export type ExtAssetCookie = {
-  domain: string;
-  expirationDate?: number;
-  httpOnly: boolean;
-  name: string;
-  path: string;
-  sameSite: "lax" | "no_restriction" | "strict" | "unspecified";
-  secure: boolean;
-  value: string;
-};
+export type ExtAssetCookieValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: ExtAssetCookieValue }
+  | ExtAssetCookieValue[];
+
+export type ExtAssetCookie = Record<string, ExtAssetCookieValue | undefined>;

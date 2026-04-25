@@ -87,18 +87,22 @@ describe("ext/repositories", () => {
     expect(isRevoked).toHaveBeenCalledWith("revoked_at", null);
   });
 
-  it("maps asset secret rows into proxy plus cookie payload", async () => {
+  it("passes through full cookie payload and only strips id", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: {
         assets: {
           asset_json: [
             {
               domain: ".tradingview.com",
+              hostOnly: false,
               httpOnly: false,
+              id: 123,
               name: "sessionid",
               path: "/",
               sameSite: "no_restriction",
               secure: true,
+              session: false,
+              storeId: "0",
               value: "secret",
             },
           ],
@@ -123,11 +127,14 @@ describe("ext/repositories", () => {
       cookies: [
         {
           domain: ".tradingview.com",
+          hostOnly: false,
           httpOnly: false,
           name: "sessionid",
           path: "/",
           sameSite: "no_restriction",
           secure: true,
+          session: false,
+          storeId: "0",
           value: "secret",
         },
       ],
@@ -139,7 +146,7 @@ describe("ext/repositories", () => {
     expect(isRevoked).toHaveBeenCalledWith("revoked_at", null);
   });
 
-  it("fills the default cookie domain when stored asset cookies omit it", async () => {
+  it("preserves stored cookies exactly when optional fields are missing", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: {
         assets: {
@@ -169,11 +176,80 @@ describe("ext/repositories", () => {
     ).resolves.toEqual({
       cookies: [
         {
-          domain: ".tradingview.com",
-          httpOnly: false,
           name: "sessionid",
-          path: "/",
-          sameSite: "no_restriction",
+          value: "secret",
+        },
+      ],
+      proxy: "http://proxy.local",
+    });
+  });
+
+  it("returns empty cookie arrays unchanged", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        assets: {
+          asset_json: [],
+          proxy: null,
+        },
+      },
+      error: null,
+    });
+    const isRevoked = vi.fn().mockReturnValue({ maybeSingle });
+    const eqAccessKey = vi.fn().mockReturnValue({ is: isRevoked });
+    const eqUserId = vi.fn().mockReturnValue({ eq: eqAccessKey });
+
+    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({ eq: eqUserId }),
+      }),
+    });
+
+    await expect(
+      readExtAssetSecretByUserId({ mode: "share", platform: "tradingview", userId: "user-1" }),
+    ).resolves.toEqual({
+      cookies: [],
+      proxy: null,
+    });
+  });
+
+  it("accepts runtime asset cookies with fractional expirationDate values", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        assets: {
+          asset_json: [
+            {
+              expirationDate: 1760763275.369012,
+              httpOnly: true,
+              name: "sessionid",
+              sameSite: "lax",
+              secure: true,
+              value: "secret",
+            },
+          ],
+          proxy: "http://proxy.local",
+        },
+      },
+      error: null,
+    });
+    const isRevoked = vi.fn().mockReturnValue({ maybeSingle });
+    const eqAccessKey = vi.fn().mockReturnValue({ is: isRevoked });
+    const eqUserId = vi.fn().mockReturnValue({ eq: eqAccessKey });
+
+    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({ eq: eqUserId }),
+      }),
+    });
+
+    await expect(
+      readExtAssetSecretByUserId({ mode: "private", platform: "tradingview", userId: "user-1" }),
+    ).resolves.toEqual({
+      cookies: [
+        {
+          expirationDate: 1760763275.369012,
+          httpOnly: true,
+          name: "sessionid",
+          sameSite: "lax",
           secure: true,
           value: "secret",
         },

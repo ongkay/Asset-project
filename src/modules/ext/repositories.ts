@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
 
-import { EXT_PLATFORMS } from "./platforms";
 import { extModeSchema, extPlatformSchema } from "./schemas";
 
 const extAppConfigRowSchema = z.object({
@@ -20,15 +19,8 @@ const extPlatformAccessRowSchema = z.object({
   asset_platform: extPlatformSchema,
 });
 
-const extAssetCookieSchema = z.object({
-  domain: z.string().min(1).optional(),
-  expirationDate: z.number().int().optional(),
-  httpOnly: z.boolean().default(false),
-  name: z.string().min(1),
-  path: z.string().min(1).default("/"),
-  sameSite: z.enum(["lax", "no_restriction", "strict", "unspecified"]).default("no_restriction"),
-  secure: z.boolean().default(true),
-  value: z.string().min(1),
+const extAssetCookieSchema = z.looseObject({
+  id: z.number().finite().optional(),
 });
 
 const extAssetSecretRowSchema = z.object({
@@ -169,13 +161,9 @@ export async function readExtAssetSecretByUserId(input: {
   }
 
   const asset = extAssetSecretRowSchema.parse(data.assets);
-  const defaultCookieDomain = EXT_PLATFORMS[input.platform].cookieDomains[0];
 
   return {
-    cookies: asset.asset_json.map((cookie) => ({
-      ...cookie,
-      domain: cookie.domain ?? defaultCookieDomain,
-    })),
+    cookies: asset.asset_json.map(({ id: _ignoredCookieId, ...cookie }) => cookie),
     proxy: asset.proxy,
   };
 }

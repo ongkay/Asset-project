@@ -206,11 +206,15 @@ Ready response:
   "cookies": [
     {
       "domain": ".tradingview.com",
+      "expirationDate": 1760964249.274157,
+      "hostOnly": false,
       "httpOnly": false,
       "name": "session",
       "path": "/",
       "sameSite": "no_restriction",
       "secure": true,
+      "session": false,
+      "storeId": "0",
       "value": "seed-browser-tv-processed"
     }
   ],
@@ -220,6 +224,13 @@ Ready response:
   "status": "ready"
 }
 ```
+
+Notes:
+
+- `cookies` dikirim pass-through dari setiap object cookie di `asset_json`.
+- Server hanya membuang field `id` jika field itu ada pada cookie source.
+- Selain `id`, field lain tidak dipangkas dan tidak ditambahi fallback/default baru oleh server.
+- Jika `asset_json` berisi `[]`, response `cookies` juga akan tetap `[]`.
 
 Forbidden/no subscription response:
 
