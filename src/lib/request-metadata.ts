@@ -69,8 +69,10 @@ function detectOs(userAgent: string | null) {
   return null;
 }
 
-export async function readTrustedRequestMetadata(): Promise<TrustedRequestMetadata> {
-  const requestHeaders = await headers();
+export function readTrustedRequestMetadataFromHeaders(
+  requestHeaders: Headers,
+  trustedProxyHeaders: { cityHeader: string; countryHeader: string; ipHeader: string },
+): TrustedRequestMetadata {
   const userAgent = readHeaderValue(requestHeaders, "user-agent");
   const origin = readHeaderValue(requestHeaders, "origin");
   const host = readHeaderValue(requestHeaders, "x-forwarded-host") ?? readHeaderValue(requestHeaders, "host");
@@ -80,11 +82,21 @@ export async function readTrustedRequestMetadata(): Promise<TrustedRequestMetada
   return {
     browser: detectBrowser(userAgent),
     host,
-    ipAddress: readHeaderValue(requestHeaders, env.TRUSTED_PROXY_IP_HEADER) ?? "unknown",
+    ipAddress: readHeaderValue(requestHeaders, trustedProxyHeaders.ipHeader) ?? "unknown",
     origin,
     os: detectOs(userAgent),
     protocol,
   };
+}
+
+export async function readTrustedRequestMetadata(): Promise<TrustedRequestMetadata> {
+  const requestHeaders = await headers();
+
+  return readTrustedRequestMetadataFromHeaders(requestHeaders, {
+    cityHeader: env.TRUSTED_PROXY_CITY_HEADER,
+    countryHeader: env.TRUSTED_PROXY_COUNTRY_HEADER,
+    ipHeader: env.TRUSTED_PROXY_IP_HEADER,
+  });
 }
 
 export async function buildCurrentUrl(pathname: string) {
