@@ -111,7 +111,7 @@ describe("admin/dashboard/queries", () => {
                 access_keys_json: ["tradingview:private"],
                 status: "active",
                 start_at: "2026-03-25T00:00:00.000Z",
-                end_at: "2026-04-30T00:00:00.000Z",
+                end_at: "2099-04-30T00:00:00.000Z",
               },
               {
                 user_id: "admin-2",
@@ -172,7 +172,11 @@ describe("admin/dashboard/queries", () => {
     databaseMocks.createInsForgeAdminDatabase.mockReturnValue({ rpc, from });
 
     const { getAdminDashboardSnapshot } = await import("@/modules/admin/dashboard/queries");
-    const result = await getAdminDashboardSnapshot({ preset: "30d", from: null, to: null });
+    const result = await getAdminDashboardSnapshot({
+      preset: "custom",
+      from: "2026-04-01",
+      to: "2026-04-30",
+    });
 
     expect(databaseMocks.createInsForgeAdminDatabase).toHaveBeenCalledTimes(1);
     expect(rpc).not.toHaveBeenCalled();

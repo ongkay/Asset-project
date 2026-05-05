@@ -32,6 +32,7 @@ Catatan penting:
 
 - `POST /api/ext/logout` tidak memakai `x-ext-dev-app-session` untuk revoke session. Endpoint ini mengikuti cookie session web yang aktif, jadi untuk logout manual pakai header `Cookie: app_session=<token>`.
 - Semua request akan ditolak jika `x-extension-id` atau `origin` tidak masuk allowlist server.
+- Jangan pakai nilai contoh lama seperti `allowed-id`. Manual request harus memakai extension id aktual yang juga masuk `EXTENSION_ALLOWED_IDS`, dengan origin `chrome-extension://<extension-id-aktual>`.
 
 ## Error Contract
 
@@ -344,8 +345,8 @@ Untuk local/Postman verification yang sama dengan hasil runtime final:
 
 ```text
 x-extension-version: 2.0.0
-x-ext-dev-origin: chrome-extension://allowed-id
-x-ext-dev-extension-id: allowed-id
+x-ext-dev-origin: chrome-extension://<your-extension-id>
+x-ext-dev-extension-id: <your-extension-id>
 ```
 
 Tambahkan salah satu:

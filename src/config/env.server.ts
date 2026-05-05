@@ -47,8 +47,6 @@ const serverEnvSchema = z.object({
   APP_SESSION_COOKIE_NAME: z.literal("app_session").default("app_session"),
   EXTENSION_ALLOWED_IDS: commaSeparatedValues.pipe(z.array(extensionId).min(1)),
   EXTENSION_ALLOWED_ORIGINS: commaSeparatedValues.pipe(z.array(extensionOrigin).min(1)),
-  EXT_API_ALLOWED_IDS: commaSeparatedValues.pipe(z.array(extensionId).min(1)),
-  EXT_API_ALLOWED_ORIGINS: commaSeparatedValues.pipe(z.array(extensionOrigin).min(1)),
   EXT_API_DEV_HEADER_OVERRIDE: booleanFlag,
   CRON_SECRET: nonEmptyString,
   TRUSTED_PROXY_IP_HEADER: nonEmptyString,

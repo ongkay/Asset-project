@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const envMocks = vi.hoisted(() => ({
-  EXT_API_ALLOWED_IDS: ["allowed-id"],
-  EXT_API_ALLOWED_ORIGINS: ["chrome-extension://allowed-id"],
   EXT_API_DEV_HEADER_OVERRIDE: true,
+  EXTENSION_ALLOWED_IDS: ["allowed-id"],
+  EXTENSION_ALLOWED_ORIGINS: ["chrome-extension://allowed-id"],
   TRUSTED_PROXY_CITY_HEADER: "x-vercel-ip-city",
   TRUSTED_PROXY_COUNTRY_HEADER: "x-vercel-ip-country",
   TRUSTED_PROXY_IP_HEADER: "x-forwarded-for",

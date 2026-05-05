@@ -146,8 +146,8 @@ export async function assertExtRequestAllowed(
   }
 
   if (
-    !env.EXT_API_ALLOWED_IDS.includes(parsedHeaders.data.extensionId) ||
-    !env.EXT_API_ALLOWED_ORIGINS.includes(parsedHeaders.data.origin)
+    !env.EXTENSION_ALLOWED_IDS.includes(parsedHeaders.data.extensionId) ||
+    !env.EXTENSION_ALLOWED_ORIGINS.includes(parsedHeaders.data.origin)
   ) {
     throw new ExtApiError("EXT_ORIGIN_DENIED", "Extension origin is not allowed.");
   }

@@ -5,11 +5,9 @@ const baseServerEnv = {
   APP_SESSION_SECRET: "12345678901234567890123456789012",
   CRON_SECRET: "cron-secret",
   DATABASE_URL: "https://database.example.com",
-  EXT_API_ALLOWED_IDS: "ext-id-1, ext-id-2",
-  EXT_API_ALLOWED_ORIGINS: "chrome-extension://ext-id-1, https://app.example.com",
   EXT_API_DEV_HEADER_OVERRIDE: "true",
-  EXTENSION_ALLOWED_IDS: "legacy-ext-id",
-  EXTENSION_ALLOWED_ORIGINS: "chrome-extension://legacy-ext-id",
+  EXTENSION_ALLOWED_IDS: "ext-id-1, ext-id-2",
+  EXTENSION_ALLOWED_ORIGINS: "chrome-extension://ext-id-1, https://app.example.com",
   INSFORGE_ANON_KEY: "insforge-anon",
   INSFORGE_PROJECT_ADMIN_EMAIL: "admin@example.com",
   INSFORGE_PROJECT_ADMIN_PASSWORD: "admin-password",
@@ -38,26 +36,26 @@ describe("config/env.server", () => {
     vi.resetModules();
   });
 
-  it("loads the new ext api defaults from the shared vitest bootstrap", async () => {
+  it("loads the extension allowlist defaults from the shared vitest bootstrap", async () => {
     const { env } = await import("@/config/env.server");
 
-    expect(env.EXT_API_ALLOWED_IDS).toEqual(["ext-api-extension-id"]);
-    expect(env.EXT_API_ALLOWED_ORIGINS).toEqual(["chrome-extension://ext-api-extension-id"]);
+    expect(env.EXTENSION_ALLOWED_IDS).toEqual(["ext-api-extension-id"]);
+    expect(env.EXTENSION_ALLOWED_ORIGINS).toEqual(["chrome-extension://ext-api-extension-id"]);
     expect(env.EXT_API_DEV_HEADER_OVERRIDE).toBe(false);
   });
 
-  it("parses EXT_API_ALLOWED_IDS into a trimmed array", async () => {
-    const { env } = await loadEnvModule({ EXT_API_ALLOWED_IDS: " ext-id-1 , ext-id-2 " });
+  it("parses EXTENSION_ALLOWED_IDS into a trimmed array", async () => {
+    const { env } = await loadEnvModule({ EXTENSION_ALLOWED_IDS: " ext-id-1 , ext-id-2 " });
 
-    expect(env.EXT_API_ALLOWED_IDS).toEqual(["ext-id-1", "ext-id-2"]);
+    expect(env.EXTENSION_ALLOWED_IDS).toEqual(["ext-id-1", "ext-id-2"]);
   });
 
-  it("parses EXT_API_ALLOWED_ORIGINS into a trimmed array", async () => {
+  it("parses EXTENSION_ALLOWED_ORIGINS into a trimmed array", async () => {
     const { env } = await loadEnvModule({
-      EXT_API_ALLOWED_ORIGINS: " chrome-extension://ext-id-1 , https://app.example.com ",
+      EXTENSION_ALLOWED_ORIGINS: " chrome-extension://ext-id-1 , https://app.example.com ",
     });
 
-    expect(env.EXT_API_ALLOWED_ORIGINS).toEqual(["chrome-extension://ext-id-1", "https://app.example.com"]);
+    expect(env.EXTENSION_ALLOWED_ORIGINS).toEqual(["chrome-extension://ext-id-1", "https://app.example.com"]);
   });
 
   it("parses EXT_API_DEV_HEADER_OVERRIDE as a boolean flag", async () => {

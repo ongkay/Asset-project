@@ -310,7 +310,7 @@ describe("console query read paths", () => {
   it("reads the latest console subscription via trusted repository using the active session user id", async () => {
     consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId.mockResolvedValue({
       created_at: "2026-04-01T00:00:00.000Z",
-      end_at: "2026-05-01T00:00:00.000Z",
+      end_at: "2099-05-01T00:00:00.000Z",
       id: "44444444-4444-4444-8444-444444444444",
       package_id: "55555555-5555-4555-8555-555555555555",
       package_name: "Paket 5",
@@ -322,7 +322,7 @@ describe("console query read paths", () => {
 
     await expect(getConsoleStateSnapshot()).resolves.toEqual({
       latestSubscription: {
-        endAt: "2026-05-01T00:00:00.000Z",
+        endAt: "2099-05-01T00:00:00.000Z",
         id: "44444444-4444-4444-8444-444444444444",
         packageId: "55555555-5555-4555-8555-555555555555",
         packageName: "Paket 5",
@@ -340,7 +340,7 @@ describe("console query read paths", () => {
   it("reads console state directly by explicit user id without requiring an active session", async () => {
     consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId.mockResolvedValue({
       created_at: "2026-04-01T00:00:00.000Z",
-      end_at: "2026-05-01T00:00:00.000Z",
+      end_at: "2099-05-01T00:00:00.000Z",
       id: "44444444-4444-4444-8444-444444444444",
       package_id: "55555555-5555-4555-8555-555555555555",
       package_name: "Paket 5",
@@ -352,7 +352,7 @@ describe("console query read paths", () => {
 
     await expect(getConsoleStateSnapshotByUserId("99999999-9999-4999-8999-999999999999")).resolves.toEqual({
       latestSubscription: {
-        endAt: "2026-05-01T00:00:00.000Z",
+        endAt: "2099-05-01T00:00:00.000Z",
         id: "44444444-4444-4444-8444-444444444444",
         packageId: "55555555-5555-4555-8555-555555555555",
         packageName: "Paket 5",
@@ -501,7 +501,7 @@ describe("console query read paths", () => {
   it("allows an admin to read another user's console state", async () => {
     consoleRepositoryMocks.readLatestConsoleSubscriptionByUserId.mockResolvedValue({
       created_at: "2026-04-01T00:00:00.000Z",
-      end_at: "2026-05-01T00:00:00.000Z",
+      end_at: "2099-05-01T00:00:00.000Z",
       id: "44444444-4444-4444-8444-444444444444",
       package_id: "55555555-5555-4555-8555-555555555555",
       package_name: "Paket 5",
@@ -514,7 +514,7 @@ describe("console query read paths", () => {
 
     await expect(getConsoleStateSnapshot({ userId: "99999999-9999-4999-8999-999999999999" })).resolves.toEqual({
       latestSubscription: {
-        endAt: "2026-05-01T00:00:00.000Z",
+        endAt: "2099-05-01T00:00:00.000Z",
         id: "44444444-4444-4444-8444-444444444444",
         packageId: "55555555-5555-4555-8555-555555555555",
         packageName: "Paket 5",

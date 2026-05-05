@@ -303,8 +303,8 @@
   "variable": [
     { "key": "base_url", "value": "http://localhost:3000" },
     { "key": "extension_version", "value": "2.0.0" },
-    { "key": "dev_origin", "value": "chrome-extension://allowed-id" },
-    { "key": "dev_extension_id", "value": "allowed-id" },
+    { "key": "dev_origin", "value": "chrome-extension://<your-extension-id>" },
+    { "key": "dev_extension_id", "value": "<your-extension-id>" },
     { "key": "platform", "value": "tradingview" },
     { "key": "device_id", "value": "manual-ext-device-2" },
     { "key": "invalid_cd_key", "value": "INVALID0000" },
