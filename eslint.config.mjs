@@ -31,6 +31,7 @@ export default defineConfig([
       ".agents/**",
       ".bp/**",
       "asset-ext/**",
+      "extasset/**",
     ],
   },
   js.configs.recommended,
