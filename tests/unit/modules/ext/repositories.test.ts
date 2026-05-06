@@ -58,7 +58,7 @@ describe("ext/repositories", () => {
       data: [
         { access_key: "tradingview:private", asset_platform: "tradingview" },
         { access_key: "tradingview:share", asset_platform: "tradingview" },
-        { access_key: "fxreplay:private", asset_platform: "fxreplay" },
+        { access_key: "fxtester:share", asset_platform: "fxtester" },
       ],
       error: null,
     });
@@ -77,9 +77,9 @@ describe("ext/repositories", () => {
         platform: "tradingview",
       },
       {
-        hasPrivateAccess: true,
-        hasShareAccess: false,
-        platform: "fxreplay",
+        hasPrivateAccess: false,
+        hasShareAccess: true,
+        platform: "fxtester",
       },
     ]);
 
@@ -269,7 +269,7 @@ describe("ext/repositories", () => {
           name: "Mixed Package",
         },
         {
-          access_keys_json: ["fxreplay:share"],
+          access_keys_json: ["fxtester:share"],
           amount_rp: 120000,
           checkout_url: "https://checkout.local/fx",
           id: "pkg-2",

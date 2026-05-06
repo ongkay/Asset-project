@@ -129,6 +129,9 @@ describe("ext/services bootstrap", () => {
       },
       state: "active",
     });
+    extRepositoryMocks.readExtAssetSecretByUserId.mockImplementation(({ mode }) =>
+      Promise.resolve(mode === "private" ? { cookies: [], proxy: null } : { cookies: [], proxy: null }),
+    );
     extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
       { hasPrivateAccess: true, hasShareAccess: true, platform: "tradingview" },
     ]);
@@ -145,7 +148,7 @@ describe("ext/services bootstrap", () => {
         }),
       }),
     ).resolves.toMatchObject({
-      assets: [{ hasPrivateAccess: true, hasShareAccess: true, platform: "tradingview" }],
+      assets: [{ mode: "private", platform: "tradingview" }],
       auth: { status: "authenticated" },
       subscription: {
         endAt: "2099-05-01T00:00:00.000Z",
@@ -155,7 +158,6 @@ describe("ext/services bootstrap", () => {
       user: {
         avatarUrl: null,
         email: "seed.active@assetnext.dev",
-        id: "user-1",
         publicId: "MEM-001",
         username: "seed-active",
       },
@@ -165,6 +167,79 @@ describe("ext/services bootstrap", () => {
         minimumVersion: "2.0.0",
         status: "update_available",
       },
+    });
+  });
+
+  it("returns processed bootstrap with temporary tradingview share access while private stock is not ready", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.processed@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-004",
+      role: "member",
+      userId: "user-1",
+      username: "seed-processed",
+    });
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2099-05-01T00:00:00.000Z",
+        id: "sub-processed",
+        packageId: "pkg-processed",
+        packageName: "Semi Private",
+        startAt: "2099-04-01T00:00:00.000Z",
+        status: "processed",
+      },
+      state: "processed",
+    });
+    extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
+      { hasPrivateAccess: true, hasShareAccess: true, platform: "tradingview" },
+      { hasPrivateAccess: false, hasShareAccess: true, platform: "fxtester" },
+    ]);
+    extRepositoryMocks.readExtAssetSecretByUserId.mockImplementation(({ mode, platform }) => {
+      if (platform === "tradingview" && mode === "private") {
+        return Promise.resolve(null);
+      }
+
+      return Promise.resolve({ cookies: [], proxy: null });
+    });
+
+    const { getExtBootstrapResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtBootstrapResponse({
+        query: { version: "2.0.0" },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+        }),
+      }),
+    ).resolves.toMatchObject({
+      assets: [
+        { mode: "share", nextMode: "private", platform: "tradingview" },
+        { mode: "share", platform: "fxtester" },
+      ],
+      auth: { status: "authenticated" },
+      subscription: {
+        endAt: "2099-05-01T00:00:00.000Z",
+        packageName: "Semi Private",
+        status: "processed",
+      },
+      user: {
+        avatarUrl: null,
+        email: "seed.processed@assetnext.dev",
+        publicId: "MEM-004",
+        username: "seed-processed",
+      },
+      version: { status: "supported" },
     });
   });
 
@@ -230,7 +305,6 @@ describe("ext/services bootstrap", () => {
       user: {
         avatarUrl: null,
         email: "seed.expired@assetnext.dev",
-        id: "user-1",
         publicId: "MEM-002",
         username: "seed-expired",
       },
@@ -529,7 +603,7 @@ describe("ext/services bootstrap", () => {
     });
   });
 
-  it("returns selection_required when a platform has both private and share access", async () => {
+  it("returns a ready private tradingview asset when active access is available", async () => {
     extRepositoryMocks.readExtAppConfig.mockResolvedValue({
       downloadUrl: "https://github.com/example",
       extensionKey: "asset-extension-v2",
@@ -547,9 +621,23 @@ describe("ext/services bootstrap", () => {
       userId: "user-1",
       username: "seed-active",
     });
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2099-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2099-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
     extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
       { hasPrivateAccess: true, hasShareAccess: true, platform: "tradingview" },
     ]);
+    extRepositoryMocks.readExtAssetSecretByUserId.mockImplementation(({ mode }) =>
+      Promise.resolve(mode === "private" ? { cookies: [], proxy: null } : { cookies: [], proxy: null }),
+    );
 
     const { getExtAssetResponse } = await import("@/modules/ext/services");
 
@@ -564,11 +652,11 @@ describe("ext/services bootstrap", () => {
         }),
       }),
     ).resolves.toEqual({
-      availableModes: ["private", "share"],
-      defaultMode: "private",
+      cookies: [],
+      mode: "private",
       platform: "tradingview",
-      selectionTimeoutSeconds: 10,
-      status: "selection_required",
+      proxy: null,
+      status: "ready",
     });
   });
 

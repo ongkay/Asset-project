@@ -29,7 +29,7 @@ import {
   extRequestHeadersSchema,
 } from "./schemas";
 
-import type { ExtVersionStatus } from "./types";
+import type { ExtAssetSummary, ExtMode, ExtPlatform, ExtVersionStatus } from "./types";
 
 type ExtRequestHeaders = {
   extensionId: string;
@@ -51,6 +51,8 @@ type ExtVersionConfig = {
   latestVersion: string;
   minimumVersion: string;
 };
+
+type ExtPlatformAccessSummary = Awaited<ReturnType<typeof readExtPlatformAccessByUserId>>[number];
 
 export function compareVersion(left: string, right: string) {
   const leftParts = left.split(".").map((part) => Number.parseInt(part, 10) || 0);
@@ -223,23 +225,15 @@ export async function getExtBootstrapResponse(input: { query: unknown; requestHe
   const user = {
     avatarUrl: profile.avatarUrl,
     email: profile.email,
-    id: profile.userId,
     publicId: profile.publicId,
     username: profile.username,
   };
 
   if (consoleState.state === "active" || consoleState.state === "processed") {
     return {
-      assets: await readExtPlatformAccessByUserId(activeSession.userId),
+      assets: await resolveBootstrapAssetSummaries(activeSession.userId, consoleState.state),
       auth: { status: "authenticated" as const },
       subscription: {
-        countdownSeconds: Math.max(
-          0,
-          Math.floor(
-            (new Date(consoleState.latestSubscription?.endAt ?? new Date().toISOString()).getTime() - Date.now()) /
-              1000,
-          ),
-        ),
         endAt: consoleState.latestSubscription?.endAt ?? null,
         packageName: consoleState.latestSubscription?.packageName ?? null,
         status: consoleState.state,
@@ -254,7 +248,6 @@ export async function getExtBootstrapResponse(input: { query: unknown; requestHe
     packages: await readExtPurchasablePackages(),
     redeem: { enabled: true },
     subscription: {
-      countdownSeconds: 0,
       endAt: consoleState.latestSubscription?.endAt ?? null,
       packageName: consoleState.latestSubscription?.packageName ?? null,
       status: consoleState.state,
@@ -267,6 +260,12 @@ export async function getExtBootstrapResponse(input: { query: unknown; requestHe
 export async function getExtAssetResponse(input: { query: unknown; requestHeaders: Headers }) {
   const query = extAssetQuerySchema.parse(input.query);
   const context = await requireExtSessionContext(input.requestHeaders, { versionFallback: null });
+  const consoleState = await getConsoleStateSnapshotByUserId(context.session.userId);
+
+  if (consoleState.state !== "active" && consoleState.state !== "processed") {
+    return { reason: "subscription_required" as const, status: "forbidden" as const };
+  }
+
   const platformAccess = await readExtPlatformAccessByUserId(context.session.userId);
   const selectedPlatform = platformAccess.find((platformAccessItem) => platformAccessItem.platform === query.platform);
 
@@ -274,27 +273,18 @@ export async function getExtAssetResponse(input: { query: unknown; requestHeader
     return { reason: "subscription_required" as const, status: "forbidden" as const };
   }
 
-  if (!query.mode && selectedPlatform.hasPrivateAccess && selectedPlatform.hasShareAccess) {
-    return {
-      availableModes: ["private", "share"] as const,
-      defaultMode: "private" as const,
-      platform: query.platform,
-      selectionTimeoutSeconds: 10,
-      status: "selection_required" as const,
-    };
-  }
+  const resolvedAssetSummary = await resolveRuntimeAssetSummary({
+    platformAccess: selectedPlatform,
+    subscriptionStatus: consoleState.state,
+    userId: context.session.userId,
+  });
 
-  const resolvedMode = query.mode ?? (selectedPlatform.hasPrivateAccess ? "private" : "share");
-
-  if (
-    (resolvedMode === "private" && !selectedPlatform.hasPrivateAccess) ||
-    (resolvedMode === "share" && !selectedPlatform.hasShareAccess)
-  ) {
-    throw new ExtApiError("EXT_MODE_NOT_ALLOWED", "The requested mode is not available for this subscription.");
+  if (!resolvedAssetSummary) {
+    throw new ExtApiError("EXT_ASSET_UNAVAILABLE", "No active asset is available for this platform.");
   }
 
   const assetSecret = await readExtAssetSecretByUserId({
-    mode: resolvedMode,
+    mode: resolvedAssetSummary.mode,
     platform: query.platform,
     userId: context.session.userId,
   });
@@ -305,11 +295,139 @@ export async function getExtAssetResponse(input: { query: unknown; requestHeader
 
   return {
     cookies: assetSecret.cookies,
-    mode: resolvedMode,
+    mode: resolvedAssetSummary.mode,
     platform: query.platform,
     proxy: assetSecret.proxy,
     status: "ready" as const,
   };
+}
+
+async function resolveBootstrapAssetSummaries(
+  userId: string,
+  subscriptionStatus: Extract<
+    Awaited<ReturnType<typeof getConsoleStateSnapshotByUserId>>["state"],
+    "active" | "processed"
+  >,
+): Promise<ExtAssetSummary[]> {
+  const platformAccess = await readExtPlatformAccessByUserId(userId);
+  const resolvedAssets = await Promise.all(
+    platformAccess.map((platformAccessEntry) =>
+      resolveRuntimeAssetSummary({
+        platformAccess: platformAccessEntry,
+        subscriptionStatus,
+        userId,
+      }),
+    ),
+  );
+
+  return resolvedAssets
+    .filter((assetSummary): assetSummary is ExtAssetSummary => assetSummary !== null)
+    .sort((left, right) => getPlatformSortWeight(left.platform) - getPlatformSortWeight(right.platform));
+}
+
+async function resolveRuntimeAssetSummary(input: {
+  platformAccess: ExtPlatformAccessSummary;
+  subscriptionStatus: "active" | "processed";
+  userId: string;
+}): Promise<ExtAssetSummary | null> {
+  const privateAssetReady = await hasReadyAssetForMode({
+    mode: "private",
+    platform: input.platformAccess.platform,
+    shouldCheck: input.platformAccess.hasPrivateAccess,
+    userId: input.userId,
+  });
+  const shareAssetReady = await hasReadyAssetForMode({
+    mode: "share",
+    platform: input.platformAccess.platform,
+    shouldCheck: input.platformAccess.hasShareAccess,
+    userId: input.userId,
+  });
+
+  if (input.platformAccess.platform === "tradingview") {
+    return resolveTradingViewAssetSummary({
+      hasPrivateAccess: input.platformAccess.hasPrivateAccess,
+      hasShareAccess: input.platformAccess.hasShareAccess,
+      privateAssetReady,
+      shareAssetReady,
+      subscriptionStatus: input.subscriptionStatus,
+    });
+  }
+
+  if (input.platformAccess.platform === "fxtester") {
+    if (shareAssetReady) {
+      return { mode: "share", platform: "fxtester" };
+    }
+
+    return null;
+  }
+
+  if (privateAssetReady) {
+    return { mode: "private", platform: input.platformAccess.platform };
+  }
+
+  if (shareAssetReady) {
+    return { mode: "share", platform: input.platformAccess.platform };
+  }
+
+  return null;
+}
+
+function resolveTradingViewAssetSummary(input: {
+  hasPrivateAccess: boolean;
+  hasShareAccess: boolean;
+  privateAssetReady: boolean;
+  shareAssetReady: boolean;
+  subscriptionStatus: "active" | "processed";
+}): ExtAssetSummary | null {
+  if (input.subscriptionStatus === "active") {
+    if (input.hasPrivateAccess) {
+      return input.privateAssetReady ? { mode: "private", platform: "tradingview" } : null;
+    }
+
+    return input.shareAssetReady ? { mode: "share", platform: "tradingview" } : null;
+  }
+
+  if (input.hasPrivateAccess && input.privateAssetReady) {
+    return { mode: "private", platform: "tradingview" };
+  }
+
+  if (input.hasShareAccess && input.shareAssetReady) {
+    return input.hasPrivateAccess
+      ? { mode: "share", nextMode: "private", platform: "tradingview" }
+      : { mode: "share", platform: "tradingview" };
+  }
+
+  return null;
+}
+
+async function hasReadyAssetForMode(input: {
+  mode: ExtMode;
+  platform: ExtPlatform;
+  shouldCheck: boolean;
+  userId: string;
+}): Promise<boolean> {
+  if (!input.shouldCheck) {
+    return false;
+  }
+
+  const assetSecret = await readExtAssetSecretByUserId({
+    mode: input.mode,
+    platform: input.platform,
+    userId: input.userId,
+  });
+
+  return assetSecret != null;
+}
+
+function getPlatformSortWeight(platform: ExtPlatform): number {
+  if (platform === "tradingview") {
+    return 0;
+  }
+
+  if (platform === "fxtester") {
+    return 1;
+  }
+  return 1;
 }
 
 export async function createExtRedeemResponse(input: { body: unknown; requestHeaders: Headers }) {

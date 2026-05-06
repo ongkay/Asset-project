@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const extPlatformSchema = z.enum(["tradingview", "fxreplay", "fxtester"]);
+export const extPlatformSchema = z.enum(["tradingview", "fxtester"]);
 
 export const extModeSchema = z.enum(["private", "share"]);
 
@@ -32,7 +32,6 @@ export const extBootstrapQuerySchema = z.object({
 });
 
 export const extAssetQuerySchema = z.object({
-  mode: extModeSchema.optional(),
   platform: extPlatformSchema,
 });
 

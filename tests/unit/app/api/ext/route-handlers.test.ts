@@ -92,7 +92,6 @@ describe("ext route handlers", () => {
         assets: [],
         auth: { status: "authenticated" },
         subscription: {
-          countdownSeconds: 0,
           endAt: null,
           packageName: null,
           status: "active",
@@ -100,7 +99,6 @@ describe("ext route handlers", () => {
         user: {
           avatarUrl: null,
           email: "seed.active@assetnext.dev",
-          id: "user-1",
           publicId: "MEM-001",
           username: "seed-active",
         },
@@ -131,7 +129,6 @@ describe("ext route handlers", () => {
         assets: [],
         auth: { status: "authenticated" },
         subscription: {
-          countdownSeconds: 0,
           endAt: null,
           packageName: null,
           status: "active",
@@ -139,7 +136,6 @@ describe("ext route handlers", () => {
         user: {
           avatarUrl: null,
           email: "seed.active@assetnext.dev",
-          id: "user-1",
           publicId: "MEM-001",
           username: "seed-active",
         },

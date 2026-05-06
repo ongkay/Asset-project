@@ -91,7 +91,7 @@
             "exec": [
               "pm.test('status 200', function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test('asset status valid', function () { pm.expect(['ready', 'selection_required', 'forbidden']).to.include(body.status); });",
+              "pm.test('asset status valid', function () { pm.expect(['ready', 'forbidden']).to.include(body.status); });",
               "pm.test('asset platform tradingview when present', function () { if (body.platform) pm.expect(body.platform).to.eql('tradingview'); });"
             ]
           }

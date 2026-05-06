@@ -14,11 +14,6 @@ describe("ext platforms", () => {
         cookieDomains: [".tradingview.com"],
         platform: "tradingview",
       },
-      fxreplay: {
-        allowedHosts: ["app.fxreplay.com", "fxreplay.com"],
-        cookieDomains: [".fxreplay.com"],
-        platform: "fxreplay",
-      },
       fxtester: {
         allowedHosts: ["app.forextester.com", "forextester.com"],
         cookieDomains: [".forextester.com"],
