@@ -1,0 +1,98 @@
+[
+  {
+    "id": "OP-1842",
+    "account": "Asteron Bioworks",
+    "stage": "Proposal Sent",
+    "priority": 1,
+    "health": "On Track",
+    "value": "$42,000"
+  },
+  {
+    "id": "OP-1841",
+    "account": "BlueHaven Systems",
+    "stage": "Discovery",
+    "priority": 1,
+    "health": "On Hold",
+    "value": "$18,500"
+  },
+  {
+    "id": "OP-1840",
+    "account": "Cinder Health",
+    "stage": "Negotiation",
+    "priority": 1,
+    "health": "At Risk",
+    "value": "$63,000"
+  },
+  {
+    "id": "OP-1839",
+    "account": "Drift Manufacturing",
+    "stage": "Qualified",
+    "priority": 1,
+    "health": "At Risk",
+    "value": "$26,400"
+  },
+  {
+    "id": "OP-1838",
+    "account": "Everline Freight",
+    "stage": "Proposal Sent",
+    "priority": 1,
+    "health": "Needs Review",
+    "value": "$58,900"
+  },
+  {
+    "id": "OP-1837",
+    "account": "Fieldstone Capital",
+    "stage": "Discovery",
+    "priority": 1,
+    "health": "On Track",
+    "value": "$31,200"
+  },
+  {
+    "id": "OP-1836",
+    "account": "Granite Studios",
+    "stage": "Negotiation",
+    "priority": 1,
+    "health": "On Track",
+    "value": "$15,600"
+  },
+  {
+    "id": "OP-1835",
+    "account": "Halcyon Dynamics",
+    "stage": "Qualified",
+    "priority": 1,
+    "health": "On Hold",
+    "value": "$47,900"
+  },
+  {
+    "id": "OP-1834",
+    "account": "Ironcrest Ventures",
+    "stage": "Proposal Sent",
+    "priority": 1,
+    "health": "At Risk",
+    "value": "$52,400"
+  },
+  {
+    "id": "OP-1833",
+    "account": "Juniper Infrastructure",
+    "stage": "Discovery",
+    "priority": 1,
+    "health": "At Risk",
+    "value": "$22,800"
+  },
+  {
+    "id": "OP-1832",
+    "account": "Kestrel Commerce",
+    "stage": "Negotiation",
+    "priority": 1,
+    "health": "Needs Review",
+    "value": "$19,300"
+  },
+  {
+    "id": "OP-1831",
+    "account": "Lattice Clinical",
+    "stage": "Qualified",
+    "priority": 1,
+    "health": "On Track",
+    "value": "$68,500"
+  }
+]

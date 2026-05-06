@@ -2,6 +2,7 @@ import {
   Banknote,
   Calendar,
   ChartBar,
+  ClipboardCheck,
   Fingerprint,
   Forklift,
   Gauge,
@@ -58,6 +59,11 @@ export const sidebarItems: NavGroup[] = [
         title: "CRM",
         url: "/dashboard/crm",
         icon: ChartBar,
+      },
+      {
+        title: "Productivity",
+        url: "/dashboard/productivity",
+        icon: ClipboardCheck,
       },
       {
         title: "Finance",
