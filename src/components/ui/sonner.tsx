@@ -1,16 +1,15 @@
 "use client"
 
+import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-import { usePreferencesStore } from "@/stores/preferences/preferences-provider"
-
 const Toaster = ({ ...props }: ToasterProps) => {
-  const resolvedThemeMode = usePreferencesStore((state) => state.resolvedThemeMode)
+  const { theme = "system" } = useTheme()
 
   return (
     <Sonner
-      theme={resolvedThemeMode as ToasterProps["theme"]}
+      theme={theme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
         success: (
