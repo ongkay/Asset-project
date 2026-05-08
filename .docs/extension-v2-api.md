@@ -66,7 +66,7 @@ Catatan implementasi saat ini:
 
 - `EXT_SESSION_REVOKED`, `EXT_SUBSCRIPTION_REQUIRED`, `EXT_PLATFORM_UNSUPPORTED`, dan `EXT_MODE_REQUIRED` terdefinisi di helper error, tetapi belum dipakai oleh route `api/ext/*` saat ini.
 - Invalid JSON body pada `redeem` dan `heartbeat` dipetakan ke `EXT_REQUEST_INVALID`.
-- Invalid payload/query yang dilempar langsung oleh Zod di service bukan bagian dari error contract publik dan tidak diproduksi oleh flow manual yang sudah diverifikasi di `.docs/postman/*`.
+- Invalid query pada `asset` dan `asset/sync` dipetakan ke `EXT_REQUEST_INVALID`.
 
 ## Endpoint Summary
 
@@ -74,6 +74,7 @@ Catatan implementasi saat ini:
 | --- | --- | --- |
 | `GET` | `/api/ext/bootstrap` | Handshake awal, auth state, version gate, subscription snapshot. |
 | `GET` | `/api/ext/asset` | Ambil payload asset aktif untuk platform tertentu. |
+| `GET` | `/api/ext/asset/sync` | Cek apakah revision asset client masih sinkron dengan server. |
 | `POST` | `/api/ext/heartbeat` | Update session activity dan fingerprint extension. |
 | `POST` | `/api/ext/redeem` | Redeem CD-Key dan refresh bootstrap snapshot. |
 | `POST` | `/api/ext/logout` | Logout web session aktif dan revoke `app_session`. |
@@ -176,7 +177,7 @@ Version status union:
 - `{"status":"update_available","downloadUrl":"...","latestVersion":"...","minimumVersion":"..."}`
 - `{"status":"update_required","downloadUrl":"...","latestVersion":"...","minimumVersion":"..."}`
 
-`asset`, `redeem`, dan `heartbeat` membutuhkan sesi aktif. Pada verifikasi manual/Postman, sertakan `x-ext-dev-app-session` atau gunakan cookie web aktif yang setara.
+`asset`, `asset/sync`, `redeem`, dan `heartbeat` membutuhkan sesi aktif. Pada verifikasi manual/Postman, sertakan `x-ext-dev-app-session` atau gunakan cookie web aktif yang setara.
 
 ## `GET /api/ext/asset`
 
@@ -208,13 +209,17 @@ Response saat mode platform sudah di-resolve oleh server:
   "mode": "share",
   "platform": "tradingview",
   "proxy": "http://proxy.seed.browser.tv.processedss",
-  "status": "ready"
+  "revision": "extr1_pS9wz6zWn4u0T5dVvLr8Qp0k4x0xU4rD4mT8YxYy0gA",
+  "status": "ready",
+  "updatedAt": "2026-05-01T09:45:22.805+00:00"
 }
 ```
 
 Notes:
 
 - Mode asset final ditentukan server. Client tidak perlu lagi memilih antara `private` atau `share`.
+- `revision` adalah token opaque deterministik dari runtime asset efektif server. Jangan diasumsikan bisa di-decode di client.
+- `updatedAt` adalah timestamp row asset yang dipakai untuk runtime saat ini.
 - `cookies` dikirim pass-through dari setiap object cookie di `asset_json`.
 - Server hanya membuang field `id` jika field itu ada pada cookie source.
 - Selain `id`, field lain tidak dipangkas dan tidak ditambahi fallback/default baru oleh server.
@@ -226,6 +231,91 @@ Forbidden/no subscription response:
 {
   "reason": "subscription_required",
   "status": "forbidden"
+}
+```
+
+Invalid query response:
+
+```json
+{
+  "error": {
+    "code": "EXT_REQUEST_INVALID",
+    "message": "Asset request query is invalid."
+  }
+}
+```
+
+## `GET /api/ext/asset/sync`
+
+Query:
+
+| Param | Wajib | Keterangan |
+| --- | --- | --- |
+| `platform` | Ya | `tradingview`, `fxtester` |
+| `revision` | Opsional | Revision opaque terakhir yang diterima client dari `GET /api/ext/asset`. |
+
+Response saat revision cocok:
+
+```json
+{
+  "mode": "share",
+  "platform": "tradingview",
+  "revision": "extr1_pS9wz6zWn4u0T5dVvLr8Qp0k4x0xU4rD4mT8YxYy0gA",
+  "status": "current",
+  "updatedAt": "2026-05-01T09:45:22.805+00:00"
+}
+```
+
+Response saat revision tidak dikirim atau kosong:
+
+```json
+{
+  "mode": "share",
+  "platform": "tradingview",
+  "reason": "missing_revision",
+  "revision": "extr1_pS9wz6zWn4u0T5dVvLr8Qp0k4x0xU4rD4mT8YxYy0gA",
+  "status": "stale",
+  "updatedAt": "2026-05-01T09:45:22.805+00:00"
+}
+```
+
+Response saat revision berbeda dengan server:
+
+```json
+{
+  "mode": "share",
+  "platform": "tradingview",
+  "reason": "revision_mismatch",
+  "revision": "extr1_pS9wz6zWn4u0T5dVvLr8Qp0k4x0xU4rD4mT8YxYy0gA",
+  "status": "stale",
+  "updatedAt": "2026-05-01T09:45:22.805+00:00"
+}
+```
+
+Response saat sesi valid tetapi akses asset tidak aktif:
+
+```json
+{
+  "reason": "subscription_required",
+  "status": "forbidden"
+}
+```
+
+Notes:
+
+- Endpoint ini memakai auth/session/access flow yang sama dengan `GET /api/ext/asset`.
+- Jika sesi tidak valid atau cookie hilang, server tetap mengembalikan error contract `EXT_UNAUTHENTICATED` dengan HTTP `401`.
+- Saat response `stale`, client perlu refresh payload lewat `GET /api/ext/asset?platform=...`.
+- `mode`, `platform`, `revision`, dan `updatedAt` selalu menggambarkan runtime asset efektif server saat response `current` atau `stale` dikembalikan.
+
+Invalid query response:
+
+```json
+{
+  "error": {
+    "code": "EXT_REQUEST_INVALID",
+    "message": "Asset sync request query is invalid."
+  }
 }
 ```
 
@@ -321,10 +411,11 @@ Notes:
 1. Call `GET /api/ext/bootstrap` on startup.
 2. If `auth.status = "unauthenticated"`, redirect/open `loginUrl`.
 3. If `version.status = "update_required"`, block all feature flow and show update CTA.
-4. If authenticated and access exists, call `GET /api/ext/asset?platform=...`.
-5. If asset access is ready, use the returned server-resolved mode directly.
-6. Start heartbeat loop with `POST /api/ext/heartbeat`.
-7. On user logout, call `POST /api/ext/logout`.
+4. If authenticated and access exists, call `GET /api/ext/asset?platform=...` and persist the returned `revision`.
+5. Use `GET /api/ext/asset/sync?platform=...&revision=...` to check whether the local asset payload is still current.
+6. If sync returns `stale`, refresh with `GET /api/ext/asset?platform=...`.
+7. Start heartbeat loop with `POST /api/ext/heartbeat`.
+8. On user logout, call `POST /api/ext/logout`.
 
 ## Manual Verification Headers
 

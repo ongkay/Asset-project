@@ -21,3 +21,10 @@ export type ExtAssetCookieValue =
   | ExtAssetCookieValue[];
 
 export type ExtAssetCookie = Record<string, ExtAssetCookieValue | undefined>;
+
+export type ExtRuntimeAssetSnapshot = {
+  assetId: string;
+  cookies: ExtAssetCookie[];
+  proxy: string | null;
+  updatedAt: string;
+};

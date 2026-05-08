@@ -5,10 +5,12 @@ vi.mock("@/modules/ext/services", () => ({
   createExtLogoutResponse: vi.fn(),
   createExtRedeemResponse: vi.fn(),
   getExtAssetResponse: vi.fn(),
+  getExtAssetSyncResponse: vi.fn(),
   getExtBootstrapResponse: vi.fn(),
 }));
 
 import { GET as getExtAsset, runtime as assetRuntime } from "@/app/api/ext/asset/route";
+import { GET as getExtAssetSync, runtime as assetSyncRuntime } from "@/app/api/ext/asset/sync/route";
 import { GET as getExtBootstrap, runtime as bootstrapRuntime } from "@/app/api/ext/bootstrap/route";
 import { POST as postExtHeartbeat, runtime as heartbeatRuntime } from "@/app/api/ext/heartbeat/route";
 import { POST as postExtLogout, runtime as logoutRuntime } from "@/app/api/ext/logout/route";
@@ -19,6 +21,7 @@ import {
   createExtLogoutResponse,
   createExtRedeemResponse,
   getExtAssetResponse,
+  getExtAssetSyncResponse,
   getExtBootstrapResponse,
 } from "@/modules/ext/services";
 
@@ -26,12 +29,14 @@ const mockedCreateExtHeartbeatResponse = vi.mocked(createExtHeartbeatResponse);
 const mockedCreateExtLogoutResponse = vi.mocked(createExtLogoutResponse);
 const mockedCreateExtRedeemResponse = vi.mocked(createExtRedeemResponse);
 const mockedGetExtAssetResponse = vi.mocked(getExtAssetResponse);
+const mockedGetExtAssetSyncResponse = vi.mocked(getExtAssetSyncResponse);
 const mockedGetExtBootstrapResponse = vi.mocked(getExtBootstrapResponse);
 
 describe("ext route handlers", () => {
   it("exports nodejs runtime for every ext handler", () => {
     expect(bootstrapRuntime).toBe("nodejs");
     expect(assetRuntime).toBe("nodejs");
+    expect(assetSyncRuntime).toBe("nodejs");
     expect(redeemRuntime).toBe("nodejs");
     expect(heartbeatRuntime).toBe("nodejs");
     expect(logoutRuntime).toBe("nodejs");
@@ -82,6 +87,60 @@ describe("ext route handlers", () => {
       error: {
         code: "EXT_ASSET_UNAVAILABLE",
         message: "No active asset is available for this platform.",
+      },
+    });
+  });
+
+  it("passes query and headers to asset sync service", async () => {
+    mockedGetExtAssetSyncResponse.mockResolvedValue({
+      mode: "private",
+      platform: "tradingview",
+      revision: "rev-1",
+      status: "current",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+
+    const request = new Request("http://localhost/api/ext/asset/sync?platform=tradingview&revision=rev-1", {
+      headers: {
+        origin: "chrome-extension://allowed-id",
+        "x-extension-id": "allowed-id",
+      },
+    });
+    const response = await getExtAssetSync(request);
+
+    expect(mockedGetExtAssetSyncResponse).toHaveBeenCalledWith({
+      query: { platform: "tradingview", revision: "rev-1" },
+      requestHeaders: request.headers,
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      mode: "private",
+      platform: "tradingview",
+      revision: "rev-1",
+      status: "current",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+  });
+
+  it("maps ExtApiError from asset sync service to JSON", async () => {
+    mockedGetExtAssetSyncResponse.mockRejectedValue(
+      new ExtApiError("EXT_UNAUTHENTICATED", "An active app session is required."),
+    );
+
+    const response = await getExtAssetSync(
+      new Request("http://localhost/api/ext/asset/sync?platform=tradingview", {
+        headers: {
+          origin: "chrome-extension://allowed-id",
+          "x-extension-id": "allowed-id",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "EXT_UNAUTHENTICATED",
+        message: "An active app session is required.",
       },
     });
   });

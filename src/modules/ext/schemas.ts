@@ -35,6 +35,11 @@ export const extAssetQuerySchema = z.object({
   platform: extPlatformSchema,
 });
 
+export const extAssetSyncQuerySchema = z.object({
+  platform: extPlatformSchema,
+  revision: z.string().trim().optional(),
+});
+
 export const extRedeemBodySchema = z.object({
   code: z.string().trim().min(1),
 });

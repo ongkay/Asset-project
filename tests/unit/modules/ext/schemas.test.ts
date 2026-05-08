@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   extAssetQuerySchema,
+  extAssetSyncQuerySchema,
   extBootstrapQuerySchema,
   extHeartbeatBodySchema,
   extRedeemBodySchema,
@@ -11,8 +12,14 @@ import {
 describe("ext schemas", () => {
   it("accepts asset query without mode for mixed-platform discovery", () => {
     expect(extAssetQuerySchema.parse({ platform: "tradingview" })).toEqual({
-      mode: undefined,
       platform: "tradingview",
+    });
+  });
+
+  it("accepts asset sync query with optional blank revision", () => {
+    expect(extAssetSyncQuerySchema.parse({ platform: "tradingview", revision: "  " })).toEqual({
+      platform: "tradingview",
+      revision: "",
     });
   });
 

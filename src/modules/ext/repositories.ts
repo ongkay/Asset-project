@@ -6,6 +6,8 @@ import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
 
 import { extModeSchema, extPlatformSchema } from "./schemas";
 
+import type { ExtAssetCookie } from "./types";
+
 const extAppConfigRowSchema = z.object({
   download_url: z.string().min(1),
   extension_key: z.string().min(1),
@@ -28,6 +30,11 @@ const extAssetSecretRowSchema = z.object({
   proxy: z.string().nullable(),
 });
 
+const extRuntimeAssetRowSchema = extAssetSecretRowSchema.extend({
+  id: z.string().min(1),
+  updated_at: z.string().min(1),
+});
+
 const extPurchasablePackageRowSchema = z.object({
   access_keys_json: z.array(z.string()),
   amount_rp: z.number().int().nonnegative(),
@@ -41,6 +48,12 @@ const extHeartbeatRowSchema = z.object({
   id: z.string().min(1),
   last_seen_at: z.string().min(1),
 });
+
+function stripExtAssetCookieId(cookie: z.infer<typeof extAssetCookieSchema>): ExtAssetCookie {
+  const { id: _ignoredCookieId, ...cookieWithoutId } = cookie;
+
+  return cookieWithoutId as ExtAssetCookie;
+}
 
 function updateExtHeartbeatByFingerprint(input: {
   browser: string;
@@ -163,8 +176,40 @@ export async function readExtAssetSecretByUserId(input: {
   const asset = extAssetSecretRowSchema.parse(data.assets);
 
   return {
-    cookies: asset.asset_json.map(({ id: _ignoredCookieId, ...cookie }) => cookie),
+    cookies: asset.asset_json.map(stripExtAssetCookieId),
     proxy: asset.proxy,
+  };
+}
+
+export async function readExtRuntimeAssetByUserId(input: {
+  mode: z.infer<typeof extModeSchema>;
+  platform: z.infer<typeof extPlatformSchema>;
+  userId: string;
+}) {
+  const accessKey = `${input.platform}:${input.mode}`;
+  const { data, error } = await createInsForgeAdminDatabase()
+    .from("asset_assignments")
+    .select("assets!inner(id, proxy, asset_json, updated_at)")
+    .eq("user_id", input.userId)
+    .eq("access_key", accessKey)
+    .is("revoked_at", null)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data || !("assets" in data) || !data.assets) {
+    return null;
+  }
+
+  const asset = extRuntimeAssetRowSchema.parse(data.assets);
+
+  return {
+    assetId: asset.id,
+    cookies: asset.asset_json.map(stripExtAssetCookieId),
+    proxy: asset.proxy,
+    updatedAt: asset.updated_at,
   };
 }
 

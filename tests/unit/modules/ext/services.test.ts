@@ -30,6 +30,7 @@ const extRepositoryMocks = vi.hoisted(() => ({
   readExtAssetSecretByUserId: vi.fn(),
   readExtPlatformAccessByUserId: vi.fn(),
   readExtPurchasablePackages: vi.fn(),
+  readExtRuntimeAssetByUserId: vi.fn(),
   upsertExtHeartbeatByFingerprint: vi.fn(),
 }));
 
@@ -66,6 +67,7 @@ describe("ext/services bootstrap", () => {
     extRepositoryMocks.readExtAssetSecretByUserId.mockReset();
     extRepositoryMocks.readExtPlatformAccessByUserId.mockReset();
     extRepositoryMocks.readExtPurchasablePackages.mockReset();
+    extRepositoryMocks.readExtRuntimeAssetByUserId.mockReset();
     extRepositoryMocks.upsertExtHeartbeatByFingerprint.mockReset();
     requestMetadataMocks.readTrustedRequestMetadataFromHeaders.mockReset();
     sessionServiceMocks.touchAppSessionLastSeen.mockReset();
@@ -468,6 +470,34 @@ describe("ext/services bootstrap", () => {
     ).rejects.toMatchObject({ code: "EXT_REQUEST_INVALID" });
   });
 
+  it("rejects invalid asset queries with EXT_REQUEST_INVALID", async () => {
+    const { getExtAssetResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtAssetResponse({
+        query: { platform: "windows" },
+        requestHeaders: new Headers({
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "EXT_REQUEST_INVALID" });
+  });
+
+  it("rejects invalid asset sync queries with EXT_REQUEST_INVALID", async () => {
+    const { getExtAssetSyncResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtAssetSyncResponse({
+        query: { platform: "windows" },
+        requestHeaders: new Headers({
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "EXT_REQUEST_INVALID" });
+  });
+
   it("uses standard headers and active-session lookup when dev override is disabled", async () => {
     envMocks.EXT_API_DEV_HEADER_OVERRIDE = false;
     extRepositoryMocks.readExtAppConfig.mockResolvedValue({
@@ -635,9 +665,13 @@ describe("ext/services bootstrap", () => {
     extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
       { hasPrivateAccess: true, hasShareAccess: true, platform: "tradingview" },
     ]);
-    extRepositoryMocks.readExtAssetSecretByUserId.mockImplementation(({ mode }) =>
-      Promise.resolve(mode === "private" ? { cookies: [], proxy: null } : { cookies: [], proxy: null }),
-    );
+    extRepositoryMocks.readExtAssetSecretByUserId.mockImplementation(({ mode }) => Promise.resolve(mode === "private"));
+    extRepositoryMocks.readExtRuntimeAssetByUserId.mockResolvedValue({
+      assetId: "asset-1",
+      cookies: [],
+      proxy: null,
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
 
     const { getExtAssetResponse } = await import("@/modules/ext/services");
 
@@ -656,8 +690,333 @@ describe("ext/services bootstrap", () => {
       mode: "private",
       platform: "tradingview",
       proxy: null,
+      revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
       status: "ready",
+      updatedAt: "2026-05-01T00:00:00.000Z",
     });
+  });
+
+  it("changes asset revision when the effective payload changes even if asset identity is unchanged", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2099-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2099-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
+    extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
+      { hasPrivateAccess: true, hasShareAccess: true, platform: "tradingview" },
+    ]);
+    extRepositoryMocks.readExtAssetSecretByUserId.mockImplementation(({ mode }) => Promise.resolve(mode === "private"));
+    extRepositoryMocks.readExtRuntimeAssetByUserId
+      .mockResolvedValueOnce({
+        assetId: "asset-1",
+        cookies: [{ name: "sessionid", value: "secret-a" }],
+        proxy: null,
+        updatedAt: "2026-05-01T00:00:00.000Z",
+      })
+      .mockResolvedValueOnce({
+        assetId: "asset-1",
+        cookies: [{ name: "sessionid", value: "secret-b" }],
+        proxy: null,
+        updatedAt: "2026-05-01T00:00:00.000Z",
+      });
+
+    const { getExtAssetResponse } = await import("@/modules/ext/services");
+    const firstResponse = await getExtAssetResponse({
+      query: { platform: "tradingview" },
+      requestHeaders: new Headers({
+        "x-ext-dev-app-session": "opaque-token",
+        "x-ext-dev-extension-id": "allowed-id",
+        "x-ext-dev-origin": "chrome-extension://allowed-id",
+        "x-extension-version": "2.0.0",
+      }),
+    });
+    const secondResponse = await getExtAssetResponse({
+      query: { platform: "tradingview" },
+      requestHeaders: new Headers({
+        "x-ext-dev-app-session": "opaque-token",
+        "x-ext-dev-extension-id": "allowed-id",
+        "x-ext-dev-origin": "chrome-extension://allowed-id",
+        "x-extension-version": "2.0.0",
+      }),
+    });
+
+    expect(firstResponse.status).toBe("ready");
+    expect(secondResponse.status).toBe("ready");
+    expect(firstResponse.revision).not.toBe(secondResponse.revision);
+  });
+
+  it("returns current from asset sync when the caller revision matches", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2099-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2099-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
+    extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
+      { hasPrivateAccess: true, hasShareAccess: false, platform: "tradingview" },
+    ]);
+    extRepositoryMocks.readExtAssetSecretByUserId.mockResolvedValue(true);
+    extRepositoryMocks.readExtRuntimeAssetByUserId.mockResolvedValue({
+      assetId: "asset-1",
+      cookies: [],
+      proxy: null,
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+
+    const { getExtAssetSyncResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtAssetSyncResponse({
+        query: {
+          platform: "tradingview",
+          revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
+        },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).resolves.toEqual({
+      mode: "private",
+      platform: "tradingview",
+      revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
+      status: "current",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+  });
+
+  it("returns stale missing_revision from asset sync when revision is blank", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2099-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2099-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
+    extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
+      { hasPrivateAccess: true, hasShareAccess: false, platform: "tradingview" },
+    ]);
+    extRepositoryMocks.readExtAssetSecretByUserId.mockResolvedValue(true);
+    extRepositoryMocks.readExtRuntimeAssetByUserId.mockResolvedValue({
+      assetId: "asset-1",
+      cookies: [],
+      proxy: null,
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+
+    const { getExtAssetSyncResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtAssetSyncResponse({
+        query: { platform: "tradingview", revision: "   " },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).resolves.toEqual({
+      mode: "private",
+      platform: "tradingview",
+      reason: "missing_revision",
+      revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
+      status: "stale",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+  });
+
+  it("returns stale revision_mismatch from asset sync when revision differs", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2099-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2099-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
+    extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
+      { hasPrivateAccess: true, hasShareAccess: false, platform: "tradingview" },
+    ]);
+    extRepositoryMocks.readExtAssetSecretByUserId.mockResolvedValue(true);
+    extRepositoryMocks.readExtRuntimeAssetByUserId.mockResolvedValue({
+      assetId: "asset-1",
+      cookies: [],
+      proxy: null,
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+
+    const { getExtAssetSyncResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtAssetSyncResponse({
+        query: { platform: "tradingview", revision: "extr1_outdated" },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).resolves.toEqual({
+      mode: "private",
+      platform: "tradingview",
+      reason: "revision_mismatch",
+      revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
+      status: "stale",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+  });
+
+  it("returns forbidden from asset sync when the user has no active subscription access", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
+      latestSubscription: null,
+      state: "none",
+    });
+
+    const { getExtAssetSyncResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtAssetSyncResponse({
+        query: { platform: "tradingview" },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).resolves.toEqual({ reason: "subscription_required", status: "forbidden" });
+  });
+
+  it("rejects asset sync with EXT_UNAUTHENTICATED when session lookup is empty", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.0",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue(null);
+
+    const { getExtAssetSyncResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtAssetSyncResponse({
+        query: { platform: "tradingview" },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "EXT_UNAUTHENTICATED" });
   });
 
   it("normalizes browser and os to Unknown before writing a heartbeat row", async () => {

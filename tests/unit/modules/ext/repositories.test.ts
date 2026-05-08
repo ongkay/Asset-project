@@ -13,6 +13,7 @@ import {
   readExtAssetSecretByUserId,
   readExtPlatformAccessByUserId,
   readExtPurchasablePackages,
+  readExtRuntimeAssetByUserId,
   upsertExtHeartbeatByFingerprint,
 } from "@/modules/ext/repositories";
 
@@ -255,6 +256,49 @@ describe("ext/repositories", () => {
         },
       ],
       proxy: "http://proxy.local",
+    });
+  });
+
+  it("reads runtime asset metadata with updatedAt while still stripping cookie ids", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        assets: {
+          asset_json: [
+            {
+              id: 88,
+              name: "sessionid",
+              value: "secret",
+            },
+          ],
+          id: "asset-1",
+          proxy: "http://proxy.local",
+          updated_at: "2026-05-01T00:00:00.000Z",
+        },
+      },
+      error: null,
+    });
+    const isRevoked = vi.fn().mockReturnValue({ maybeSingle });
+    const eqAccessKey = vi.fn().mockReturnValue({ is: isRevoked });
+    const eqUserId = vi.fn().mockReturnValue({ eq: eqAccessKey });
+
+    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({ eq: eqUserId }),
+      }),
+    });
+
+    await expect(
+      readExtRuntimeAssetByUserId({ mode: "private", platform: "tradingview", userId: "user-1" }),
+    ).resolves.toEqual({
+      assetId: "asset-1",
+      cookies: [
+        {
+          name: "sessionid",
+          value: "secret",
+        },
+      ],
+      proxy: "http://proxy.local",
+      updatedAt: "2026-05-01T00:00:00.000Z",
     });
   });
 

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import { env } from "@/config/env.server";
 import { ExtApiError } from "@/lib/ext-api/errors";
 import { readTrustedRequestMetadataFromHeaders } from "@/lib/request-metadata";
@@ -16,6 +18,7 @@ import {
 import { EXTENSION_V2_KEY } from "./platforms";
 import {
   readExtAppConfig,
+  readExtRuntimeAssetByUserId,
   readExtAssetSecretByUserId,
   readExtPlatformAccessByUserId,
   readExtPurchasablePackages,
@@ -23,13 +26,14 @@ import {
 } from "./repositories";
 import {
   extAssetQuerySchema,
+  extAssetSyncQuerySchema,
   extBootstrapQuerySchema,
   extHeartbeatBodySchema,
   extRedeemBodySchema,
   extRequestHeadersSchema,
 } from "./schemas";
 
-import type { ExtAssetSummary, ExtMode, ExtPlatform, ExtVersionStatus } from "./types";
+import type { ExtAssetSummary, ExtMode, ExtPlatform, ExtRuntimeAssetSnapshot, ExtVersionStatus } from "./types";
 
 type ExtRequestHeaders = {
   extensionId: string;
@@ -53,6 +57,13 @@ type ExtVersionConfig = {
 };
 
 type ExtPlatformAccessSummary = Awaited<ReturnType<typeof readExtPlatformAccessByUserId>>[number];
+
+type ExtResolvedRuntimeAsset = {
+  asset: ExtRuntimeAssetSnapshot;
+  mode: ExtMode;
+  platform: ExtPlatform;
+  revision: string;
+};
 
 export function compareVersion(left: string, right: string) {
   const leftParts = left.split(".").map((part) => Number.parseInt(part, 10) || 0);
@@ -258,47 +269,74 @@ export async function getExtBootstrapResponse(input: { query: unknown; requestHe
 }
 
 export async function getExtAssetResponse(input: { query: unknown; requestHeaders: Headers }) {
-  const query = extAssetQuerySchema.parse(input.query);
-  const context = await requireExtSessionContext(input.requestHeaders, { versionFallback: null });
-  const consoleState = await getConsoleStateSnapshotByUserId(context.session.userId);
+  const query = extAssetQuerySchema.safeParse(input.query);
 
-  if (consoleState.state !== "active" && consoleState.state !== "processed") {
-    return { reason: "subscription_required" as const, status: "forbidden" as const };
+  if (!query.success) {
+    throw new ExtApiError("EXT_REQUEST_INVALID", "Asset request query is invalid.");
   }
 
-  const platformAccess = await readExtPlatformAccessByUserId(context.session.userId);
-  const selectedPlatform = platformAccess.find((platformAccessItem) => platformAccessItem.platform === query.platform);
-
-  if (!selectedPlatform) {
-    return { reason: "subscription_required" as const, status: "forbidden" as const };
-  }
-
-  const resolvedAssetSummary = await resolveRuntimeAssetSummary({
-    platformAccess: selectedPlatform,
-    subscriptionStatus: consoleState.state,
-    userId: context.session.userId,
+  const runtimeAsset = await resolveExtRuntimeAssetResponse({
+    platform: query.data.platform,
+    requestHeaders: input.requestHeaders,
   });
 
-  if (!resolvedAssetSummary) {
-    throw new ExtApiError("EXT_ASSET_UNAVAILABLE", "No active asset is available for this platform.");
-  }
-
-  const assetSecret = await readExtAssetSecretByUserId({
-    mode: resolvedAssetSummary.mode,
-    platform: query.platform,
-    userId: context.session.userId,
-  });
-
-  if (!assetSecret) {
-    throw new ExtApiError("EXT_ASSET_UNAVAILABLE", "No active asset is available for this platform.");
+  if (runtimeAsset.status === "forbidden") {
+    return { reason: "subscription_required" as const, status: "forbidden" as const };
   }
 
   return {
-    cookies: assetSecret.cookies,
-    mode: resolvedAssetSummary.mode,
-    platform: query.platform,
-    proxy: assetSecret.proxy,
+    cookies: runtimeAsset.asset.cookies,
+    mode: runtimeAsset.mode,
+    platform: query.data.platform,
+    proxy: runtimeAsset.asset.proxy,
+    revision: runtimeAsset.revision,
     status: "ready" as const,
+    updatedAt: runtimeAsset.asset.updatedAt,
+  };
+}
+
+export async function getExtAssetSyncResponse(input: { query: unknown; requestHeaders: Headers }) {
+  const query = extAssetSyncQuerySchema.safeParse(input.query);
+
+  if (!query.success) {
+    throw new ExtApiError("EXT_REQUEST_INVALID", "Asset sync request query is invalid.");
+  }
+
+  const runtimeAsset = await resolveExtRuntimeAssetResponse({
+    platform: query.data.platform,
+    requestHeaders: input.requestHeaders,
+  });
+
+  if (runtimeAsset.status === "forbidden") {
+    return runtimeAsset;
+  }
+
+  const syncMetadata = {
+    mode: runtimeAsset.mode,
+    platform: runtimeAsset.platform,
+    revision: runtimeAsset.revision,
+    updatedAt: runtimeAsset.asset.updatedAt,
+  };
+
+  if (!query.data.revision) {
+    return {
+      ...syncMetadata,
+      reason: "missing_revision" as const,
+      status: "stale" as const,
+    };
+  }
+
+  if (query.data.revision !== runtimeAsset.revision) {
+    return {
+      ...syncMetadata,
+      reason: "revision_mismatch" as const,
+      status: "stale" as const,
+    };
+  }
+
+  return {
+    ...syncMetadata,
+    status: "current" as const,
   };
 }
 
@@ -323,6 +361,80 @@ async function resolveBootstrapAssetSummaries(
   return resolvedAssets
     .filter((assetSummary): assetSummary is ExtAssetSummary => assetSummary !== null)
     .sort((left, right) => getPlatformSortWeight(left.platform) - getPlatformSortWeight(right.platform));
+}
+
+async function resolveExtRuntimeAssetResponse(input: { platform: ExtPlatform; requestHeaders: Headers }) {
+  const context = await requireExtSessionContext(input.requestHeaders, { versionFallback: null });
+  const consoleState = await getConsoleStateSnapshotByUserId(context.session.userId);
+
+  if (consoleState.state !== "active" && consoleState.state !== "processed") {
+    return { reason: "subscription_required" as const, status: "forbidden" as const };
+  }
+
+  const platformAccess = await readExtPlatformAccessByUserId(context.session.userId);
+  const selectedPlatform = platformAccess.find((platformAccessItem) => platformAccessItem.platform === input.platform);
+
+  if (!selectedPlatform) {
+    return { reason: "subscription_required" as const, status: "forbidden" as const };
+  }
+
+  const resolvedAssetSummary = await resolveRuntimeAssetSummary({
+    platformAccess: selectedPlatform,
+    subscriptionStatus: consoleState.state,
+    userId: context.session.userId,
+  });
+
+  if (!resolvedAssetSummary) {
+    throw new ExtApiError("EXT_ASSET_UNAVAILABLE", "No active asset is available for this platform.");
+  }
+
+  const runtimeAsset = await readExtRuntimeAssetByUserId({
+    mode: resolvedAssetSummary.mode,
+    platform: input.platform,
+    userId: context.session.userId,
+  });
+
+  if (!runtimeAsset) {
+    throw new ExtApiError("EXT_ASSET_UNAVAILABLE", "No active asset is available for this platform.");
+  }
+
+  return {
+    asset: runtimeAsset,
+    mode: resolvedAssetSummary.mode,
+    platform: input.platform,
+    revision: buildExtAssetRevision({
+      asset: runtimeAsset,
+      mode: resolvedAssetSummary.mode,
+      platform: input.platform,
+    }),
+  } satisfies ExtResolvedRuntimeAsset;
+}
+
+function serializeExtRevisionValue(value: unknown): string {
+  if (value === undefined) {
+    return "undefined";
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => serializeExtRevisionValue(item)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+      .map(([key, nestedValue]) => `${JSON.stringify(key)}:${serializeExtRevisionValue(nestedValue)}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function buildExtAssetRevision(input: { asset: ExtRuntimeAssetSnapshot; mode: ExtMode; platform: ExtPlatform }) {
+  return `extr1_${createHash("sha256")
+    .update(
+      `${input.platform}:${input.mode}:${input.asset.assetId}:${input.asset.updatedAt}:${input.asset.proxy ?? ""}:${serializeExtRevisionValue(input.asset.cookies)}`,
+    )
+    .digest("base64url")}`;
 }
 
 async function resolveRuntimeAssetSummary(input: {

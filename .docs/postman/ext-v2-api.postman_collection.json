@@ -92,7 +92,8 @@
               "pm.test('status 200', function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
               "pm.test('asset status valid', function () { pm.expect(['ready', 'forbidden']).to.include(body.status); });",
-              "pm.test('asset platform tradingview when present', function () { if (body.platform) pm.expect(body.platform).to.eql('tradingview'); });"
+              "pm.test('asset platform matches request when present', function () { if (body.platform) pm.expect(body.platform).to.eql(pm.variables.get('platform')); });",
+              "pm.test('ready payload includes revision metadata', function () { if (body.status === 'ready') { pm.expect(body.revision).to.be.a('string'); pm.expect(body.updatedAt).to.be.a('string'); } });"
             ]
           }
         }
@@ -205,7 +206,7 @@
       ]
     },
     {
-      "name": "Asset Authenticated Explicit Mode",
+      "name": "Asset Sync Authenticated",
       "request": {
         "method": "GET",
         "header": [
@@ -215,12 +216,12 @@
           { "key": "x-ext-dev-app-session", "value": "{{dev_app_session}}" }
         ],
         "url": {
-          "raw": "{{base_url}}/api/ext/asset?platform={{platform}}&mode=share",
+          "raw": "{{base_url}}/api/ext/asset/sync?platform={{platform}}&revision={{asset_revision}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "ext", "asset"],
+          "path": ["api", "ext", "asset", "sync"],
           "query": [
             { "key": "platform", "value": "{{platform}}" },
-            { "key": "mode", "value": "share" }
+            { "key": "revision", "value": "{{asset_revision}}" }
           ]
         }
       },
@@ -232,7 +233,7 @@
             "exec": [
               "pm.test('status 200', function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test('explicit mode respected', function () { pm.expect(body.mode).to.eql('share'); });"
+              "pm.test('sync status valid', function () { pm.expect(['current', 'stale', 'forbidden']).to.include(body.status); });"
             ]
           }
         }
@@ -306,6 +307,7 @@
     { "key": "dev_origin", "value": "chrome-extension://<your-extension-id>" },
     { "key": "dev_extension_id", "value": "<your-extension-id>" },
     { "key": "platform", "value": "tradingview" },
+    { "key": "asset_revision", "value": "", "description": "Isi dengan revision dari response GET /api/ext/asset untuk verifikasi sync=current." },
     { "key": "device_id", "value": "manual-ext-device-2" },
     { "key": "invalid_cd_key", "value": "INVALID0000" },
     { "key": "valid_cd_key", "value": "", "description": "Isi dengan CD-Key valid jika ingin menguji redeem sukses." },
