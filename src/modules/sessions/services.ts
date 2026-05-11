@@ -128,6 +128,15 @@ export async function revokeActiveAppSessionRecord() {
   );
 }
 
+export async function revokeAllAppSessionsForUser(userId: string) {
+  return revokeSessionRecord(
+    revokeSessionInputSchema.parse({
+      reason: "session_revoked",
+      userId,
+    }),
+  );
+}
+
 export async function touchAppSessionLastSeen(sessionId: string) {
   await touchSessionLastSeen(sessionIdSchema.parse(sessionId));
 }

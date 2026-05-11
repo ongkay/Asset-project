@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockedCreateInsForgeAdminDatabase, mockedRpc } = vi.hoisted(() => ({
-  mockedCreateInsForgeAdminDatabase: vi.fn(),
-  mockedRpc: vi.fn(),
-}));
+const { mockedCreateInsForgeAdminDatabase, mockedCreateInsForgeServerAuth, mockedResendVerificationEmail, mockedRpc } =
+  vi.hoisted(() => ({
+    mockedCreateInsForgeAdminDatabase: vi.fn(),
+    mockedCreateInsForgeServerAuth: vi.fn(),
+    mockedResendVerificationEmail: vi.fn(),
+    mockedRpc: vi.fn(),
+  }));
 
 vi.mock("@/config/env.server", () => ({
   env: {
@@ -16,7 +19,7 @@ vi.mock("@/lib/insforge/admin-client", () => ({
 }));
 
 vi.mock("@/lib/insforge/auth", () => ({
-  createInsForgeServerAuth: vi.fn(),
+  createInsForgeServerAuth: mockedCreateInsForgeServerAuth,
 }));
 
 vi.mock("@/lib/insforge/database", () => ({
@@ -28,6 +31,7 @@ import {
   createAuthUserAsAdmin,
   deleteAuthUserAsAdmin,
   readAuthUserByEmail,
+  resendVerificationEmail,
   updateAuthUserPasswordAsAdmin,
 } from "@/modules/auth/repositories";
 
@@ -35,9 +39,14 @@ describe("auth/repositories", () => {
   beforeEach(() => {
     mockedRpc.mockReset();
     mockedCreateInsForgeAdminDatabase.mockReset();
+    mockedCreateInsForgeServerAuth.mockReset();
+    mockedResendVerificationEmail.mockReset();
 
     mockedCreateInsForgeAdminDatabase.mockReturnValue({
       rpc: mockedRpc,
+    });
+    mockedCreateInsForgeServerAuth.mockReturnValue({
+      resendVerificationEmail: mockedResendVerificationEmail,
     });
   });
 
@@ -132,5 +141,33 @@ describe("auth/repositories", () => {
     });
 
     await expect(readAuthUserByEmail({ email: "fresh.user@assetnext.dev" })).resolves.toBeNull();
+  });
+
+  it("resends verification email links through the InsForge auth SDK", async () => {
+    mockedResendVerificationEmail.mockResolvedValueOnce({
+      data: {
+        message: "Verification email sent",
+        success: true,
+      },
+      error: null,
+    });
+
+    await expect(
+      resendVerificationEmail({
+        email: "member@assetnext.dev",
+        redirectTo: "https://assetnext.dev/email-verified",
+      }),
+    ).resolves.toEqual({
+      data: {
+        message: "Verification email sent",
+        success: true,
+      },
+      error: null,
+    });
+
+    expect(mockedResendVerificationEmail).toHaveBeenCalledWith({
+      email: "member@assetnext.dev",
+      redirectTo: "https://assetnext.dev/email-verified",
+    });
   });
 });

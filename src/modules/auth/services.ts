@@ -1,9 +1,15 @@
 import "server-only";
 
 import {
+  clearEmailVerificationResendCooldownCookie,
   clearInsForgeAccessTokenCookie,
+  clearInsForgeRefreshTokenCookie,
+  readEmailVerificationResendCooldownCookie,
   readInsForgeAccessTokenCookie,
+  readInsForgeRefreshTokenCookie,
+  writeEmailVerificationResendCooldownCookie,
   writeInsForgeAccessTokenCookie,
+  writeInsForgeRefreshTokenCookie,
 } from "@/lib/cookies";
 
 import {
@@ -21,9 +27,11 @@ import {
 import {
   deleteAuthUserAsAdmin,
   exchangeResetPasswordToken,
+  refreshInsForgeSession,
   updateAuthUserPasswordAsAdmin,
   insertLoginLog,
   provisionMemberProfile,
+  resendVerificationEmail,
   readAuthUserByEmail,
   readAuthenticatedUserSnapshot,
   readWrongPasswordFailureCount,
@@ -35,12 +43,15 @@ import {
 } from "./repositories";
 import {
   createAppSession,
+  revokeAllAppSessionsForUser,
   revokeActiveAppSession,
   revokeActiveAppSessionRecord,
   validateActiveAppSession,
 } from "../sessions/services";
 
 import type { AuthActionResult, AuthFailureReason, AuthProfile, AuthRedirectTarget } from "./types";
+
+const EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = 60;
 
 // These functions are the canonical server-side auth/session lifecycle boundary for Phase 1.
 // UI auth flows should use them instead of composing raw auth + session + login-log calls ad hoc.
@@ -56,6 +67,22 @@ async function writeAuthenticationLog(input: {
   await insertLoginLog(loginLogWriteInputSchema.parse(input));
 }
 
+async function writeAuthenticationLogSafely(input: {
+  browser: string | null;
+  email: string;
+  failureReason: string | null;
+  ipAddress: string;
+  isSuccess: boolean;
+  os: string | null;
+  userId: string | null;
+}) {
+  try {
+    await writeAuthenticationLog(input);
+  } catch (error) {
+    console.error("Auth audit log write failed:", error);
+  }
+}
+
 function resolveRedirectTarget(profile: AuthProfile): AuthRedirectTarget {
   return profile.role === "admin" ? "/admin" : "/console";
 }
@@ -63,6 +90,10 @@ function resolveRedirectTarget(profile: AuthProfile): AuthRedirectTarget {
 function mapAuthFailureReason(error: { error?: string | null; message?: string | null; statusCode?: number } | null) {
   const code = error?.error?.toLowerCase() ?? "";
   const message = error?.message?.toLowerCase() ?? "";
+
+  if (error?.statusCode === 403 || code.includes("verify") || message.includes("verify")) {
+    return "email_not_verified" satisfies AuthFailureReason;
+  }
 
   if (
     error?.statusCode === 401 ||
@@ -115,11 +146,48 @@ async function readResetPasswordCtaState(email: string) {
   };
 }
 
-async function createAlignedAppSession(input: { accessToken: string; userId: string }) {
+function readCooldownRemainingSeconds(cooldownUntil: string | undefined, now = Date.now()) {
+  const parsedCooldownUntil = Number.parseInt(cooldownUntil ?? "", 10);
+
+  if (!Number.isFinite(parsedCooldownUntil) || parsedCooldownUntil <= now) {
+    return 0;
+  }
+
+  return Math.ceil((parsedCooldownUntil - now) / 1000);
+}
+
+function readVerificationResendCooldownValue(input: string | undefined) {
+  if (!input) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(input) as { cooldownUntil?: number; email?: string };
+
+    if (typeof parsedValue.cooldownUntil !== "number" || typeof parsedValue.email !== "string") {
+      return null;
+    }
+
+    return parsedValue;
+  } catch {
+    return null;
+  }
+}
+
+function appendEmailSearchParamToUrl(url: string, email: string) {
+  const parsedUrl = new URL(url);
+
+  parsedUrl.searchParams.set("email", email);
+
+  return parsedUrl.toString();
+}
+
+async function createAlignedAppSession(input: { accessToken: string; refreshToken: string; userId: string }) {
   await createAppSession(input.userId);
 
   try {
     await writeInsForgeAccessTokenCookie(input.accessToken);
+    await writeInsForgeRefreshTokenCookie(input.refreshToken);
   } catch (error) {
     await revokeActiveAppSession();
     throw error;
@@ -135,24 +203,69 @@ export async function readValidatedInsForgeAccessTokenForActiveAppSession(): Pro
 
   const accessToken = await readInsForgeAccessTokenCookie();
 
-  if (!accessToken) {
-    await revokeActiveAppSessionRecord();
-    return null;
-  }
+  if (accessToken) {
+    try {
+      const authenticatedUserSnapshot = await readAuthenticatedUserSnapshot(accessToken);
 
-  try {
-    const authenticatedUserSnapshot = await readAuthenticatedUserSnapshot(accessToken);
-
-    if (!authenticatedUserSnapshot.user || authenticatedUserSnapshot.user.id !== activeSession.userId) {
-      await revokeActiveAppSessionRecord();
-      return null;
+      if (authenticatedUserSnapshot.user?.id === activeSession.userId) {
+        return accessToken;
+      }
+    } catch {
+      // Fall through to refresh-token validation below.
     }
+  }
 
-    return accessToken;
-  } catch (_error) {
+  const refreshToken = await readInsForgeRefreshTokenCookie();
+
+  if (!refreshToken) {
     await revokeActiveAppSessionRecord();
     return null;
   }
+
+  const refreshedSession = await refreshInsForgeSession({ refreshToken });
+
+  if (refreshedSession.error || !refreshedSession.data?.accessToken || !refreshedSession.data.user) {
+    await revokeActiveAppSessionRecord();
+    return null;
+  }
+
+  if (refreshedSession.data.user.id !== activeSession.userId) {
+    await revokeActiveAppSessionRecord();
+    return null;
+  }
+
+  return refreshedSession.data.accessToken;
+}
+
+export async function hasValidatedInsForgeSessionForActiveAppSession(): Promise<boolean> {
+  const activeSession = await validateActiveAppSession();
+
+  if (!activeSession) {
+    return false;
+  }
+
+  const validateSnapshotForSession = async (accessToken?: string) => {
+    try {
+      const authenticatedUserSnapshot = await readAuthenticatedUserSnapshot(accessToken);
+
+      return authenticatedUserSnapshot.user?.id === activeSession.userId;
+    } catch {
+      return false;
+    }
+  };
+
+  const accessToken = await readInsForgeAccessTokenCookie();
+
+  if (accessToken && (await validateSnapshotForSession(accessToken))) {
+    return true;
+  }
+
+  if (await validateSnapshotForSession()) {
+    return true;
+  }
+
+  await revokeActiveAppSessionRecord();
+  return false;
 }
 
 export async function checkAuthEmailStatus(input: unknown) {
@@ -163,6 +276,47 @@ export async function checkAuthEmailStatus(input: unknown) {
     normalizedEmail: payload.email,
     status: authUser ? "registered" : "unregistered",
   };
+}
+
+export async function readCurrentAuthEmailVerificationState(): Promise<boolean | null> {
+  const activeSession = await validateActiveAppSession();
+
+  if (!activeSession) {
+    return null;
+  }
+
+  const profile = await readProfileByUserId(activeSession.userId);
+
+  if (!profile) {
+    await revokeActiveAppSession();
+    return null;
+  }
+
+  const authUser = await readAuthUserByEmail({ email: profile.email });
+
+  return authUser?.emailVerified ?? null;
+}
+
+export async function readCurrentEmailVerificationResendCooldownRemainingSeconds(): Promise<number> {
+  const activeSession = await validateActiveAppSession();
+
+  if (!activeSession) {
+    return 0;
+  }
+
+  const profile = await readProfileByUserId(activeSession.userId);
+
+  if (!profile) {
+    return 0;
+  }
+
+  const cooldownValue = readVerificationResendCooldownValue(await readEmailVerificationResendCooldownCookie());
+
+  if (!cooldownValue || cooldownValue.email !== profile.email) {
+    return 0;
+  }
+
+  return readCooldownRemainingSeconds(String(cooldownValue.cooldownUntil));
 }
 
 export async function signInAndCreateAppSession(input: {
@@ -183,9 +337,9 @@ export async function signInAndCreateAppSession(input: {
 
   const result = await signInWithPassword(credentials);
 
-  if (result.error || !result.data?.user || !result.data.accessToken) {
+  if (result.error || !result.data?.user || !result.data.accessToken || !result.data.refreshToken) {
     const failureReason = mapAuthFailureReason(result.error);
-    await writeAuthenticationLog({
+    await writeAuthenticationLogSafely({
       browser: metadata.browser,
       email: credentials.email,
       failureReason,
@@ -203,7 +357,11 @@ export async function signInAndCreateAppSession(input: {
     return {
       failureReason,
       message:
-        failureReason === "wrong_password" ? "Password is incorrect. Try again." : "Login failed. Try again later.",
+        failureReason === "wrong_password"
+          ? "Password is incorrect. Try again."
+          : failureReason === "email_not_verified"
+            ? "Your email is not verified yet. Check your inbox before signing in."
+            : "Login failed. Try again later.",
       ok: false,
       showResetPasswordCta: resetPasswordState.showResetPasswordCta,
     };
@@ -212,7 +370,7 @@ export async function signInAndCreateAppSession(input: {
   const profile = await readProfileByUserId(result.data.user.id);
 
   if (!profile) {
-    await writeAuthenticationLog({
+    await writeAuthenticationLogSafely({
       browser: metadata.browser,
       email: credentials.email,
       failureReason: "profile_missing",
@@ -230,7 +388,7 @@ export async function signInAndCreateAppSession(input: {
   }
 
   if (profile.isBanned) {
-    await writeAuthenticationLog({
+    await writeAuthenticationLogSafely({
       browser: metadata.browser,
       email: credentials.email,
       failureReason: "user_banned",
@@ -249,23 +407,19 @@ export async function signInAndCreateAppSession(input: {
 
   await createAlignedAppSession({
     accessToken: result.data.accessToken,
+    refreshToken: result.data.refreshToken,
     userId: result.data.user.id,
   });
 
-  try {
-    await writeAuthenticationLog({
-      browser: metadata.browser,
-      email: credentials.email,
-      failureReason: null,
-      ipAddress: metadata.ipAddress,
-      isSuccess: true,
-      os: metadata.os,
-      userId: result.data.user.id,
-    });
-  } catch (error) {
-    await revokeActiveAppSession();
-    throw error;
-  }
+  await writeAuthenticationLogSafely({
+    browser: metadata.browser,
+    email: credentials.email,
+    failureReason: null,
+    ipAddress: metadata.ipAddress,
+    isSuccess: true,
+    os: metadata.os,
+    userId: result.data.user.id,
+  });
 
   return {
     ok: true,
@@ -291,7 +445,7 @@ export async function signUpAndCreateAppSession(input: {
 
   const result = await signUpWithPassword(credentials);
 
-  if (result.error || !result.data?.user || !result.data.accessToken) {
+  if (result.error || !result.data?.user || !result.data.refreshToken) {
     const failureReason = mapRegisterFailureReason(result.error);
 
     return {
@@ -304,6 +458,18 @@ export async function signUpAndCreateAppSession(input: {
     };
   }
 
+  const requiresEmailVerification = !result.data.accessToken && result.data.requireEmailVerification === true;
+
+  if (!result.data.accessToken && !requiresEmailVerification) {
+    return {
+      failureReason: "auth_provider_error",
+      message: "Account could not be created right now.",
+      ok: false,
+    };
+  }
+
+  const signupAccessToken = result.data.accessToken;
+
   let hasAlignedAppSession = false;
 
   try {
@@ -312,13 +478,26 @@ export async function signUpAndCreateAppSession(input: {
       userId: result.data.user.id,
     });
 
+    if (requiresEmailVerification) {
+      return {
+        failureReason: "email_not_verified",
+        message: `Account created for ${profile.username}. Check your email to verify it before signing in.`,
+        ok: false,
+      };
+    }
+
+    if (!signupAccessToken) {
+      throw new Error("Signup access token is required when email verification is not pending.");
+    }
+
     await createAlignedAppSession({
-      accessToken: result.data.accessToken,
+      accessToken: signupAccessToken,
+      refreshToken: result.data.refreshToken,
       userId: result.data.user.id,
     });
     hasAlignedAppSession = true;
 
-    await writeAuthenticationLog({
+    await writeAuthenticationLogSafely({
       browser: metadata.browser,
       email: credentials.email,
       failureReason: null,
@@ -349,7 +528,9 @@ export async function signUpAndCreateAppSession(input: {
 
 export async function signOutAndRevokeAppSession() {
   await revokeActiveAppSession();
+  await clearEmailVerificationResendCooldownCookie();
   await clearInsForgeAccessTokenCookie();
+  await clearInsForgeRefreshTokenCookie();
 
   return {
     ok: true,
@@ -359,11 +540,12 @@ export async function signOutAndRevokeAppSession() {
 
 export async function requestPasswordReset(input: { payload: unknown; redirectTo: string }) {
   const payload = sendResetPasswordInputSchema.parse(input.payload);
+  const redirectTo = appendEmailSearchParamToUrl(input.redirectTo, payload.email);
 
   try {
     await sendResetPasswordEmail({
       ...payload,
-      redirectTo: input.redirectTo,
+      redirectTo,
     });
   } catch (_error) {
     // Keep the reset request privacy contract stable even when the provider rejects an unknown email.
@@ -372,6 +554,64 @@ export async function requestPasswordReset(input: { payload: unknown; redirectTo
   return {
     message: "If the email can receive reset instructions, we sent them.",
     ok: true,
+  };
+}
+
+export async function requestEmailVerificationLink(input: { email: string; redirectTo: string }) {
+  const payload = sendResetPasswordInputSchema.parse({ email: input.email });
+  const cooldownValue = readVerificationResendCooldownValue(await readEmailVerificationResendCooldownCookie());
+  const retryAfterSeconds =
+    cooldownValue?.email === payload.email ? readCooldownRemainingSeconds(String(cooldownValue.cooldownUntil)) : 0;
+
+  if (retryAfterSeconds > 0) {
+    return {
+      message: `Please wait ${retryAfterSeconds} seconds before requesting another verification link.`,
+      ok: false as const,
+      retryAfterSeconds,
+    };
+  }
+
+  const authUser = await readAuthUserByEmail(payload);
+
+  if (!authUser) {
+    return {
+      message: "Verification status could not be confirmed right now.",
+      ok: false as const,
+    };
+  }
+
+  if (authUser.emailVerified) {
+    await clearEmailVerificationResendCooldownCookie();
+
+    return {
+      message: "Your email is already verified. Refresh this page to continue.",
+      ok: true as const,
+    };
+  }
+
+  const result = await resendVerificationEmail({
+    ...payload,
+    redirectTo: input.redirectTo,
+  });
+
+  if (result.error) {
+    return {
+      message: "Verification link could not be sent right now.",
+      ok: false as const,
+    };
+  }
+
+  const cooldownUntil = Date.now() + EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS * 1000;
+
+  await writeEmailVerificationResendCooldownCookie(
+    JSON.stringify({ cooldownUntil, email: payload.email }),
+    EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS,
+  );
+
+  return {
+    message: "Verification link sent. Check your email to continue.",
+    ok: true as const,
+    retryAfterSeconds: EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS,
   };
 }
 
@@ -397,6 +637,14 @@ export async function completePasswordReset(input: unknown) {
       ok: false,
       requiresLogin: true,
     } satisfies AuthActionResult;
+  }
+
+  if (payload.email) {
+    const authUser = await readAuthUserByEmail({ email: payload.email });
+
+    if (authUser) {
+      await revokeAllAppSessionsForUser(authUser.id);
+    }
   }
 
   return {

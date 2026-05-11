@@ -193,6 +193,13 @@ export async function sendResetPasswordEmail(input: SendResetPasswordInput & { r
   });
 }
 
+export async function resendVerificationEmail(input: SendResetPasswordInput & { redirectTo: string }) {
+  return createInsForgeServerAuth().resendVerificationEmail({
+    email: input.email,
+    redirectTo: input.redirectTo,
+  });
+}
+
 export async function exchangeResetPasswordToken(input: ExchangeResetPasswordInput) {
   return createInsForgeServerAuth().exchangeResetPasswordToken({
     code: input.code,
@@ -204,6 +211,12 @@ export async function resetPasswordWithOtp(input: ResetPasswordInput) {
   return createInsForgeServerAuth().resetPassword({
     newPassword: input.password,
     otp: input.otp,
+  });
+}
+
+export async function refreshInsForgeSession(input: { refreshToken: string }) {
+  return createInsForgeServerAuth().refreshSession({
+    refreshToken: input.refreshToken,
   });
 }
 

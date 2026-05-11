@@ -52,4 +52,21 @@ describe("lib/cookies app_session transport", () => {
       }),
     );
   });
+
+  it("writes the email verification resend cooldown cookie as an httpOnly server cookie", async () => {
+    const { writeEmailVerificationResendCooldownCookie } = await import("@/lib/cookies");
+
+    await writeEmailVerificationResendCooldownCookie("future-timestamp", 60);
+
+    expect(headerMocks.cookieStore.set).toHaveBeenCalledWith(
+      "email_verification_resend_cooldown",
+      "future-timestamp",
+      expect.objectContaining({
+        httpOnly: true,
+        maxAge: 60,
+        path: "/",
+        sameSite: "lax",
+      }),
+    );
+  });
 });

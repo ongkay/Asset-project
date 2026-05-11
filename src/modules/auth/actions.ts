@@ -2,7 +2,7 @@
 
 import { actionClient } from "@/lib/safe-action/client";
 import { buildCurrentUrl, readTrustedRequestMetadata } from "@/lib/request-metadata";
-import { adminActionClient } from "@/modules/auth/action-client";
+import { adminActionClient, memberActionClient } from "@/modules/auth/action-client";
 
 import {
   adminChangeUserPasswordInputSchema,
@@ -16,6 +16,7 @@ import {
   checkAuthEmailStatus,
   changeUserPasswordByAdmin,
   completePasswordReset,
+  requestEmailVerificationLink,
   requestPasswordReset,
   signInAndCreateAppSession,
   signOutAndRevokeAppSession,
@@ -61,6 +62,15 @@ export const completePasswordResetAction = actionClient
   .metadata({ actionName: "auth.complete-password-reset" })
   .inputSchema(completeResetPasswordInputSchema)
   .action(async ({ parsedInput }) => completePasswordReset(parsedInput));
+
+export const resendEmailVerificationAction = memberActionClient
+  .metadata({ actionName: "auth.resend-email-verification" })
+  .action(async ({ ctx }) =>
+    requestEmailVerificationLink({
+      email: ctx.currentAppUser.profile.email,
+      redirectTo: await buildCurrentUrl("/email-verified"),
+    }),
+  );
 
 export const changeUserPasswordAction = adminActionClient
   .metadata({ actionName: "auth.change-user-password" })

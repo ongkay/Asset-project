@@ -5,6 +5,11 @@ vi.mock("@/modules/console/queries", () => ({
   getConsoleStateSnapshot: vi.fn(),
 }));
 
+vi.mock("@/modules/auth/services", () => ({
+  readCurrentAuthEmailVerificationState: vi.fn(),
+  readCurrentEmailVerificationResendCooldownRemainingSeconds: vi.fn(),
+}));
+
 vi.mock("@/modules/console/schemas", () => ({
   parseConsolePaymentErrorSearchParam: vi.fn(),
 }));
@@ -20,6 +25,7 @@ vi.mock("@/app/(member)/console/_components/console-page", () => ({
 import * as consoleQueries from "@/modules/console/queries";
 import * as consoleSchemas from "@/modules/console/schemas";
 import * as packageServices from "@/modules/packages/services";
+import * as authServices from "@/modules/auth/services";
 
 import MemberConsoleRoutePage from "@/app/(member)/console/page";
 
@@ -27,6 +33,10 @@ const mockedGetConsoleSnapshot = vi.mocked(consoleQueries.getConsoleSnapshot);
 const mockedGetConsoleStateSnapshot = vi.mocked(consoleQueries.getConsoleStateSnapshot);
 const mockedParseConsolePaymentErrorSearchParam = vi.mocked(consoleSchemas.parseConsolePaymentErrorSearchParam);
 const mockedListMemberPurchasablePackages = vi.mocked(packageServices.listMemberPurchasablePackages);
+const mockedReadCurrentAuthEmailVerificationState = vi.mocked(authServices.readCurrentAuthEmailVerificationState);
+const mockedReadCurrentEmailVerificationResendCooldownRemainingSeconds = vi.mocked(
+  authServices.readCurrentEmailVerificationResendCooldownRemainingSeconds,
+);
 
 describe("app/member/console/page", () => {
   beforeEach(() => {
@@ -34,6 +44,8 @@ describe("app/member/console/page", () => {
     mockedGetConsoleStateSnapshot.mockReset();
     mockedParseConsolePaymentErrorSearchParam.mockReset();
     mockedListMemberPurchasablePackages.mockReset();
+    mockedReadCurrentAuthEmailVerificationState.mockReset();
+    mockedReadCurrentEmailVerificationResendCooldownRemainingSeconds.mockReset();
   });
 
   it("parses paymentError and passes explicit server bootstrap props to the client page", async () => {
@@ -47,6 +59,8 @@ describe("app/member/console/page", () => {
       latestSubscription: null,
       state: "none",
     });
+    mockedReadCurrentAuthEmailVerificationState.mockResolvedValueOnce(false);
+    mockedReadCurrentEmailVerificationResendCooldownRemainingSeconds.mockResolvedValueOnce(42);
     mockedListMemberPurchasablePackages.mockResolvedValueOnce([
       {
         accessKeys: ["tradingview:private"],
@@ -68,6 +82,10 @@ describe("app/member/console/page", () => {
     expect(mockedGetConsoleSnapshot).toHaveBeenCalledTimes(1);
     expect(mockedGetConsoleStateSnapshot).toHaveBeenCalledTimes(1);
     expect(mockedListMemberPurchasablePackages).toHaveBeenCalledTimes(1);
+    expect(mockedReadCurrentAuthEmailVerificationState).toHaveBeenCalledTimes(1);
+    expect(mockedReadCurrentEmailVerificationResendCooldownRemainingSeconds).toHaveBeenCalledTimes(1);
+    expect(element.props.initialEmailVerificationResendCooldownRemainingSeconds).toBe(42);
+    expect(element.props.initialEmailVerified).toBe(false);
     expect(element.props.initialPaymentError).toBe("disabled-package");
     expect(element.props.initialSnapshot).toEqual({
       assets: [],

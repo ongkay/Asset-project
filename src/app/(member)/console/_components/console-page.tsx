@@ -6,6 +6,7 @@ import { AlertCircle } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+import { ConsoleEmailVerificationAlert } from "./console-email-verification-alert";
 import type { ConsolePageProps } from "./console-page-types";
 import { ConsoleAssetDetailDialog } from "./console-asset-detail-dialog/console-asset-detail-dialog";
 import { ConsoleAssetTable } from "./console-asset-table/console-asset-table";
@@ -23,6 +24,8 @@ const paymentErrorMessageByKey = {
 } satisfies Record<NonNullable<ConsolePageProps["initialPaymentError"]>, string>;
 
 export function ConsolePage({
+  initialEmailVerificationResendCooldownRemainingSeconds,
+  initialEmailVerified,
   initialPackages,
   initialPaymentError,
   initialSnapshot,
@@ -41,6 +44,11 @@ export function ConsolePage({
   return (
     <>
       <div className="flex flex-col gap-6">
+        <ConsoleEmailVerificationAlert
+          initialCooldownRemainingSeconds={initialEmailVerificationResendCooldownRemainingSeconds}
+          initialEmailVerified={initialEmailVerified}
+        />
+
         {initialPaymentError ? (
           <Alert variant="destructive">
             <AlertCircle className="size-4" />

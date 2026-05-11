@@ -81,6 +81,8 @@ describe("app/member/console UI", () => {
   it("renders the member console sections, exact paymentError copy, and non-running purchase entry points", () => {
     const markup = renderToStaticMarkup(
       createElement(ConsolePage, {
+        initialEmailVerificationResendCooldownRemainingSeconds: 0,
+        initialEmailVerified: false,
         initialPackages: [...packages],
         initialPaymentError: "disabled-package",
         initialSnapshot: {
@@ -114,6 +116,8 @@ describe("app/member/console UI", () => {
     );
 
     expect(markup).toContain("Package sudah tidak tersedia untuk pembelian baru.");
+    expect(markup).toContain("Email belum terverifikasi");
+    expect(markup).toContain("Kirim link verifikasi");
     expect(markup).toContain("Status langganan");
     expect(markup).toContain("Asset List");
     expect(markup).toContain("History Subscription");

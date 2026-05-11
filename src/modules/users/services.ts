@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 
 import { createAuthUserAsAdmin, deleteAuthUserAsAdmin, readAuthUserByEmail } from "@/modules/auth/repositories";
+import { hasValidatedInsForgeSessionForActiveAppSession } from "@/modules/auth/services";
 import {
   revokeActiveAppSession,
   touchActiveAppSessionLastSeen,
@@ -257,6 +258,12 @@ export async function getAuthenticatedAppUser(): Promise<AuthenticatedAppUser | 
   const activeSession = await validateActiveAppSession();
 
   if (!activeSession) {
+    return null;
+  }
+
+  const hasValidatedInsForgeSession = await hasValidatedInsForgeSessionForActiveAppSession();
+
+  if (!hasValidatedInsForgeSession) {
     return null;
   }
 

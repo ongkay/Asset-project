@@ -4,6 +4,7 @@ export type AuthRedirectTarget = "/admin" | "/console" | "/login";
 
 export type AuthFailureReason =
   | "auth_provider_error"
+  | "email_not_verified"
   | "email_already_registered"
   | "invalid_reset_token"
   | "profile_missing"
