@@ -4,9 +4,9 @@ import { z } from "zod";
 
 import { createInsForgeAdminDatabase } from "@/lib/insforge/database";
 
-import { extModeSchema, extPlatformSchema } from "./schemas";
+import { extModeSchema, extPlatformSchema, extTradingViewOwnedLayoutSchema } from "./schemas";
 
-import type { ExtAssetCookie } from "./types";
+import type { ExtAssetCookie, ExtTradingViewOwnedLayout } from "./types";
 
 const extAppConfigRowSchema = z.object({
   download_url: z.string().min(1),
@@ -47,6 +47,14 @@ const extHeartbeatRowSchema = z.object({
   first_seen_at: z.string().min(1),
   id: z.string().min(1),
   last_seen_at: z.string().min(1),
+});
+
+const extTradingViewOwnedLayoutRowSchema = z.object({
+  chart_id: z.string().min(1),
+  last_opened_at: z.string().nullable(),
+  layout_updated_at: z.string().min(1),
+  title: z.string().min(1),
+  url: z.string().min(1),
 });
 
 function stripExtAssetCookieId(cookie: z.infer<typeof extAssetCookieSchema>): ExtAssetCookie {
@@ -315,4 +323,100 @@ export async function upsertExtHeartbeatByFingerprint(input: {
   }
 
   return extHeartbeatRowSchema.parse(insertedRow);
+}
+
+export async function readExtTradingViewOwnedLayoutRowsByUserId(userId: string) {
+  const { data, error } = await createInsForgeAdminDatabase()
+    .from("extension_tradingview_layouts")
+    .select("chart_id, title, url, layout_updated_at, last_opened_at")
+    .eq("user_id", userId);
+
+  if (error) {
+    throw error;
+  }
+
+  return z.array(extTradingViewOwnedLayoutRowSchema).parse(data ?? []);
+}
+
+export async function writeExtTradingViewOwnedLayoutRows(input: {
+  layouts: ExtTradingViewOwnedLayout[];
+  userId: string;
+  lastOpenedAt: string | null;
+  lastOpenedChartId: string | null;
+  snapshotCapturedAt: string;
+}) {
+  const database = createInsForgeAdminDatabase();
+  const normalizedLayouts = input.layouts.map((layout) => extTradingViewOwnedLayoutSchema.parse(layout));
+  const currentRows = await readExtTradingViewOwnedLayoutRowsByUserId(input.userId);
+
+  if (hasNewerTradingViewOwnedLayoutSnapshot(currentRows, input.snapshotCapturedAt)) {
+    return;
+  }
+
+  const lastOpenedChartId = input.lastOpenedChartId?.trim() || null;
+  const activeChartIds = normalizedLayouts.map((layout) => layout.chartId);
+
+  if (normalizedLayouts.length > 0) {
+    await Promise.all(
+      normalizedLayouts.map(async (layout) => {
+        const { error: upsertError } = await database.rpc("upsert_extension_tradingview_layout", {
+          p_chart_id: layout.chartId,
+          p_layout_updated_at: layout.updatedAt,
+          p_title: layout.title,
+          p_url: layout.url,
+          p_user_id: input.userId,
+        });
+
+        if (upsertError) {
+          throw upsertError;
+        }
+      }),
+    );
+  }
+
+  const missingChartIds = currentRows.map((row) => row.chart_id).filter((chartId) => !activeChartIds.includes(chartId));
+
+  if (missingChartIds.length > 0) {
+    const { error: deleteError } = await database
+      .from("extension_tradingview_layouts")
+      .delete()
+      .eq("user_id", input.userId)
+      .in("chart_id", missingChartIds);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+  }
+
+  const { error: clearLastOpenedError } = await database
+    .from("extension_tradingview_layouts")
+    .update({ last_opened_at: null })
+    .eq("user_id", input.userId);
+
+  if (clearLastOpenedError) {
+    throw clearLastOpenedError;
+  }
+
+  if (lastOpenedChartId && input.lastOpenedAt && activeChartIds.includes(lastOpenedChartId)) {
+    const { error } = await database.rpc("set_extension_tradingview_last_opened", {
+      p_chart_id: lastOpenedChartId,
+      p_last_opened_at: input.lastOpenedAt,
+      p_user_id: input.userId,
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+}
+
+function hasNewerTradingViewOwnedLayoutSnapshot(
+  rows: Awaited<ReturnType<typeof readExtTradingViewOwnedLayoutRowsByUserId>>,
+  snapshotCapturedAt: string,
+) {
+  return rows.some((row) => {
+    return [row.layout_updated_at, row.last_opened_at]
+      .filter((timestamp): timestamp is string => Boolean(timestamp))
+      .some((timestamp) => Date.parse(timestamp) > Date.parse(snapshotCapturedAt));
+  });
 }

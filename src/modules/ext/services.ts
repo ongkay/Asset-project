@@ -22,7 +22,9 @@ import {
   readExtAssetSecretByUserId,
   readExtPlatformAccessByUserId,
   readExtPurchasablePackages,
+  readExtTradingViewOwnedLayoutRowsByUserId,
   upsertExtHeartbeatByFingerprint,
+  writeExtTradingViewOwnedLayoutRows,
 } from "./repositories";
 import {
   extAssetQuerySchema,
@@ -31,9 +33,18 @@ import {
   extHeartbeatBodySchema,
   extRedeemBodySchema,
   extRequestHeadersSchema,
+  extTradingViewOwnedLayoutSyncBodySchema,
 } from "./schemas";
 
-import type { ExtAssetSummary, ExtMode, ExtPlatform, ExtRuntimeAssetSnapshot, ExtVersionStatus } from "./types";
+import type {
+  ExtAssetSummary,
+  ExtMode,
+  ExtPlatform,
+  ExtRuntimeAssetSnapshot,
+  ExtTradingViewOwnedLayout,
+  ExtTradingViewOwnedLayoutSnapshot,
+  ExtVersionStatus,
+} from "./types";
 
 type ExtRequestHeaders = {
   extensionId: string;
@@ -64,6 +75,8 @@ type ExtResolvedRuntimeAsset = {
   platform: ExtPlatform;
   revision: string;
 };
+
+const pendingTradingViewOwnedLayoutSyncByUserId = new Map<string, Promise<unknown>>();
 
 export function compareVersion(left: string, right: string) {
   const leftParts = left.split(".").map((part) => Number.parseInt(part, 10) || 0);
@@ -241,14 +254,23 @@ export async function getExtBootstrapResponse(input: { query: unknown; requestHe
   };
 
   if (consoleState.state === "active" || consoleState.state === "processed") {
+    const assets = await resolveBootstrapAssetSummaries(activeSession.userId, consoleState.state);
+
+    const tradingViewOwnedLayouts = assets.some((assetSummary) => {
+      return assetSummary.platform === "tradingview" && assetSummary.mode === "share";
+    })
+      ? await readExtTradingViewOwnedLayoutSnapshotByUserId(activeSession.userId)
+      : null;
+
     return {
-      assets: await resolveBootstrapAssetSummaries(activeSession.userId, consoleState.state),
+      assets,
       auth: { status: "authenticated" as const },
       subscription: {
         endAt: consoleState.latestSubscription?.endAt ?? null,
         packageName: consoleState.latestSubscription?.packageName ?? null,
         status: consoleState.state,
       },
+      ...(tradingViewOwnedLayouts ? { tradingViewOwnedLayouts } : {}),
       user,
       version: requestContext.versionStatus,
     };
@@ -266,6 +288,36 @@ export async function getExtBootstrapResponse(input: { query: unknown; requestHe
     user,
     version: requestContext.versionStatus,
   };
+}
+
+export async function syncExtTradingViewOwnedLayouts(input: { body: unknown; requestHeaders: Headers }) {
+  const payload = extTradingViewOwnedLayoutSyncBodySchema.parse(input.body);
+  const context = await requireExtSessionContext(input.requestHeaders, { versionFallback: null });
+  const canUseOwnedLayouts = await canUseTradingViewOwnedLayouts(context.session.userId);
+
+  if (!canUseOwnedLayouts) {
+    throw new ExtApiError("EXT_MODE_NOT_ALLOWED", "TradingView owned layouts are not available for this account.");
+  }
+
+  return queueTradingViewOwnedLayoutSync(context.session.userId, async () => {
+    // The extension currently uploads its full durable owned-layout cache for every supported trigger.
+    // Keep `isAuthoritativeSnapshot` on the wire for compatibility, but do not split server behavior by it yet.
+    const nextSnapshot = normalizeExtTradingViewOwnedLayoutSnapshot({
+      lastOpenedAt: payload.lastOpenedAt,
+      lastOpenedChartId: payload.lastOpenedChartId,
+      layouts: payload.layouts,
+    });
+
+    await writeExtTradingViewOwnedLayoutRows({
+      layouts: nextSnapshot.layouts,
+      userId: context.session.userId,
+      lastOpenedAt: nextSnapshot.lastOpenedAt,
+      lastOpenedChartId: nextSnapshot.lastOpenedChartId,
+      snapshotCapturedAt: payload.snapshotCapturedAt,
+    });
+
+    return readExtTradingViewOwnedLayoutSnapshotByUserId(context.session.userId);
+  });
 }
 
 export async function getExtAssetResponse(input: { query: unknown; requestHeaders: Headers }) {
@@ -540,6 +592,116 @@ function getPlatformSortWeight(platform: ExtPlatform): number {
     return 1;
   }
   return 1;
+}
+
+async function canUseTradingViewOwnedLayouts(userId: string): Promise<boolean> {
+  const consoleState = await getConsoleStateSnapshotByUserId(userId);
+
+  if (consoleState.state !== "active" && consoleState.state !== "processed") {
+    return false;
+  }
+
+  const platformAccess = await readExtPlatformAccessByUserId(userId);
+  const tradingViewPlatformAccess = platformAccess.find(
+    (platformAccessItem) => platformAccessItem.platform === "tradingview",
+  );
+
+  if (!tradingViewPlatformAccess) {
+    return false;
+  }
+
+  const tradingViewAssetSummary = await resolveRuntimeAssetSummary({
+    platformAccess: tradingViewPlatformAccess,
+    subscriptionStatus: consoleState.state,
+    userId,
+  });
+
+  return tradingViewAssetSummary?.platform === "tradingview" && tradingViewAssetSummary.mode === "share";
+}
+
+async function readExtTradingViewOwnedLayoutSnapshotByUserId(
+  userId: string,
+): Promise<ExtTradingViewOwnedLayoutSnapshot> {
+  return buildExtTradingViewOwnedLayoutSnapshot(await readExtTradingViewOwnedLayoutRowsByUserId(userId));
+}
+
+function buildExtTradingViewOwnedLayoutSnapshot(
+  rows: Awaited<ReturnType<typeof readExtTradingViewOwnedLayoutRowsByUserId>>,
+): ExtTradingViewOwnedLayoutSnapshot {
+  const layouts: ExtTradingViewOwnedLayout[] = [];
+  let lastOpenedLayout: { chartId: string; lastOpenedAt: string } | null = null;
+
+  for (const row of rows) {
+    layouts.push({
+      chartId: row.chart_id,
+      title: row.title,
+      updatedAt: row.layout_updated_at,
+      url: row.url,
+    });
+
+    if (!row.last_opened_at) {
+      continue;
+    }
+
+    if (!lastOpenedLayout || row.last_opened_at > lastOpenedLayout.lastOpenedAt) {
+      lastOpenedLayout = {
+        chartId: row.chart_id,
+        lastOpenedAt: row.last_opened_at,
+      };
+    }
+  }
+
+  layouts.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
+  return {
+    lastOpenedAt: lastOpenedLayout?.lastOpenedAt ?? null,
+    lastOpenedChartId: lastOpenedLayout?.chartId ?? null,
+    layouts,
+  };
+}
+
+function normalizeExtTradingViewOwnedLayoutSnapshot(input: {
+  lastOpenedAt: string | null;
+  lastOpenedChartId: string | null;
+  layouts: ExtTradingViewOwnedLayout[];
+}): ExtTradingViewOwnedLayoutSnapshot {
+  const layoutsByChartId = new Map<string, ExtTradingViewOwnedLayout>();
+
+  for (const layout of input.layouts) {
+    const currentLayout = layoutsByChartId.get(layout.chartId);
+
+    if (!currentLayout || currentLayout.updatedAt < layout.updatedAt) {
+      layoutsByChartId.set(layout.chartId, layout);
+    }
+  }
+
+  const layouts = [...layoutsByChartId.values()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  const hasLastOpenedLayout = layouts.some((layout) => layout.chartId === input.lastOpenedChartId);
+
+  return {
+    lastOpenedAt: hasLastOpenedLayout ? input.lastOpenedAt : null,
+    lastOpenedChartId: hasLastOpenedLayout ? input.lastOpenedChartId : null,
+    layouts,
+  };
+}
+
+function queueTradingViewOwnedLayoutSync<TValue>(
+  userId: string,
+  syncOperation: () => Promise<TValue>,
+): Promise<TValue> {
+  const currentSync = pendingTradingViewOwnedLayoutSyncByUserId.get(userId) ?? Promise.resolve(undefined);
+  const nextSync = currentSync.then(syncOperation, syncOperation);
+
+  pendingTradingViewOwnedLayoutSyncByUserId.set(
+    userId,
+    nextSync.finally(() => {
+      if (pendingTradingViewOwnedLayoutSyncByUserId.get(userId) === nextSync) {
+        pendingTradingViewOwnedLayoutSyncByUserId.delete(userId);
+      }
+    }),
+  );
+
+  return nextSync;
 }
 
 export async function createExtRedeemResponse(input: { body: unknown; requestHeaders: Headers }) {

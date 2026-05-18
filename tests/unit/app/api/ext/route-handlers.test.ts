@@ -7,6 +7,7 @@ vi.mock("@/modules/ext/services", () => ({
   getExtAssetResponse: vi.fn(),
   getExtAssetSyncResponse: vi.fn(),
   getExtBootstrapResponse: vi.fn(),
+  syncExtTradingViewOwnedLayouts: vi.fn(),
 }));
 
 import { GET as getExtAsset, runtime as assetRuntime } from "@/app/api/ext/asset/route";
@@ -15,6 +16,10 @@ import { GET as getExtBootstrap, runtime as bootstrapRuntime } from "@/app/api/e
 import { POST as postExtHeartbeat, runtime as heartbeatRuntime } from "@/app/api/ext/heartbeat/route";
 import { POST as postExtLogout, runtime as logoutRuntime } from "@/app/api/ext/logout/route";
 import { POST as postExtRedeem, runtime as redeemRuntime } from "@/app/api/ext/redeem/route";
+import {
+  POST as postExtTradingViewLayoutSync,
+  runtime as tradingViewLayoutSyncRuntime,
+} from "@/app/api/ext/tradingview/layouts/sync/route";
 import { ExtApiError } from "@/lib/ext-api/errors";
 import {
   createExtHeartbeatResponse,
@@ -23,6 +28,7 @@ import {
   getExtAssetResponse,
   getExtAssetSyncResponse,
   getExtBootstrapResponse,
+  syncExtTradingViewOwnedLayouts,
 } from "@/modules/ext/services";
 
 const mockedCreateExtHeartbeatResponse = vi.mocked(createExtHeartbeatResponse);
@@ -31,6 +37,7 @@ const mockedCreateExtRedeemResponse = vi.mocked(createExtRedeemResponse);
 const mockedGetExtAssetResponse = vi.mocked(getExtAssetResponse);
 const mockedGetExtAssetSyncResponse = vi.mocked(getExtAssetSyncResponse);
 const mockedGetExtBootstrapResponse = vi.mocked(getExtBootstrapResponse);
+const mockedSyncExtTradingViewOwnedLayouts = vi.mocked(syncExtTradingViewOwnedLayouts);
 
 describe("ext route handlers", () => {
   it("exports nodejs runtime for every ext handler", () => {
@@ -40,6 +47,7 @@ describe("ext route handlers", () => {
     expect(redeemRuntime).toBe("nodejs");
     expect(heartbeatRuntime).toBe("nodejs");
     expect(logoutRuntime).toBe("nodejs");
+    expect(tradingViewLayoutSyncRuntime).toBe("nodejs");
   });
 
   it("passes query version and headers to bootstrap service", async () => {
@@ -305,6 +313,100 @@ describe("ext route handlers", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       redirectTo: "/login",
+    });
+  });
+
+  it("passes parsed POST body and headers to tradingview layout sync service", async () => {
+    mockedSyncExtTradingViewOwnedLayouts.mockResolvedValue({
+      lastOpenedAt: "2026-05-17T01:00:00.000Z",
+      lastOpenedChartId: "OWN123",
+      layouts: [
+        {
+          chartId: "OWN123",
+          title: "Layout Sendiri",
+          updatedAt: "2026-05-17T01:00:00.000Z",
+          url: "https://www.tradingview.com/chart/OWN123/",
+        },
+      ],
+    });
+
+    const request = new Request("http://localhost/api/ext/tradingview/layouts/sync", {
+      body: JSON.stringify({
+        isAuthoritativeSnapshot: false,
+        lastOpenedAt: "2026-05-17T01:00:00.000Z",
+        lastOpenedChartId: "OWN123",
+        layouts: [
+          {
+            chartId: "OWN123",
+            title: "Layout Sendiri",
+            updatedAt: "2026-05-17T01:00:00.000Z",
+            url: "https://www.tradingview.com/chart/OWN123/",
+          },
+        ],
+        snapshotCapturedAt: "2026-05-17T01:05:00.000Z",
+        trigger: "popup_open",
+      }),
+      headers: {
+        "content-type": "application/json",
+        origin: "chrome-extension://allowed-id",
+        "x-extension-id": "allowed-id",
+      },
+      method: "POST",
+    });
+    const response = await postExtTradingViewLayoutSync(request);
+
+    expect(mockedSyncExtTradingViewOwnedLayouts).toHaveBeenCalledWith({
+      body: {
+        isAuthoritativeSnapshot: false,
+        lastOpenedAt: "2026-05-17T01:00:00.000Z",
+        lastOpenedChartId: "OWN123",
+        layouts: [
+          {
+            chartId: "OWN123",
+            title: "Layout Sendiri",
+            updatedAt: "2026-05-17T01:00:00.000Z",
+            url: "https://www.tradingview.com/chart/OWN123/",
+          },
+        ],
+        snapshotCapturedAt: "2026-05-17T01:05:00.000Z",
+        trigger: "popup_open",
+      },
+      requestHeaders: request.headers,
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      lastOpenedAt: "2026-05-17T01:00:00.000Z",
+      lastOpenedChartId: "OWN123",
+      layouts: [
+        {
+          chartId: "OWN123",
+          title: "Layout Sendiri",
+          updatedAt: "2026-05-17T01:00:00.000Z",
+          url: "https://www.tradingview.com/chart/OWN123/",
+        },
+      ],
+    });
+  });
+
+  it("returns structured invalid-request JSON when tradingview layout sync receives malformed JSON", async () => {
+    const request = new Request("http://localhost/api/ext/tradingview/layouts/sync", {
+      body: "{",
+      headers: {
+        "content-type": "application/json",
+        origin: "chrome-extension://allowed-id",
+        "x-extension-id": "allowed-id",
+      },
+      method: "POST",
+    });
+    const response = await postExtTradingViewLayoutSync(request);
+
+    expect(mockedSyncExtTradingViewOwnedLayouts).not.toHaveBeenCalled();
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "EXT_REQUEST_INVALID",
+        message: "Request body must be valid JSON.",
+      },
     });
   });
 });

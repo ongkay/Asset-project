@@ -31,7 +31,9 @@ const extRepositoryMocks = vi.hoisted(() => ({
   readExtPlatformAccessByUserId: vi.fn(),
   readExtPurchasablePackages: vi.fn(),
   readExtRuntimeAssetByUserId: vi.fn(),
+  readExtTradingViewOwnedLayoutRowsByUserId: vi.fn(),
   upsertExtHeartbeatByFingerprint: vi.fn(),
+  writeExtTradingViewOwnedLayoutRows: vi.fn(),
 }));
 
 const requestMetadataMocks = vi.hoisted(() => ({
@@ -68,7 +70,11 @@ describe("ext/services bootstrap", () => {
     extRepositoryMocks.readExtPlatformAccessByUserId.mockReset();
     extRepositoryMocks.readExtPurchasablePackages.mockReset();
     extRepositoryMocks.readExtRuntimeAssetByUserId.mockReset();
+    extRepositoryMocks.readExtTradingViewOwnedLayoutRowsByUserId.mockReset();
     extRepositoryMocks.upsertExtHeartbeatByFingerprint.mockReset();
+    extRepositoryMocks.writeExtTradingViewOwnedLayoutRows.mockReset();
+    extRepositoryMocks.readExtTradingViewOwnedLayoutRowsByUserId.mockResolvedValue([]);
+    extRepositoryMocks.writeExtTradingViewOwnedLayoutRows.mockResolvedValue(undefined);
     requestMetadataMocks.readTrustedRequestMetadataFromHeaders.mockReset();
     sessionServiceMocks.touchAppSessionLastSeen.mockReset();
     sessionServiceMocks.validateActiveAppSession.mockReset();
@@ -1184,5 +1190,177 @@ describe("ext/services bootstrap", () => {
         }),
       }),
     ).rejects.not.toMatchObject({ code: "EXT_REDEEM_INVALID" });
+  });
+
+  it("includes tradingview owned layouts in bootstrap for share users", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.1",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2099-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2099-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
+    extRepositoryMocks.readExtAssetSecretByUserId.mockImplementation(({ mode }) =>
+      Promise.resolve(mode === "share" ? { cookies: [], proxy: null } : null),
+    );
+    extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
+      { hasPrivateAccess: false, hasShareAccess: true, platform: "tradingview" },
+    ]);
+    extRepositoryMocks.readExtTradingViewOwnedLayoutRowsByUserId.mockResolvedValue([
+      {
+        chart_id: "OWN123",
+        last_opened_at: "2026-05-17T01:00:00.000Z",
+        layout_updated_at: "2026-05-17T01:00:00.000Z",
+        title: "Layout Sendiri",
+        url: "https://www.tradingview.com/chart/OWN123/",
+      },
+    ]);
+
+    const { getExtBootstrapResponse } = await import("@/modules/ext/services");
+
+    await expect(
+      getExtBootstrapResponse({
+        query: { version: "2.0.0" },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+        }),
+      }),
+    ).resolves.toMatchObject({
+      tradingViewOwnedLayouts: {
+        lastOpenedAt: "2026-05-17T01:00:00.000Z",
+        lastOpenedChartId: "OWN123",
+        layouts: [
+          {
+            chartId: "OWN123",
+            title: "Layout Sendiri",
+            updatedAt: "2026-05-17T01:00:00.000Z",
+            url: "https://www.tradingview.com/chart/OWN123/",
+          },
+        ],
+      },
+    });
+  });
+
+  it("persists active-only tradingview owned layout sync snapshots with hard delete semantics", async () => {
+    extRepositoryMocks.readExtAppConfig.mockResolvedValue({
+      downloadUrl: "https://github.com/example",
+      extensionKey: "asset-extension-v2",
+      isActive: true,
+      latestVersion: "2.0.1",
+      minimumVersion: "2.0.0",
+    });
+    sessionServiceMocks.validateAppSessionToken.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
+    authRepositoryMocks.readProfileByUserId.mockResolvedValue({
+      avatarUrl: null,
+      email: "seed.active@assetnext.dev",
+      isBanned: false,
+      publicId: "MEM-001",
+      role: "member",
+      userId: "user-1",
+      username: "seed-active",
+    });
+    consoleQueryMocks.getConsoleStateSnapshotByUserId.mockResolvedValue({
+      latestSubscription: {
+        endAt: "2099-05-01T00:00:00.000Z",
+        id: "sub-1",
+        packageId: "pkg-1",
+        packageName: "Starter",
+        startAt: "2099-04-01T00:00:00.000Z",
+        status: "active",
+      },
+      state: "active",
+    });
+    extRepositoryMocks.readExtAssetSecretByUserId.mockImplementation(({ mode }) =>
+      Promise.resolve(mode === "share" ? { cookies: [], proxy: null } : null),
+    );
+    extRepositoryMocks.readExtPlatformAccessByUserId.mockResolvedValue([
+      { hasPrivateAccess: false, hasShareAccess: true, platform: "tradingview" },
+    ]);
+    extRepositoryMocks.readExtTradingViewOwnedLayoutRowsByUserId.mockResolvedValue([
+      {
+        chart_id: "OWN123",
+        last_opened_at: "2026-05-17T02:00:00.000Z",
+        layout_updated_at: "2026-05-17T02:00:00.000Z",
+        title: "Layout Baru",
+        url: "https://www.tradingview.com/chart/OWN123/",
+      },
+    ]);
+
+    const { syncExtTradingViewOwnedLayouts } = await import("@/modules/ext/services");
+
+    await expect(
+      syncExtTradingViewOwnedLayouts({
+        body: {
+          isAuthoritativeSnapshot: true,
+          lastOpenedAt: "2026-05-17T02:00:00.000Z",
+          lastOpenedChartId: "OWN123",
+          layouts: [
+            {
+              chartId: "OWN123",
+              title: "Layout Baru",
+              updatedAt: "2026-05-17T02:00:00.000Z",
+              url: "https://www.tradingview.com/chart/OWN123/",
+            },
+          ],
+          snapshotCapturedAt: "2026-05-17T02:00:00.000Z",
+          trigger: "tv_page_open",
+        },
+        requestHeaders: new Headers({
+          "x-ext-dev-app-session": "opaque-token",
+          "x-ext-dev-extension-id": "allowed-id",
+          "x-ext-dev-origin": "chrome-extension://allowed-id",
+          "x-extension-version": "2.0.0",
+        }),
+      }),
+    ).resolves.toEqual({
+      lastOpenedAt: "2026-05-17T02:00:00.000Z",
+      lastOpenedChartId: "OWN123",
+      layouts: [
+        {
+          chartId: "OWN123",
+          title: "Layout Baru",
+          updatedAt: "2026-05-17T02:00:00.000Z",
+          url: "https://www.tradingview.com/chart/OWN123/",
+        },
+      ],
+    });
+
+    expect(extRepositoryMocks.writeExtTradingViewOwnedLayoutRows).toHaveBeenCalledWith({
+      layouts: [
+        {
+          chartId: "OWN123",
+          title: "Layout Baru",
+          updatedAt: "2026-05-17T02:00:00.000Z",
+          url: "https://www.tradingview.com/chart/OWN123/",
+        },
+      ],
+      userId: "user-1",
+      lastOpenedAt: "2026-05-17T02:00:00.000Z",
+      lastOpenedChartId: "OWN123",
+      snapshotCapturedAt: "2026-05-17T02:00:00.000Z",
+    });
   });
 });

@@ -28,3 +28,16 @@ export type ExtRuntimeAssetSnapshot = {
   proxy: string | null;
   updatedAt: string;
 };
+
+export type ExtTradingViewOwnedLayout = {
+  chartId: string;
+  title: string;
+  updatedAt: string;
+  url: string;
+};
+
+export type ExtTradingViewOwnedLayoutSnapshot = {
+  lastOpenedAt: string | null;
+  lastOpenedChartId: string | null;
+  layouts: ExtTradingViewOwnedLayout[];
+};

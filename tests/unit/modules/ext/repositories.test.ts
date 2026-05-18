@@ -14,6 +14,7 @@ import {
   readExtPlatformAccessByUserId,
   readExtPurchasablePackages,
   readExtRuntimeAssetByUserId,
+  writeExtTradingViewOwnedLayoutRows,
   upsertExtHeartbeatByFingerprint,
 } from "@/modules/ext/repositories";
 
@@ -349,6 +350,110 @@ describe("ext/repositories", () => {
 
     expect(eqIsActive).toHaveBeenCalledWith("is_active", true);
     expect(order).toHaveBeenCalledWith("created_at", { ascending: false });
+  });
+
+  it("writes owned layout snapshots with timestamp-guarded upserts and hard deletes", async () => {
+    const readEqUserId = vi.fn().mockResolvedValue({
+      data: [
+        {
+          chart_id: "OLD111",
+          last_opened_at: null,
+          layout_updated_at: "2026-05-17T01:00:00.000Z",
+          title: "Layout Lama",
+          url: "https://www.tradingview.com/chart/OLD111/",
+        },
+      ],
+      error: null,
+    });
+
+    const deleteIn = vi.fn().mockResolvedValue({ error: null });
+    const deleteEqUserId = vi.fn().mockReturnValue({ in: deleteIn });
+    const deleteRows = vi.fn().mockReturnValue({ eq: deleteEqUserId });
+
+    const clearLastOpenedEqUserId = vi.fn().mockResolvedValue({ error: null });
+    const clearLastOpened = vi.fn().mockReturnValue({ eq: clearLastOpenedEqUserId });
+
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ select: vi.fn().mockReturnValue({ eq: readEqUserId }) })
+      .mockReturnValueOnce({ delete: deleteRows })
+      .mockReturnValueOnce({ update: clearLastOpened });
+    const rpc = vi.fn().mockResolvedValue({ error: null });
+
+    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({ from, rpc });
+
+    await expect(
+      writeExtTradingViewOwnedLayoutRows({
+        layouts: [
+          {
+            chartId: "OWN123",
+            title: "Layout Baru",
+            updatedAt: "2026-05-17T02:00:00.000Z",
+            url: "https://www.tradingview.com/chart/OWN123/",
+          },
+        ],
+        userId: "user-1",
+        lastOpenedAt: "2026-05-17T02:00:00.000Z",
+        lastOpenedChartId: "OWN123",
+        snapshotCapturedAt: "2026-05-17T02:05:00.000Z",
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(rpc).toHaveBeenNthCalledWith(1, "upsert_extension_tradingview_layout", {
+      p_chart_id: "OWN123",
+      p_layout_updated_at: "2026-05-17T02:00:00.000Z",
+      p_title: "Layout Baru",
+      p_url: "https://www.tradingview.com/chart/OWN123/",
+      p_user_id: "user-1",
+    });
+    expect(deleteEqUserId).toHaveBeenCalledWith("user_id", "user-1");
+    expect(deleteIn).toHaveBeenCalledWith("chart_id", ["OLD111"]);
+    expect(clearLastOpened).toHaveBeenCalledWith({ last_opened_at: null });
+    expect(clearLastOpenedEqUserId).toHaveBeenCalledWith("user_id", "user-1");
+    expect(rpc).toHaveBeenNthCalledWith(2, "set_extension_tradingview_last_opened", {
+      p_chart_id: "OWN123",
+      p_last_opened_at: "2026-05-17T02:00:00.000Z",
+      p_user_id: "user-1",
+    });
+  });
+
+  it("ignores stale owned layout snapshots before any destructive write runs", async () => {
+    const readEqUserId = vi.fn().mockResolvedValue({
+      data: [
+        {
+          chart_id: "OWN123",
+          last_opened_at: "2026-05-17T03:05:00.000Z",
+          layout_updated_at: "2026-05-17T03:00:00.000Z",
+          title: "Layout Terbaru",
+          url: "https://www.tradingview.com/chart/OWN123/",
+        },
+      ],
+      error: null,
+    });
+    const from = vi.fn().mockReturnValueOnce({ select: vi.fn().mockReturnValue({ eq: readEqUserId }) });
+    const rpc = vi.fn();
+
+    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({ from, rpc });
+
+    await expect(
+      writeExtTradingViewOwnedLayoutRows({
+        layouts: [
+          {
+            chartId: "OWN123",
+            title: "Layout Lama",
+            updatedAt: "2026-05-17T02:00:00.000Z",
+            url: "https://www.tradingview.com/chart/OWN123/",
+          },
+        ],
+        userId: "user-1",
+        lastOpenedAt: "2026-05-17T02:05:00.000Z",
+        lastOpenedChartId: "OWN123",
+        snapshotCapturedAt: "2026-05-17T02:10:00.000Z",
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("updates last_seen_at when the full heartbeat fingerprint matches", async () => {

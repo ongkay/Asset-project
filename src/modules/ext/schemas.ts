@@ -48,3 +48,25 @@ export const extHeartbeatBodySchema = z.object({
   deviceId: z.string().trim().min(1),
   extensionVersion: z.string().trim().min(1),
 });
+
+export const extTradingViewOwnedLayoutSchema = z.object({
+  chartId: z.string().trim().min(1),
+  title: z.string().trim().min(1),
+  updatedAt: z.string().datetime({ offset: true }),
+  url: z.url(),
+});
+
+export const extTradingViewOwnedLayoutSnapshotSchema = z.object({
+  lastOpenedAt: z.string().datetime({ offset: true }).nullable(),
+  lastOpenedChartId: z.string().trim().min(1).nullable(),
+  layouts: z.array(extTradingViewOwnedLayoutSchema),
+});
+
+export const extTradingViewOwnedLayoutSyncBodySchema = z.object({
+  isAuthoritativeSnapshot: z.boolean(),
+  lastOpenedAt: z.string().datetime({ offset: true }).nullable(),
+  lastOpenedChartId: z.string().trim().min(1).nullable(),
+  layouts: z.array(extTradingViewOwnedLayoutSchema),
+  snapshotCapturedAt: z.string().datetime({ offset: true }),
+  trigger: z.enum(["manual_refresh", "popup_open", "tv_page_open"]),
+});
