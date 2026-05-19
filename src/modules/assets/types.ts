@@ -20,6 +20,7 @@ export type AssetRow = {
   account: string;
   note: string | null;
   proxy: string | null;
+  launchUrl: string | null;
   assetJson: AssetJsonObject | AssetJsonArray;
   expiresAt: string;
   disabledAt: string | null;
@@ -33,6 +34,7 @@ export type AssetFormValues = {
   account: string;
   note: string | null;
   proxy: string | null;
+  launchUrl: string | null;
   assetJsonText: string;
   expiresAt: string;
 };
@@ -43,6 +45,7 @@ export type AssetFormInput = {
   account: string;
   note: string | null;
   proxy: string | null;
+  launchUrl: string | null;
   assetJson: AssetJsonObject | AssetJsonArray;
   expiresAt: string;
 };

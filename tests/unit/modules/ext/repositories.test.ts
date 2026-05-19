@@ -272,6 +272,7 @@ describe("ext/repositories", () => {
             },
           ],
           id: "asset-1",
+          launch_url: "https://www.tradingview.com/chart/OWN123/",
           proxy: "http://proxy.local",
           updated_at: "2026-05-01T00:00:00.000Z",
         },
@@ -298,6 +299,7 @@ describe("ext/repositories", () => {
           value: "secret",
         },
       ],
+      launchUrl: "https://www.tradingview.com/chart/OWN123/",
       proxy: "http://proxy.local",
       updatedAt: "2026-05-01T00:00:00.000Z",
     });

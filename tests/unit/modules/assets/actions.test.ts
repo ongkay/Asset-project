@@ -33,6 +33,7 @@ describe("assets/actions", () => {
       account: "invalid@example.com",
       note: "task013-invalid-mutation-note",
       proxy: null,
+      launchUrl: null,
       assetJsonText: "not-json",
       expiresAt: "2026-06-10T12:00:00",
     });

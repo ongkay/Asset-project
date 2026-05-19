@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AtSign, Braces, CalendarClock, FileText, Globe, HardDrive, Layers3 } from "lucide-react";
+import { AtSign, Braces, CalendarClock, FileText, Globe, HardDrive, Layers3, Link2 } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -81,6 +81,7 @@ function getDefaultValues(prefill: AssetEditorData | null): AssetFormDialogValue
       account: "",
       note: null,
       proxy: null,
+      launchUrl: null,
       assetJsonText: "{}",
       expiresAt: buildDefaultAssetExpiry(),
     };
@@ -92,6 +93,7 @@ function getDefaultValues(prefill: AssetEditorData | null): AssetFormDialogValue
     account: prefill.account,
     note: prefill.note,
     proxy: prefill.proxy,
+    launchUrl: prefill.launchUrl,
     assetJsonText: normalizeAssetJsonText(prefill.assetJson),
     expiresAt: prefill.expiresAt,
   };
@@ -142,6 +144,7 @@ export function AssetFormDialog({ dialogState, prefillById, onOpenChange, onSave
       account: values.account,
       note: values.note,
       proxy: values.proxy,
+      launchUrl: values.launchUrl,
       assetJsonText: values.assetJsonText,
       expiresAt: values.expiresAt,
     };
@@ -299,6 +302,32 @@ export function AssetFormDialog({ dialogState, prefillById, onOpenChange, onSave
                       onChange={(event) => field.onChange(event.target.value)}
                     />
                   </InputGroup>
+                  {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="launchUrl"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="asset-launch-url">Launch URL</FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <Link2 />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      aria-invalid={fieldState.invalid}
+                      id="asset-launch-url"
+                      placeholder="https://www.tradingview.com/chart/ABC123/ or ABC123"
+                      value={field.value ?? ""}
+                      onChange={(event) => field.onChange(event.target.value)}
+                    />
+                  </InputGroup>
+                  <FieldDescription>
+                    Optional. For TradingView you can store a full chart URL or raw chart ID.
+                  </FieldDescription>
                   {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                 </Field>
               )}

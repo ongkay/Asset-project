@@ -214,6 +214,7 @@ export async function getAssetEditorData(assetId: string): Promise<AssetEditorDa
     account: asset.account,
     note: asset.note,
     proxy: asset.proxy,
+    launchUrl: asset.launchUrl,
     assetJson: asset.assetJson,
     expiresAt: asset.expiresAt,
     disabledAt: asset.disabledAt,

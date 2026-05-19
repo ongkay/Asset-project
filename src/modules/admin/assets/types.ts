@@ -41,6 +41,7 @@ export type AssetEditorData = {
   account: string;
   note: string | null;
   proxy: string | null;
+  launchUrl: string | null;
   assetJson: AssetJsonObject | AssetJsonArray;
   expiresAt: string;
   disabledAt: string | null;

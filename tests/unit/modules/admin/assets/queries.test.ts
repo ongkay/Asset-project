@@ -45,6 +45,7 @@ function createAssetRowFixture(overrides: Partial<AssetRow> = {}): AssetRow {
     account: "asset@example.com",
     note: "Asset note",
     proxy: null,
+    launchUrl: null,
     assetJson: { session: "token" },
     expiresAt: "2026-07-01T00:00:00.000Z",
     disabledAt: null,

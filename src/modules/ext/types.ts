@@ -7,6 +7,7 @@ export type ExtVersionStatus =
   | { downloadUrl: string; latestVersion: string; minimumVersion: string; status: "update_required" };
 
 export type ExtAssetSummary = {
+  launchUrl?: string | null;
   mode: ExtMode;
   nextMode?: "private";
   platform: ExtPlatform;
@@ -25,6 +26,7 @@ export type ExtAssetCookie = Record<string, ExtAssetCookieValue | undefined>;
 export type ExtRuntimeAssetSnapshot = {
   assetId: string;
   cookies: ExtAssetCookie[];
+  launchUrl: string | null;
   proxy: string | null;
   updatedAt: string;
 };

@@ -338,6 +338,7 @@ export async function getExtAssetResponse(input: { query: unknown; requestHeader
 
   return {
     cookies: runtimeAsset.asset.cookies,
+    launchUrl: runtimeAsset.asset.launchUrl,
     mode: runtimeAsset.mode,
     platform: query.data.platform,
     proxy: runtimeAsset.asset.proxy,
@@ -410,9 +411,26 @@ async function resolveBootstrapAssetSummaries(
     ),
   );
 
-  return resolvedAssets
-    .filter((assetSummary): assetSummary is ExtAssetSummary => assetSummary !== null)
-    .sort((left, right) => getPlatformSortWeight(left.platform) - getPlatformSortWeight(right.platform));
+  const bootstrapAssets = await Promise.all(
+    resolvedAssets
+      .filter((assetSummary): assetSummary is NonNullable<typeof assetSummary> => assetSummary !== null)
+      .map(async (assetSummary) => {
+        const runtimeAsset = await readExtRuntimeAssetByUserId({
+          mode: assetSummary.mode,
+          platform: assetSummary.platform,
+          userId,
+        });
+
+        return {
+          ...assetSummary,
+          launchUrl: runtimeAsset?.launchUrl ?? null,
+        } satisfies ExtAssetSummary;
+      }),
+  );
+
+  return bootstrapAssets.sort(
+    (left, right) => getPlatformSortWeight(left.platform) - getPlatformSortWeight(right.platform),
+  );
 }
 
 async function resolveExtRuntimeAssetResponse(input: { platform: ExtPlatform; requestHeaders: Headers }) {
@@ -484,7 +502,7 @@ function serializeExtRevisionValue(value: unknown): string {
 function buildExtAssetRevision(input: { asset: ExtRuntimeAssetSnapshot; mode: ExtMode; platform: ExtPlatform }) {
   return `extr1_${createHash("sha256")
     .update(
-      `${input.platform}:${input.mode}:${input.asset.assetId}:${input.asset.updatedAt}:${input.asset.proxy ?? ""}:${serializeExtRevisionValue(input.asset.cookies)}`,
+      `${input.platform}:${input.mode}:${input.asset.assetId}:${input.asset.updatedAt}:${input.asset.proxy ?? ""}:${input.asset.launchUrl ?? ""}:${serializeExtRevisionValue(input.asset.cookies)}`,
     )
     .digest("base64url")}`;
 }

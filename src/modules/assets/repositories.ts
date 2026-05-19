@@ -23,6 +23,7 @@ type AssetDatabaseRow = {
   account: string;
   note: string | null;
   proxy: string | null;
+  launch_url: string | null;
   asset_json: unknown;
   expires_at: string;
   disabled_at: string | null;
@@ -68,6 +69,7 @@ const assetDatabaseRowSchema = z.object({
   account: z.string().min(1),
   note: z.string().nullable(),
   proxy: z.string().nullable(),
+  launch_url: z.string().nullable(),
   asset_json: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]),
   expires_at: z.string().min(1),
   disabled_at: z.string().nullable(),
@@ -111,7 +113,7 @@ function createAssetsRepositoryDatabase() {
 }
 
 const ASSET_SELECT_FIELDS =
-  "id, platform, asset_type, account, note, proxy, asset_json, expires_at, disabled_at, created_at, updated_at";
+  "id, platform, asset_type, account, note, proxy, launch_url, asset_json, expires_at, disabled_at, created_at, updated_at";
 
 function parseAssetRows(data: unknown): AssetDatabaseRow[] {
   if (!Array.isArray(data)) {
@@ -161,6 +163,7 @@ function mapAssetDatabaseRow(data: AssetDatabaseRow): AssetRow {
     account: data.account,
     note: data.note,
     proxy: data.proxy,
+    launchUrl: data.launch_url,
     assetJson: data.asset_json as AssetRow["assetJson"],
     expiresAt: data.expires_at,
     disabledAt: data.disabled_at,
@@ -228,6 +231,7 @@ export async function createAssetRow(input: AssetFormInput): Promise<AssetRow> {
         account: input.account,
         note: input.note,
         proxy: input.proxy,
+        launch_url: input.launchUrl,
         asset_json: input.assetJson,
         expires_at: input.expiresAt,
       },
@@ -252,6 +256,7 @@ export async function updateAssetRow(input: { id: string } & AssetFormInput): Pr
       account: input.account,
       note: input.note,
       proxy: input.proxy,
+      launch_url: input.launchUrl,
       asset_json: input.assetJson,
       expires_at: input.expiresAt,
     })

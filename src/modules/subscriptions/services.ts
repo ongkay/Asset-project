@@ -435,6 +435,7 @@ export async function quickAddSubscriberAsset(input: SubscriberQuickAddAssetValu
     account: quickAddInput.account,
     note: quickAddInput.note,
     proxy: quickAddInput.proxy,
+    launchUrl: null,
     assetJson: quickAddInput.assetJson,
     expiresAt: quickAddInput.expiresAt,
   });

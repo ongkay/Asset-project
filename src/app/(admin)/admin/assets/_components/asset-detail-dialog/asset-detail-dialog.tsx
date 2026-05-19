@@ -165,6 +165,7 @@ export function AssetDetailDialog({
                 <DetailCard icon={AtSign} title="Sensitive Fields">
                   <DetailValueItem label="Account" monospace value={asset.account} />
                   <DetailValueItem label="Proxy" monospace value={asset.proxy ?? "-"} />
+                  <DetailValueItem label="Launch URL" monospace value={asset.launchUrl ?? "-"} />
                   <DetailValueItem label="Note" value={asset.note ?? "-"} />
                 </DetailCard>
               </div>

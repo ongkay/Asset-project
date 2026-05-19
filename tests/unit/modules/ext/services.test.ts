@@ -156,7 +156,7 @@ describe("ext/services bootstrap", () => {
         }),
       }),
     ).resolves.toMatchObject({
-      assets: [{ mode: "private", platform: "tradingview" }],
+      assets: [{ launchUrl: null, mode: "private", platform: "tradingview" }],
       auth: { status: "authenticated" },
       subscription: {
         endAt: "2099-05-01T00:00:00.000Z",
@@ -675,6 +675,7 @@ describe("ext/services bootstrap", () => {
     extRepositoryMocks.readExtRuntimeAssetByUserId.mockResolvedValue({
       assetId: "asset-1",
       cookies: [],
+      launchUrl: "OWN123",
       proxy: null,
       updatedAt: "2026-05-01T00:00:00.000Z",
     });
@@ -693,10 +694,11 @@ describe("ext/services bootstrap", () => {
       }),
     ).resolves.toEqual({
       cookies: [],
+      launchUrl: "OWN123",
       mode: "private",
       platform: "tradingview",
       proxy: null,
-      revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
+      revision: "extr1_8ZXUB4DQZKzjnMOLZHScjBpPV3Ho6kMgnhHBcypoQug",
       status: "ready",
       updatedAt: "2026-05-01T00:00:00.000Z",
     });
@@ -739,12 +741,14 @@ describe("ext/services bootstrap", () => {
       .mockResolvedValueOnce({
         assetId: "asset-1",
         cookies: [{ name: "sessionid", value: "secret-a" }],
+        launchUrl: null,
         proxy: null,
         updatedAt: "2026-05-01T00:00:00.000Z",
       })
       .mockResolvedValueOnce({
         assetId: "asset-1",
         cookies: [{ name: "sessionid", value: "secret-b" }],
+        launchUrl: null,
         proxy: null,
         updatedAt: "2026-05-01T00:00:00.000Z",
       });
@@ -810,6 +814,7 @@ describe("ext/services bootstrap", () => {
     extRepositoryMocks.readExtRuntimeAssetByUserId.mockResolvedValue({
       assetId: "asset-1",
       cookies: [],
+      launchUrl: null,
       proxy: null,
       updatedAt: "2026-05-01T00:00:00.000Z",
     });
@@ -820,7 +825,7 @@ describe("ext/services bootstrap", () => {
       getExtAssetSyncResponse({
         query: {
           platform: "tradingview",
-          revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
+          revision: "extr1_MZYGA-_cutJ_Ec_SYcZKQfV_S736W6c5vJC550eTnVI",
         },
         requestHeaders: new Headers({
           "x-ext-dev-app-session": "opaque-token",
@@ -832,7 +837,7 @@ describe("ext/services bootstrap", () => {
     ).resolves.toEqual({
       mode: "private",
       platform: "tradingview",
-      revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
+      revision: "extr1_MZYGA-_cutJ_Ec_SYcZKQfV_S736W6c5vJC550eTnVI",
       status: "current",
       updatedAt: "2026-05-01T00:00:00.000Z",
     });
@@ -874,6 +879,7 @@ describe("ext/services bootstrap", () => {
     extRepositoryMocks.readExtRuntimeAssetByUserId.mockResolvedValue({
       assetId: "asset-1",
       cookies: [],
+      launchUrl: null,
       proxy: null,
       updatedAt: "2026-05-01T00:00:00.000Z",
     });
@@ -894,7 +900,7 @@ describe("ext/services bootstrap", () => {
       mode: "private",
       platform: "tradingview",
       reason: "missing_revision",
-      revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
+      revision: "extr1_MZYGA-_cutJ_Ec_SYcZKQfV_S736W6c5vJC550eTnVI",
       status: "stale",
       updatedAt: "2026-05-01T00:00:00.000Z",
     });
@@ -936,6 +942,7 @@ describe("ext/services bootstrap", () => {
     extRepositoryMocks.readExtRuntimeAssetByUserId.mockResolvedValue({
       assetId: "asset-1",
       cookies: [],
+      launchUrl: null,
       proxy: null,
       updatedAt: "2026-05-01T00:00:00.000Z",
     });
@@ -956,7 +963,7 @@ describe("ext/services bootstrap", () => {
       mode: "private",
       platform: "tradingview",
       reason: "revision_mismatch",
-      revision: "extr1_JKcFk0my7uk_VleNzO3m4rmkHl8f9KLTIqoEx4OBXWY",
+      revision: "extr1_MZYGA-_cutJ_Ec_SYcZKQfV_S736W6c5vJC550eTnVI",
       status: "stale",
       updatedAt: "2026-05-01T00:00:00.000Z",
     });

@@ -94,6 +94,7 @@ export const assetFormSchema = z.object({
   account: z.string({ error: "Account is required." }).trim().min(1, "Account is required."),
   note: z.union([z.string(), z.null(), z.undefined()]).transform(normalizeOptionalText),
   proxy: z.union([z.string(), z.null(), z.undefined()]).transform(normalizeOptionalText),
+  launchUrl: z.union([z.string(), z.null(), z.undefined()]).transform(normalizeOptionalText),
   assetJsonText: assetJsonTextSchema,
   expiresAt: assetExpiresAtSchema,
 });
@@ -122,6 +123,7 @@ export function toAssetFormInput(values: z.input<typeof assetFormSchema>): Asset
     account: parsedValues.account,
     note: parsedValues.note,
     proxy: parsedValues.proxy,
+    launchUrl: parsedValues.launchUrl,
     assetJson: parseAssetJsonText(parsedValues.assetJsonText),
     expiresAt: parseAssetExpiresAtToUtcIso(parsedValues.expiresAt),
   };

@@ -45,12 +45,14 @@ describe("assets/schemas", () => {
       account: "account@example.com",
       note: "   ",
       proxy: "   ",
+      launchUrl: "   ",
       assetJsonText: "{}",
       expiresAt: "2026-06-10T12:00:00Z",
     });
 
     expect(parsed.note).toBeNull();
     expect(parsed.proxy).toBeNull();
+    expect(parsed.launchUrl).toBeNull();
   });
 
   it("converts valid form values to domain input", () => {
@@ -61,6 +63,7 @@ describe("assets/schemas", () => {
         account: " account@example.com ",
         note: " Shared account ",
         proxy: " https://proxy.example.com ",
+        launchUrl: " OWN123 ",
         assetJsonText: '{"session":"abc"}',
         expiresAt: "2026-06-10T12:00:00+07:00",
       }),
@@ -70,6 +73,7 @@ describe("assets/schemas", () => {
       account: "account@example.com",
       note: "Shared account",
       proxy: "https://proxy.example.com",
+      launchUrl: "OWN123",
       assetJson: { session: "abc" },
       expiresAt: "2026-06-10T05:00:00.000Z",
     });
@@ -83,11 +87,13 @@ describe("assets/schemas", () => {
         account: "expired@example.com",
         note: null,
         proxy: null,
+        launchUrl: "https://www.tradingview.com/chart/ABC123/",
         assetJsonText: "[]",
         expiresAt: "2020-01-01T00:00:00Z",
       }),
     ).toMatchObject({
       expiresAt: "2020-01-01T00:00:00.000Z",
+      launchUrl: "https://www.tradingview.com/chart/ABC123/",
       assetJson: [],
     });
   });

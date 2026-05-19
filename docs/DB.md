@@ -241,6 +241,7 @@ Inventory asset provider.
 | `asset_type`  | `asset_type_enum` | ya    | `private/share`        |
 | `account`     | `text`            | ya    | data akun, sensitif    |
 | `proxy`       | `text`            | tidak | data proxy             |
+| `launch_url`  | `text`            | tidak | URL tujuan awal asset  |
 | `note`        | `text`            | tidak | catatan admin          |
 | `asset_json`  | `jsonb`           | ya    | raw credential/cookies |
 | `expires_at`  | `timestamptz`     | ya    | expired asset          |

@@ -32,6 +32,7 @@ const extAssetSecretRowSchema = z.object({
 
 const extRuntimeAssetRowSchema = extAssetSecretRowSchema.extend({
   id: z.string().min(1),
+  launch_url: z.string().nullable(),
   updated_at: z.string().min(1),
 });
 
@@ -197,7 +198,7 @@ export async function readExtRuntimeAssetByUserId(input: {
   const accessKey = `${input.platform}:${input.mode}`;
   const { data, error } = await createInsForgeAdminDatabase()
     .from("asset_assignments")
-    .select("assets!inner(id, proxy, asset_json, updated_at)")
+    .select("assets!inner(id, proxy, launch_url, asset_json, updated_at)")
     .eq("user_id", input.userId)
     .eq("access_key", accessKey)
     .is("revoked_at", null)
@@ -216,6 +217,7 @@ export async function readExtRuntimeAssetByUserId(input: {
   return {
     assetId: asset.id,
     cookies: asset.asset_json.map(stripExtAssetCookieId),
+    launchUrl: asset.launch_url,
     proxy: asset.proxy,
     updatedAt: asset.updated_at,
   };
