@@ -77,6 +77,8 @@ describe("cdkeys/services", () => {
       amountRp: 150000,
       createdAt: "2026-04-16T00:00:00.000Z",
       failureReason: null,
+      listAmountRp: 150000,
+      packageDiscountAmountRp: 0,
       packageId: "package-1",
       packageName: "Premium Package",
       paidAt: null,
@@ -84,6 +86,10 @@ describe("cdkeys/services", () => {
       status: "pending",
       subscriptionId: null,
       userId: "user-1",
+      voucherCode: null,
+      voucherDiscountAmountRp: 0,
+      voucherDiscountPercent: null,
+      voucherId: null,
     });
     mockedFailTransaction.mockReset();
     mockedSucceedTransaction.mockReset();

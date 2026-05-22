@@ -39,6 +39,8 @@ describe("transactions/services", () => {
       createdAt: "2026-04-19T00:00:00.000Z",
       failureReason: null,
       id: "transaction-1",
+      listAmountRp: 150000,
+      packageDiscountAmountRp: 0,
       packageId: "package-1",
       packageName: "Paket 1",
       paidAt: null,
@@ -46,6 +48,10 @@ describe("transactions/services", () => {
       status: "pending",
       subscriptionId: null,
       userId: "user-1",
+      voucherCode: null,
+      voucherDiscountAmountRp: 0,
+      voucherDiscountPercent: null,
+      voucherId: null,
     });
 
     await expect(

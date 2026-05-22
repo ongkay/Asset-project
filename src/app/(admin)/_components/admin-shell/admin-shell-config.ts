@@ -1,4 +1,14 @@
-import { HardDrive, History, KeyRound, LayoutDashboard, Package, type LucideIcon, UserCog, Users } from "lucide-react";
+import {
+  HardDrive,
+  History,
+  KeyRound,
+  LayoutDashboard,
+  Package,
+  TicketPercent,
+  type LucideIcon,
+  UserCog,
+  Users,
+} from "lucide-react";
 
 export type AdminNavItem = {
   href: string;
@@ -23,6 +33,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: "Catalog",
     items: [
       { href: "/admin/package", icon: Package, label: "Package" },
+      { href: "/admin/voucher", icon: TicketPercent, label: "Voucher" },
       { href: "/admin/assets", icon: HardDrive, label: "Assets" },
     ],
   },
@@ -47,6 +58,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
 export const ADMIN_BREADCRUMB_LABELS: Record<string, string> = {
   "/admin": "Home",
   "/admin/package": "Package",
+  "/admin/voucher": "Voucher",
   "/admin/assets": "Assets",
   "/admin/subscriber": "Subscriber",
   "/admin/cdkey": "CD-Key",
@@ -56,6 +68,7 @@ export const ADMIN_BREADCRUMB_LABELS: Record<string, string> = {
 
 export const ADMIN_QUICK_CREATE_ITEMS: AdminNavItem[] = [
   { href: "/admin/package", icon: Package, label: "New Package" },
+  { href: "/admin/voucher", icon: TicketPercent, label: "New Voucher" },
   { href: "/admin/assets", icon: HardDrive, label: "New Asset" },
   { href: "/admin/subscriber", icon: UserCog, label: "New Subscriber" },
   { href: "/admin/cdkey", icon: KeyRound, label: "New CD-Key" },

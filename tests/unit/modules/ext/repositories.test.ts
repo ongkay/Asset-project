@@ -336,14 +336,14 @@ describe("ext/repositories", () => {
     await expect(readExtPurchasablePackages()).resolves.toEqual([
       {
         amountRp: 300000,
-        checkoutUrl: "/paymentdummy?packageId=pkg-1",
+        checkoutUrl: "/checkout?packageId=pkg-1",
         id: "pkg-1",
         name: "Mixed Package",
         summary: "mixed",
       },
       {
         amountRp: 120000,
-        checkoutUrl: "/paymentdummy?packageId=pkg-2",
+        checkoutUrl: "/checkout?packageId=pkg-2",
         id: "pkg-2",
         name: "Share Package",
         summary: "share",

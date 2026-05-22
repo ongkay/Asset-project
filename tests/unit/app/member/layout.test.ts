@@ -28,13 +28,13 @@ describe("app/member/layout", () => {
     } as never);
   });
 
-  it("renders a route-agnostic member shell heading while preserving the member guard", async () => {
+  it("renders a minimal member shell while preserving the member guard", async () => {
     const element = await MemberLayout({
       children: createElement("div", null, "member route body"),
     });
 
     expect(mockedRequireMemberShellAccess).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(element)).toContain("Kelola langganan akun");
-    expect(JSON.stringify(element)).not.toContain(">Console<");
+    expect(JSON.stringify(element)).toContain("member route body");
+    expect(JSON.stringify(element)).not.toContain("Kelola langganan akun");
   });
 });

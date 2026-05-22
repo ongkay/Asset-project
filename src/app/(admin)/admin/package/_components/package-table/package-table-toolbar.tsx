@@ -10,10 +10,15 @@ import { ADMIN_PACKAGE_TABLE_COLUMNS } from "./package-table-columns";
 import { AdminPackageFilterBar } from "./package-table-filter-bar";
 
 import type { AdminPackageColumnVisibility } from "../package-page-types";
-import type { PackageSummary } from "@/modules/packages/types";
+import type { PackageTableFilters } from "@/modules/admin/packages/types";
+import type { EditablePackageCheckoutGroup, PackageSummary } from "@/modules/packages/types";
 
 type AdminPackageToolbarProps = {
+  checkoutGroupValue: EditablePackageCheckoutGroup | null;
+  lifecycleValue: PackageTableFilters["lifecycle"];
   onCreatePackage: () => void;
+  onCheckoutGroupChange: (checkoutGroup: EditablePackageCheckoutGroup | null) => void;
+  onLifecycleChange: (lifecycle: PackageTableFilters["lifecycle"]) => void;
   onSearchChange: (search: string) => void;
   onSummaryChange: (summary: PackageSummary | null) => void;
   onToggleColumn: (columnKey: keyof AdminPackageColumnVisibility, nextVisible: boolean) => void;
@@ -23,7 +28,11 @@ type AdminPackageToolbarProps = {
 };
 
 export function AdminPackageToolbar({
+  checkoutGroupValue,
+  lifecycleValue,
   onCreatePackage,
+  onCheckoutGroupChange,
+  onLifecycleChange,
   onSearchChange,
   onSummaryChange,
   onToggleColumn,
@@ -35,6 +44,10 @@ export function AdminPackageToolbar({
     <AdminDataTableToolbar
       filters={
         <AdminPackageFilterBar
+          checkoutGroupValue={checkoutGroupValue}
+          lifecycleValue={lifecycleValue}
+          onCheckoutGroupChange={onCheckoutGroupChange}
+          onLifecycleChange={onLifecycleChange}
           onSearchChange={onSearchChange}
           onSummaryChange={onSummaryChange}
           searchValue={searchValue}

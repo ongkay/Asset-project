@@ -243,7 +243,7 @@ export async function readExtPurchasablePackages() {
 
       return {
         amountRp: row.amount_rp,
-        checkoutUrl: `/paymentdummy?packageId=${row.id}`,
+        checkoutUrl: `/checkout?packageId=${row.id}`,
         id: row.id,
         name: row.name,
         summary: hasPrivateAccess && hasShareAccess ? "mixed" : hasPrivateAccess ? "private" : "share",

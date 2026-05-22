@@ -48,6 +48,17 @@ const SUMMARY_LABEL_BY_VALUE: Record<PackageAdminRow["summary"], string> = {
   share: "Share",
 };
 
+const CHECKOUT_GROUP_LABEL_BY_VALUE: Record<PackageAdminRow["checkoutGroup"], string> = {
+  "full-private": "Full Private",
+  legacy: "Legacy",
+  "semi-private": "Semi Private",
+};
+
+const LIFECYCLE_LABEL_BY_VALUE: Record<PackageAdminRow["lifecycle"], string> = {
+  archived: "Archived",
+  current: "Current",
+};
+
 export const ADMIN_PACKAGE_TABLE_COLUMNS: AdminPackageColumnDefinition[] = [
   {
     key: "name",
@@ -55,8 +66,11 @@ export const ADMIN_PACKAGE_TABLE_COLUMNS: AdminPackageColumnDefinition[] = [
     renderCell: (row) => (
       <div className="flex min-w-0 max-w-72 flex-col gap-1">
         <span className="truncate font-medium">{row.name}</span>
+        <span className="truncate text-muted-foreground text-xs" title={row.code}>
+          {row.code}
+        </span>
         <span className="truncate text-muted-foreground text-xs" title={row.accessKeys.join(", ")}>
-          {row.accessKeys.join(", ")}
+          {row.accessKeys.join(", ") || "No access keys"}
         </span>
       </div>
     ),
@@ -71,9 +85,35 @@ export const ADMIN_PACKAGE_TABLE_COLUMNS: AdminPackageColumnDefinition[] = [
     ),
   },
   {
+    key: "checkoutGroup",
+    label: "Checkout Group",
+    renderCell: (row) => (
+      <Badge className="capitalize" variant={row.checkoutGroup === "legacy" ? "outline" : "secondary"}>
+        {CHECKOUT_GROUP_LABEL_BY_VALUE[row.checkoutGroup]}
+      </Badge>
+    ),
+  },
+  {
+    key: "listAmountRp",
+    label: "Original Price",
+    renderCell: (row) => <span>{formatRupiah(row.listAmountRp)}</span>,
+  },
+  {
     key: "amountRp",
-    label: "Amount",
+    label: "Selling Price",
     renderCell: (row) => <span>{formatRupiah(row.amountRp)}</span>,
+  },
+  {
+    key: "packageDiscount",
+    label: "Package Discount",
+    renderCell: (row) => (
+      <div className="flex flex-col gap-1">
+        <span className="font-medium text-amber-600 dark:text-amber-400">
+          -{formatRupiah(row.packageDiscountAmountRp)}
+        </span>
+        <span className="text-muted-foreground text-xs">{row.packageDiscountPercent}% off</span>
+      </div>
+    ),
   },
   {
     key: "durationDays",
@@ -81,9 +121,23 @@ export const ADMIN_PACKAGE_TABLE_COLUMNS: AdminPackageColumnDefinition[] = [
     renderCell: (row) => <span>{row.durationDays} days</span>,
   },
   {
+    key: "sortOrder",
+    label: "Sort Order",
+    renderCell: (row) => <span>{row.sortOrder}</span>,
+  },
+  {
     key: "totalUsed",
     label: "Active Uses",
     renderCell: (row) => <span>{row.totalUsed}</span>,
+  },
+  {
+    key: "lifecycle",
+    label: "Lifecycle",
+    renderCell: (row) => (
+      <Badge className="capitalize" variant={row.lifecycle === "archived" ? "outline" : "secondary"}>
+        {LIFECYCLE_LABEL_BY_VALUE[row.lifecycle]}
+      </Badge>
+    ),
   },
   {
     key: "status",

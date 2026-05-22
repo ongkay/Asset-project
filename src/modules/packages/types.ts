@@ -7,10 +7,36 @@ export const PACKAGE_ACCESS_KEYS = [
   "fxtester:share",
 ] as const;
 
+export const PACKAGE_CHECKOUT_GROUPS = ["semi-private", "full-private", "legacy"] as const;
+export const EDITABLE_PACKAGE_CHECKOUT_GROUPS = ["semi-private", "full-private"] as const;
+
 export type PackageAccessKey = (typeof PACKAGE_ACCESS_KEYS)[number];
+export type PackageCheckoutGroup = (typeof PACKAGE_CHECKOUT_GROUPS)[number];
+export type EditablePackageCheckoutGroup = (typeof EDITABLE_PACKAGE_CHECKOUT_GROUPS)[number];
+export type PackageAdminLifecycle = "current" | "archived";
 
 export function isPackageAccessKey(value: unknown): value is PackageAccessKey {
   return typeof value === "string" && (PACKAGE_ACCESS_KEYS as readonly string[]).includes(value);
+}
+
+export function isEditablePackageCheckoutGroup(value: unknown): value is EditablePackageCheckoutGroup {
+  return typeof value === "string" && (EDITABLE_PACKAGE_CHECKOUT_GROUPS as readonly string[]).includes(value);
+}
+
+export function isArchivedPackage(checkoutGroup: PackageCheckoutGroup) {
+  return checkoutGroup === "legacy";
+}
+
+export function calculatePackageDiscountAmountRp(listAmountRp: number, amountRp: number) {
+  return Math.max(0, listAmountRp - amountRp);
+}
+
+export function calculatePackageDiscountPercent(listAmountRp: number, amountRp: number) {
+  if (listAmountRp <= 0) {
+    return 0;
+  }
+
+  return Math.round((calculatePackageDiscountAmountRp(listAmountRp, amountRp) / listAmountRp) * 100);
 }
 
 export type PackageSummary = "private" | "share" | "mixed";
@@ -66,6 +92,7 @@ export function derivePackageSummaryFromAccessKeys(accessKeys: readonly PackageA
 export type PackageRow = {
   accessKeys: PackageAccessKey[];
   amountRp: number;
+  checkoutGroup: PackageCheckoutGroup;
   checkoutUrl: string | null;
   code: string;
   createdAt: string;
@@ -73,13 +100,18 @@ export type PackageRow = {
   id: string;
   isActive: boolean;
   isExtended: boolean;
+  listAmountRp: number;
   name: string;
+  sortOrder: number;
   updatedAt: string;
 };
 
 export type PackageIssuableSnapshot = {
+  checkoutGroup: PackageCheckoutGroup;
   id: string;
+  listAmountRp: number;
   summary: PackageSummary;
+  sortOrder: number;
 } & PackageActivationSnapshot;
 
 export type PackageActivationSnapshot = {
@@ -96,18 +128,22 @@ export type MemberPurchasablePackage = PackageIssuableSnapshot;
 export type PackageEditorData = {
   accessKeys: PackageAccessKey[];
   amountRp: number;
+  checkoutGroup: PackageCheckoutGroup;
   checkoutUrl: string | null;
   code: string;
   durationDays: number;
   id: string;
   isActive: boolean;
   isExtended: boolean;
+  listAmountRp: number;
   name: string;
+  sortOrder: number;
 };
 
 export type PackageAdminRow = {
   accessKeys: PackageAccessKey[];
   amountRp: number;
+  checkoutGroup: PackageCheckoutGroup;
   checkoutUrl: string | null;
   code: string;
   createdAt: string;
@@ -115,7 +151,12 @@ export type PackageAdminRow = {
   id: string;
   isActive: boolean;
   isExtended: boolean;
+  lifecycle: PackageAdminLifecycle;
+  listAmountRp: number;
   name: string;
+  packageDiscountAmountRp: number;
+  packageDiscountPercent: number;
+  sortOrder: number;
   summary: PackageSummary;
   totalUsed: number;
   updatedAt: string;
@@ -131,10 +172,13 @@ export type PackageTableResult<TItem> = {
 export type PackageFormInput = {
   accessKeys: PackageAccessKey[];
   amountRp: number;
+  checkoutGroup: EditablePackageCheckoutGroup;
   checkoutUrl: string | null;
   durationDays: number;
   isExtended: boolean;
+  listAmountRp: number;
   name: string;
+  sortOrder: number;
 };
 
 export type PackageToggleInput = {

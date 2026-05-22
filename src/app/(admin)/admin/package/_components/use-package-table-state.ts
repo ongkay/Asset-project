@@ -9,7 +9,7 @@ import { useAdminColumnVisibility } from "@/components/shared/data-table/visibil
 import { PACKAGE_TABLE_COLUMN_KEYS } from "./package-page-types";
 import type { AdminPackageColumnVisibility } from "./package-page-types";
 import type { PackageTableFilters } from "@/modules/admin/packages/types";
-import type { PackageSummary, PackageTableSortKey } from "@/modules/packages/types";
+import type { EditablePackageCheckoutGroup, PackageSummary, PackageTableSortKey } from "@/modules/packages/types";
 
 const COLUMN_VISIBILITY_STORAGE_KEY = "admin.package.columns.v1";
 const LOCKED_PACKAGE_COLUMN_KEYS = ["actions"] as const;
@@ -17,9 +17,14 @@ const LOCKED_PACKAGE_COLUMN_KEYS = ["actions"] as const;
 export const DEFAULT_PACKAGE_COLUMN_VISIBILITY: AdminPackageColumnVisibility = {
   actions: true,
   amountRp: true,
+  checkoutGroup: true,
   durationDays: true,
+  lifecycle: true,
+  listAmountRp: true,
   name: true,
+  packageDiscount: true,
   status: true,
+  sortOrder: true,
   summary: true,
   totalUsed: true,
   updatedAt: true,
@@ -34,6 +39,14 @@ function buildPackageTableUrl(pathname: string, filters: PackageTableFilters) {
 
   if (filters.summary) {
     nextSearchParams.set("summary", filters.summary);
+  }
+
+  if (filters.checkoutGroup) {
+    nextSearchParams.set("checkoutGroup", filters.checkoutGroup);
+  }
+
+  if (filters.lifecycle !== "current") {
+    nextSearchParams.set("lifecycle", filters.lifecycle);
   }
 
   if (filters.page > 1) {
@@ -57,6 +70,10 @@ export function usePackageTableState(initialFilters: PackageTableFilters) {
   const pathname = usePathname();
   const [tableFilters, setTableFilters] = useState(initialFilters);
   const [searchInput, setSearchInput] = useState(initialFilters.search ?? "");
+  const [checkoutGroupFilter, setCheckoutGroupFilter] = useState<EditablePackageCheckoutGroup | null>(
+    initialFilters.checkoutGroup,
+  );
+  const [lifecycleFilter, setLifecycleFilter] = useState<PackageTableFilters["lifecycle"]>(initialFilters.lifecycle);
   const [summaryFilter, setSummaryFilter] = useState<PackageSummary | null>(initialFilters.summary);
   const { handleToggleColumn, visibleColumns } = useAdminColumnVisibility({
     columnKeys: PACKAGE_TABLE_COLUMN_KEYS,
@@ -71,12 +88,19 @@ export function usePackageTableState(initialFilters: PackageTableFilters) {
       const nextSearch = normalizedSearch.length > 0 ? normalizedSearch : null;
 
       setTableFilters((currentFilters) => {
-        if (currentFilters.search === nextSearch && currentFilters.summary === summaryFilter) {
+        if (
+          currentFilters.checkoutGroup === checkoutGroupFilter &&
+          currentFilters.lifecycle === lifecycleFilter &&
+          currentFilters.search === nextSearch &&
+          currentFilters.summary === summaryFilter
+        ) {
           return currentFilters;
         }
 
         return {
           ...currentFilters,
+          checkoutGroup: checkoutGroupFilter,
+          lifecycle: lifecycleFilter,
           page: 1,
           search: nextSearch,
           summary: summaryFilter,
@@ -85,7 +109,7 @@ export function usePackageTableState(initialFilters: PackageTableFilters) {
     }, 300);
 
     return () => window.clearTimeout(timeoutId);
-  }, [searchInput, summaryFilter]);
+  }, [checkoutGroupFilter, lifecycleFilter, searchInput, summaryFilter]);
 
   useEffect(() => {
     window.history.replaceState(null, "", buildPackageTableUrl(pathname, tableFilters));
@@ -139,7 +163,11 @@ export function usePackageTableState(initialFilters: PackageTableFilters) {
     handlePageSizeChange,
     handleSortChange,
     handleToggleColumn,
+    checkoutGroupFilter,
+    lifecycleFilter,
     searchInput,
+    setCheckoutGroupFilter,
+    setLifecycleFilter,
     setSearchInput,
     setSummaryFilter,
     summaryFilter,

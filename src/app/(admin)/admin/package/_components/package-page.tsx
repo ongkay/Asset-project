@@ -20,13 +20,18 @@ import type { PackageEditorPrefill } from "@/modules/admin/packages/types";
 import type { PackageTablePage } from "@/modules/admin/packages/types";
 
 function getPackagePageStats(tablePage: PackageTablePage) {
-  const activePackages = tablePage.items.filter((packageRow) => packageRow.isActive).length;
+  const activePackages = tablePage.items.filter(
+    (packageRow) => packageRow.isActive && packageRow.lifecycle === "current",
+  ).length;
+  const archivedPackages = tablePage.items.filter((packageRow) => packageRow.lifecycle === "archived").length;
+  const currentPackages = tablePage.items.filter((packageRow) => packageRow.lifecycle === "current").length;
   const currentPageUses = tablePage.items.reduce((totalUses, packageRow) => totalUses + packageRow.totalUsed, 0);
 
   return {
     activePackages,
+    archivedPackages,
+    currentPackages,
     currentPageUses,
-    inactivePackages: tablePage.items.length - activePackages,
     totalPackages: tablePage.totalCount,
   };
 }
@@ -44,6 +49,8 @@ export function AdminPackagePage({
   const tableState = usePackageTableState(filters);
 
   const isInitialQueryFilters =
+    tableState.tableFilters.checkoutGroup === filters.checkoutGroup &&
+    tableState.tableFilters.lifecycle === filters.lifecycle &&
     tableState.tableFilters.page === filters.page &&
     tableState.tableFilters.pageSize === filters.pageSize &&
     tableState.tableFilters.order === filters.order &&
@@ -115,25 +122,37 @@ export function AdminPackagePage({
           </Card>
           <Card className="@container/card">
             <CardHeader>
-              <CardDescription>Active on This Page</CardDescription>
+              <CardDescription>Current Checkout Packages</CardDescription>
+              <CardTitle className="font-semibold text-2xl tabular-nums @[250px]/card:text-3xl">
+                {pageStats.currentPackages}
+              </CardTitle>
+              <Badge variant="outline">
+                <PackageCheck />
+                Current
+              </Badge>
+            </CardHeader>
+          </Card>
+          <Card className="@container/card">
+            <CardHeader>
+              <CardDescription>Active Checkout Packages</CardDescription>
               <CardTitle className="font-semibold text-2xl tabular-nums @[250px]/card:text-3xl">
                 {pageStats.activePackages}
               </CardTitle>
               <Badge variant="outline">
-                <PackageCheck />
+                <ToggleLeft />
                 Active
               </Badge>
             </CardHeader>
           </Card>
           <Card className="@container/card">
             <CardHeader>
-              <CardDescription>Inactive on This Page</CardDescription>
+              <CardDescription>Archived on This Page</CardDescription>
               <CardTitle className="font-semibold text-2xl tabular-nums @[250px]/card:text-3xl">
-                {pageStats.inactivePackages}
+                {pageStats.archivedPackages}
               </CardTitle>
               <Badge variant="outline">
                 <ToggleLeft />
-                Paused
+                Archived
               </Badge>
             </CardHeader>
           </Card>
@@ -154,7 +173,11 @@ export function AdminPackagePage({
         <Card className="border-border/60 py-4 shadow-xs">
           <CardContent className="flex flex-col gap-5 px-4 lg:px-6">
             <AdminPackageToolbar
+              checkoutGroupValue={tableState.checkoutGroupFilter}
+              lifecycleValue={tableState.lifecycleFilter}
               onCreatePackage={() => setDialogState({ mode: "create", open: true })}
+              onCheckoutGroupChange={tableState.setCheckoutGroupFilter}
+              onLifecycleChange={tableState.setLifecycleFilter}
               onSearchChange={tableState.setSearchInput}
               onSummaryChange={tableState.setSummaryFilter}
               onToggleColumn={tableState.handleToggleColumn}

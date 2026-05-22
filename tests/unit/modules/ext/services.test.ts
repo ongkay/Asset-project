@@ -283,7 +283,7 @@ describe("ext/services bootstrap", () => {
     extRepositoryMocks.readExtPurchasablePackages.mockResolvedValue([
       {
         amountRp: 150000,
-        checkoutUrl: "/paymentdummy?packageId=pkg-1",
+        checkoutUrl: "/checkout?packageId=pkg-1",
         id: "pkg-1",
         name: "Starter",
         summary: "mixed",

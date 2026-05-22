@@ -86,10 +86,13 @@ export function AdminPackageFormDialog({
     const payload = {
       accessKeys: canonicalAccessKeys,
       amountRp: Number(values.amountRp),
+      checkoutGroup: values.checkoutGroup,
       checkoutUrl: normalizeCheckoutUrl(values.checkoutUrl ?? null),
       durationDays: Number(values.durationDays),
       isExtended: values.isExtended,
+      listAmountRp: Number(values.listAmountRp),
       name: values.name,
+      sortOrder: Number(values.sortOrder),
     };
 
     const result = isEditMode
@@ -124,8 +127,8 @@ export function AdminPackageFormDialog({
           <DialogTitle>{isEditMode ? "Edit Package" : "Create Package"}</DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? "Update package metadata, entitlement access keys, and checkout behavior."
-              : "Create a package with canonical access keys and pricing details."}
+              ? "Update checkout metadata, entitlement access keys, and pricing behavior."
+              : "Create a checkout-ready package with pricing, grouping, and canonical access keys."}
           </DialogDescription>
         </DialogHeader>
 

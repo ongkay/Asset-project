@@ -862,23 +862,29 @@ describe("admin/cdkeys/queries", () => {
     );
     mockedGetIssuablePackageSnapshotsByIds.mockResolvedValueOnce([
       {
+        checkoutGroup: "legacy",
         id: "pkg-a",
+        listAmountRp: 1000,
         packageId: "pkg-a",
         name: "A",
         amountRp: 1000,
         durationDays: 30,
         isExtended: true,
         accessKeys: ["tradingview:private"],
+        sortOrder: 10,
         summary: "private",
       },
       {
+        checkoutGroup: "legacy",
         id: "pkg-c",
+        listAmountRp: 2000,
         packageId: "pkg-c",
         name: "C",
         amountRp: 2000,
         durationDays: 60,
         isExtended: false,
         accessKeys: ["fxreplay:share"],
+        sortOrder: 20,
         summary: "share",
       },
     ]);

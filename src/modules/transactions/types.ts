@@ -11,6 +11,8 @@ export type TransactionRecord = {
   createdAt: string;
   failureReason: string | null;
   id: string;
+  listAmountRp: number;
+  packageDiscountAmountRp: number;
   packageId: string;
   packageName: string;
   paidAt: string | null;
@@ -18,11 +20,25 @@ export type TransactionRecord = {
   status: TransactionStatus;
   subscriptionId: string | null;
   userId: string;
+  voucherCode: string | null;
+  voucherDiscountAmountRp: number;
+  voucherDiscountPercent: number | null;
+  voucherId: string | null;
+};
+
+export type TransactionPricingSnapshot = {
+  listAmountRp: number;
+  packageDiscountAmountRp: number;
+  voucherCode?: string | null;
+  voucherDiscountAmountRp?: number;
+  voucherDiscountPercent?: number | null;
+  voucherId?: string | null;
 };
 
 export type CreateTransactionInput = {
   cdKeyId?: string;
   packageSnapshot: TransactionPackageSnapshot;
+  pricingSnapshot?: TransactionPricingSnapshot;
   source: ActivationSource;
   subscriptionId?: string;
   userId: string;

@@ -1,0 +1,1281 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <title>Checkout</title>
+
+    <style>
+      :root {
+        --bg: #080c12;
+        --card: #171b24;
+        --card-soft: #10151d;
+        --card-hover: #1d2330;
+
+        --border: #2b313d;
+        --border-soft: rgba(255, 255, 255, 0.08);
+
+        --primary: #00c2ff;
+        --primary-soft: rgba(0, 194, 255, 0.12);
+
+        --secondary: #a855f7;
+        --secondary-soft: rgba(168, 85, 247, 0.12);
+
+        --promo: #ef4444;
+        --warning: #ff8a3d;
+
+        --text: #f8fafc;
+        --text-muted: #a7afbd;
+        --text-soft: #7b8190;
+
+        --button-bg: #f8fafc;
+        --button-text: #0b0f16;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        /* font-family: Inter, Arial, sans-serif; */
+        background:
+          radial-gradient(circle at top left, rgba(0, 194, 255, 0.12), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.12), transparent 30%), var(--bg);
+        color: var(--text);
+        padding: 36px;
+      }
+
+      button {
+        font-family: inherit;
+      }
+
+      .page {
+        max-width: 1160px;
+        margin: 0 auto;
+      }
+
+      .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 24px;
+        font-weight: 800;
+        margin-bottom: 46px;
+      }
+
+      .back span {
+        color: var(--text-muted);
+        font-size: 34px;
+        font-weight: 400;
+        line-height: 1;
+      }
+
+      .checkout-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 420px;
+        gap: 60px;
+        align-items: start;
+      }
+
+      .checkout-left {
+        min-width: 0;
+      }
+
+      .section {
+        margin-bottom: 46px;
+      }
+
+      .section:last-child {
+        margin-bottom: 0;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+
+      .section-title {
+        font-size: 15px;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        color: var(--text);
+      }
+
+      .section-hint {
+        font-size: 13px;
+        color: var(--text-soft);
+      }
+
+      .package-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+
+      .duration-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+
+      .payment-grid {
+        display: flex;
+        gap: 12px;
+      }
+
+      .option-card {
+        position: relative;
+        width: 100%;
+        border: 1px solid var(--border);
+        background: rgba(16, 21, 29, 0.68);
+        color: var(--text);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: 0.2s ease;
+        text-align: left;
+      }
+
+      .option-card:hover {
+        background: var(--card-hover);
+        border-color: rgba(0, 194, 255, 0.38);
+        transform: translateY(-2px);
+      }
+
+      .option-card.active {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(0, 194, 255, 0.09), rgba(168, 85, 247, 0.06)), var(--card-soft);
+        box-shadow:
+          0 0 0 1px rgba(0, 194, 255, 0.24),
+          0 18px 42px rgba(0, 194, 255, 0.08);
+      }
+
+      .package-card {
+        min-height: 104px;
+        padding: 24px 22px;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .package-card:hover {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.12);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      }
+
+      .package-card.active {
+        border-color: rgba(0, 194, 255, 0.4);
+        background: linear-gradient(145deg, rgba(0, 194, 255, 0.06), rgba(0, 194, 255, 0.01));
+        box-shadow: 0 12px 32px rgba(0, 194, 255, 0.08);
+      }
+
+      .package-card.active::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: var(--primary);
+        box-shadow: 0 1px 8px rgba(0, 194, 255, 0.4);
+      }
+
+      .package-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .package-card h3 {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        color: var(--text);
+      }
+
+      .package-card.active h3 {
+        color: #ffffff;
+      }
+
+      .package-card .check-icon {
+        color: var(--primary);
+        font-size: 15px;
+        opacity: 0;
+        transform: scale(0.5);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .package-card.active .check-icon {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .package-card p {
+        margin-top: 8px;
+        color: var(--text-soft);
+        font-size: 13px;
+        font-weight: 400;
+        line-height: 1.5;
+        padding-right: 20px;
+      }
+
+      .duration-card {
+        min-height: 118px;
+        padding: 24px 14px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .duration-card h3 {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        margin-bottom: 8px;
+      }
+
+      .duration-card.active h3 {
+        color: var(--primary);
+      }
+
+      .old-price {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 3px;
+        margin-bottom: 4px;
+        color: rgba(255, 255, 255, 0.25);
+        text-decoration: line-through;
+      }
+
+      .old-price .amount {
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .old-price .unit {
+        font-size: 11px;
+        font-weight: 400;
+      }
+
+      .new-price {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 3px;
+      }
+
+      .new-price .amount {
+        color: #cbd5e1;
+        font-size: 15px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
+      }
+
+      .new-price .unit {
+        color: rgba(255, 255, 255, 0.35);
+        font-size: 11px;
+        font-weight: 400;
+      }
+
+      .discount-badge {
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, var(--warning), var(--promo));
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 900;
+        padding: 5px 14px;
+        border-radius: 999px;
+        white-space: nowrap;
+        box-shadow: 0 10px 22px rgba(239, 68, 68, 0.18);
+      }
+
+      .discount-badge.is-best {
+        background: linear-gradient(135deg, #ff2d55, #dc2626);
+        box-shadow:
+          0 10px 24px rgba(220, 38, 38, 0.34),
+          0 0 0 1px rgba(255, 255, 255, 0.18);
+      }
+
+      .payment-card {
+        flex: 1;
+        max-width: 120px;
+        padding: 12px 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 10px;
+      }
+
+      .payment-card.active {
+        box-shadow:
+          0 0 0 1px rgba(0, 194, 255, 0.24),
+          0 8px 24px rgba(0, 194, 255, 0.08);
+      }
+
+      .payment-icon {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-size: 13px;
+      }
+
+      .payment-card h3 {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+
+      .summary-card {
+        position: sticky;
+        top: 32px;
+        background: var(--card);
+        border: 1px solid var(--border-soft);
+        border-radius: 22px;
+        padding: 38px 40px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32);
+      }
+
+      .summary-card h2 {
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+        margin-bottom: 8px;
+      }
+
+      .summary-features {
+        list-style: none;
+        display: grid;
+        gap: 16px;
+        margin-top: 24px;
+        margin-bottom: 32px;
+      }
+
+      .summary-features li {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: var(--text-muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .summary-features .icon {
+        width: 22px;
+        height: 22px;
+        flex: 0 0 22px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-size: 12px;
+        box-shadow: 0 0 0 1px rgba(0, 194, 255, 0.2);
+      }
+
+      .divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.09);
+        margin: 30px 0;
+      }
+
+      .payment-detail {
+        display: grid;
+        gap: 12px;
+      }
+
+      .price-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .price-row strong {
+        color: #cbd5e1;
+        font-size: 14px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .price-row.discount > span {
+        color: var(--text-muted);
+      }
+
+      .price-row.discount strong {
+        color: #fcd34d;
+        font-weight: 500;
+      }
+
+      .discount-mini {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 8px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(252, 211, 77, 0.08);
+        color: #fcd34d;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      .price-row.discount-special > span {
+        color: var(--text-muted);
+      }
+
+      .price-row.discount-special strong {
+        color: #fbbf24;
+        font-weight: 600;
+      }
+
+      .discount-mini.special {
+        background: rgba(251, 191, 36, 0.12);
+        color: #fbbf24;
+        font-weight: 700;
+      }
+
+      .total-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.06);
+        margin: 4px 0;
+      }
+
+      .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 2px;
+      }
+
+      .total-row span {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--text-muted);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .total-row strong {
+        font-size: 20px;
+        color: #ffffff;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Voucher Area */
+      .voucher-container {
+        margin-top: 24px;
+        margin-bottom: 0;
+        width: 100%;
+        background: rgba(245, 158, 11, 0.04);
+        border: 1px dashed rgba(245, 158, 11, 0.3);
+        border-radius: 12px;
+        padding: 14px 16px;
+        transition: 0.2s ease;
+        position: relative;
+      }
+
+      .voucher-container:hover {
+        background: rgba(245, 158, 11, 0.08);
+        border-color: rgba(245, 158, 11, 0.5);
+      }
+
+      .voucher-container.is-expanded {
+        background: rgba(245, 158, 11, 0.06);
+        border-color: rgba(245, 158, 11, 0.4);
+      }
+
+      .voucher-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .voucher-toggle-btn {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 700;
+        padding: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: 0.2s ease;
+      }
+
+      .voucher-toggle-btn.is-expanded {
+        cursor: default;
+      }
+
+      .voucher-toggle-btn .toggle-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .voucher-toggle-btn i {
+        color: #f59e0b;
+        font-size: 16px;
+      }
+
+      .voucher-toggle-btn .subtext {
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .voucher-close-btn {
+        display: none;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-muted);
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: 0.2s ease;
+        font-size: 12px;
+        margin-left: 12px;
+      }
+
+      .voucher-close-btn.is-active {
+        display: flex;
+      }
+
+      .voucher-close-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text);
+      }
+
+      .voucher-form {
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+        margin-top: 16px;
+        border-top: 1px dashed rgba(255, 255, 255, 0.05);
+        padding-top: 16px;
+      }
+
+      .voucher-form.is-active {
+        display: flex;
+        animation: expandDown 0.3s ease forwards;
+      }
+
+      @keyframes expandDown {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .voucher-input-group {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .voucher-input {
+        flex: 1;
+        background: rgba(16, 21, 29, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text);
+        font-size: 13px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        outline: none;
+        transition: 0.2s;
+      }
+
+      .voucher-input:focus {
+        border-color: #f59e0b;
+        background: var(--card-soft);
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+      }
+
+      .voucher-input::placeholder {
+        color: var(--text-muted);
+      }
+
+      .voucher-apply-btn {
+        background: #f59e0b;
+        color: #fff;
+        border: none;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 0 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      .voucher-apply-btn:hover {
+        background: #fbbf24;
+      }
+
+      .voucher-error {
+        display: none;
+        color: #ef4444;
+        font-size: 12px;
+        margin-top: -4px;
+        margin-left: 4px;
+      }
+
+      .voucher-applied {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .voucher-applied.is-active {
+        display: flex;
+        animation: expandDown 0.3s ease forwards;
+      }
+
+      .voucher-applied-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text);
+      }
+
+      .voucher-applied-info i {
+        color: #f59e0b;
+        font-size: 16px;
+      }
+
+      .voucher-code-label {
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+
+      .voucher-badge {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 3px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+      }
+
+      .voucher-remove-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 16px;
+        cursor: pointer;
+        transition: 0.2s ease;
+        padding: 4px;
+      }
+
+      .voucher-remove-btn:hover {
+        color: #ef4444;
+        transform: scale(1.1);
+      }
+
+      .checkout-btn {
+        width: 100%;
+        height: 56px;
+        border: none;
+        border-radius: 12px;
+        margin-top: 30px;
+        background: var(--primary);
+        color: #080c12;
+        font-size: 16px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        letter-spacing: 0.02em;
+        box-shadow: 0 12px 24px rgba(0, 194, 255, 0.2);
+      }
+
+      .checkout-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 32px rgba(0, 194, 255, 0.3);
+        filter: brightness(1.1);
+      }
+
+      .checkout-btn .icon {
+        font-size: 16px;
+      }
+
+      .secure-note {
+        margin-top: 18px;
+        color: var(--text-soft);
+        font-size: 12px;
+        line-height: 1.6;
+        text-align: center;
+      }
+
+      @media (max-width: 980px) {
+        body {
+          padding: 24px;
+        }
+
+        .checkout-layout {
+          grid-template-columns: 1fr;
+          gap: 34px;
+        }
+
+        .summary-card {
+          position: static;
+        }
+
+        .duration-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      @media (max-width: 620px) {
+        body {
+          padding: 18px;
+        }
+
+        .back {
+          margin-bottom: 34px;
+          font-size: 22px;
+        }
+
+        .package-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .payment-grid {
+          gap: 10px;
+        }
+
+        .payment-card {
+          max-width: none;
+        }
+
+        .duration-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .summary-card {
+          padding: 26px 22px;
+          border-radius: 18px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="page">
+      <a href="#" class="back">
+        <span>‹</span>
+        Checkout
+      </a>
+
+      <section class="checkout-layout">
+        <div class="checkout-left">
+          <section class="section">
+            <div class="section-header">
+              <h2 class="section-title">Select Package</h2>
+            </div>
+
+            <div class="package-grid" id="packageGrid"></div>
+          </section>
+
+          <section class="section">
+            <div class="section-header">
+              <h2 class="section-title">Select Duration</h2>
+              <span class="section-hint" id="durationHint">Semi Private</span>
+            </div>
+
+            <div class="duration-grid" id="durationGrid"></div>
+          </section>
+
+          <section class="section">
+            <div class="section-header">
+              <h2 class="section-title">Payment Method</h2>
+            </div>
+
+            <div class="payment-grid" id="paymentGrid">
+              <button class="option-card payment-card active" type="button" data-payment="QRIS">
+                <span class="payment-icon"><i class="fa-solid fa-qrcode"></i></span>
+                <h3>QRIS</h3>
+              </button>
+
+              <button class="option-card payment-card" type="button" data-payment="Crypto">
+                <span class="payment-icon"><i class="fa-brands fa-bitcoin"></i></span>
+                <h3>Crypto</h3>
+              </button>
+
+              <button class="option-card payment-card" type="button" data-payment="Card">
+                <span class="payment-icon"><i class="fa-regular fa-credit-card"></i></span>
+                <h3>Card</h3>
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <aside class="summary-card">
+          <h2 id="summaryTitle">Semi Private plan</h2>
+
+          <ul class="summary-features" id="summaryFeatures"></ul>
+
+          <div class="divider"></div>
+
+          <div class="payment-detail">
+            <div class="price-row">
+              <span>Subtotal</span>
+              <strong id="subtotalText">Rp 0</strong>
+            </div>
+
+            <div class="price-row discount">
+              <span>
+                Discount
+                <span class="discount-mini" id="discountBadge">0% Off</span>
+              </span>
+              <strong id="discountText">-Rp 0</strong>
+            </div>
+
+            <div class="price-row discount-special" id="discountSpecialRow" style="display: none">
+              <span>
+                Discount Voucher
+                <span class="discount-mini special" id="discountSpecialBadge">0%</span>
+              </span>
+              <strong id="discountSpecialText">-Rp 0</strong>
+            </div>
+
+            <div class="total-divider"></div>
+
+            <div class="total-row">
+              <span>TOTAL</span>
+              <strong id="totalText">Rp 0</strong>
+            </div>
+          </div>
+
+          <div class="voucher-container" id="voucherContainer">
+            <div class="voucher-header" id="voucherHeader">
+              <button type="button" class="voucher-toggle-btn" id="voucherToggleBtn">
+                <div class="toggle-left">
+                  <i class="fa-solid fa-ticket"></i>
+                  <span>Apply voucher</span>
+                </div>
+                <span class="subtext" id="voucherSubtext">Have a promo code?</span>
+              </button>
+              <button type="button" class="voucher-close-btn" id="voucherCloseBtn">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div class="voucher-form" id="voucherForm">
+              <div class="voucher-input-group">
+                <input
+                  type="text"
+                  id="voucherInput"
+                  class="voucher-input"
+                  placeholder="Enter code"
+                  autocomplete="off"
+                />
+                <button type="button" class="voucher-apply-btn" id="voucherApplyBtn">Apply</button>
+              </div>
+              <div class="voucher-error" id="voucherError"></div>
+            </div>
+
+            <div class="voucher-applied" id="voucherApplied">
+              <div class="voucher-applied-info">
+                <i class="fa-solid fa-ticket"></i>
+                <span class="voucher-code-label" id="voucherCodeLabel"></span>
+                <span class="voucher-badge">Applied</span>
+              </div>
+              <button type="button" class="voucher-remove-btn" id="voucherRemoveBtn" title="Remove voucher">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+
+          <button class="checkout-btn" type="button">
+            <i class="fa-solid fa-lock icon"></i>
+            <span>Pay Now</span>
+          </button>
+
+          <p class="secure-note">Pembayaran aman. Akses premium akan diproses setelah pembayaran berhasil.</p>
+        </aside>
+      </section>
+    </main>
+
+    <script>
+      const packages = {
+        semi: {
+          name: "Semi Private",
+          title: "Semi Private plan",
+          description: "Smart value, curated shared access.",
+          features: ["Akses TradingView Premium", "Akses ForexTest Premium"],
+          durations: [
+            {
+              id: "semi-30",
+              label: "30 days",
+              months: 1,
+              price: 80000,
+              discount: 5,
+            },
+            {
+              id: "semi-60",
+              label: "60 days",
+              months: 2,
+              price: 160000,
+              discount: 20,
+            },
+            {
+              id: "semi-180",
+              label: "180 days",
+              months: 6,
+              price: 480000,
+              discount: 30,
+            },
+            {
+              id: "semi-360",
+              label: "360 days",
+              months: 12,
+              price: 960000,
+              discount: 40,
+            },
+          ],
+        },
+
+        full: {
+          name: "Full Private",
+          title: "Full Private plan",
+          description: "Exclusive, private premium access.",
+          features: ["Akses TradingView Premium Private", "Akses ForexTest Premium"],
+          durations: [
+            {
+              id: "full-15",
+              label: "15 days",
+              months: 0.5,
+              price: 125000,
+              discount: 20,
+            },
+            {
+              id: "full-30",
+              label: "30 days",
+              months: 1,
+              price: 250000,
+              discount: 30,
+            },
+          ],
+        },
+      };
+
+      const vouchers = {
+        HEMAT10: 10,
+        VIP15: 15,
+        PRIVATE20: 20,
+      };
+
+      const state = {
+        packageKey: "semi",
+        durationId: "semi-30",
+        paymentMethod: "QRIS",
+        voucherCode: null,
+        voucherDiscount: 0,
+      };
+
+      const packageGrid = document.getElementById("packageGrid");
+      const durationGrid = document.getElementById("durationGrid");
+      const durationHint = document.getElementById("durationHint");
+
+      const summaryTitle = document.getElementById("summaryTitle");
+      const summaryFeatures = document.getElementById("summaryFeatures");
+      const subtotalText = document.getElementById("subtotalText");
+      const discountText = document.getElementById("discountText");
+      const discountSpecialRow = document.getElementById("discountSpecialRow");
+      const discountSpecialBadge = document.getElementById("discountSpecialBadge");
+      const discountSpecialText = document.getElementById("discountSpecialText");
+      const totalText = document.getElementById("totalText");
+      const discountBadge = document.getElementById("discountBadge");
+
+      const voucherContainer = document.getElementById("voucherContainer");
+      const voucherHeader = document.getElementById("voucherHeader");
+      const voucherToggleBtn = document.getElementById("voucherToggleBtn");
+      const voucherSubtext = document.getElementById("voucherSubtext");
+      const voucherCloseBtn = document.getElementById("voucherCloseBtn");
+      const voucherForm = document.getElementById("voucherForm");
+      const voucherInput = document.getElementById("voucherInput");
+      const voucherApplyBtn = document.getElementById("voucherApplyBtn");
+      const voucherError = document.getElementById("voucherError");
+      const voucherApplied = document.getElementById("voucherApplied");
+      const voucherCodeLabel = document.getElementById("voucherCodeLabel");
+      const voucherRemoveBtn = document.getElementById("voucherRemoveBtn");
+
+      function formatRupiah(value) {
+        return new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: "IDR",
+          maximumFractionDigits: 0,
+        }).format(value);
+      }
+
+      function getSelectedPackage() {
+        return packages[state.packageKey];
+      }
+
+      function getSelectedDuration() {
+        return getSelectedPackage().durations.find((duration) => duration.id === state.durationId);
+      }
+
+      function renderPackages() {
+        packageGrid.innerHTML = "";
+
+        Object.entries(packages).forEach(([key, item]) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `option-card package-card ${state.packageKey === key ? "active" : ""}`;
+
+          button.innerHTML = `
+          <div class="package-header">
+            <h3>${item.name}</h3>
+            <i class="fa-solid fa-circle-check check-icon"></i>
+          </div>
+          <p>${item.description}</p>
+        `;
+
+          button.addEventListener("click", () => {
+            state.packageKey = key;
+            state.durationId = packages[key].durations[0].id;
+            render();
+          });
+
+          packageGrid.appendChild(button);
+        });
+      }
+
+      function renderDurations() {
+        const selectedPackage = getSelectedPackage();
+
+        durationHint.textContent = selectedPackage.name;
+        durationGrid.innerHTML = "";
+
+        selectedPackage.durations.forEach((duration) => {
+          const subtotal = duration.price;
+          const discountAmount = (subtotal * duration.discount) / 100;
+          let total = subtotal - discountAmount;
+
+          if (state.voucherDiscount > 0) {
+            const discountSpecial = (total * state.voucherDiscount) / 100;
+            total = total - discountSpecial;
+          }
+
+          const monthlyPrice = total / duration.months;
+          const originalMonthlyPrice = subtotal / duration.months;
+
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `option-card duration-card ${state.durationId === duration.id ? "active" : ""}`;
+
+          button.innerHTML = `
+          ${
+            duration.discount > 0
+              ? `
+            <span class="discount-badge ${duration.discount === 40 ? "is-best" : ""}">
+              ${duration.discount}% Off
+            </span>
+          `
+              : ""
+          }
+          <h3>${duration.label}</h3>
+          ${duration.discount > 0 ? `<div class="old-price"><span class="amount">${formatRupiah(originalMonthlyPrice)}</span> <span class="unit">/month</span></div>` : ""}
+          <div class="new-price"><span class="amount">${formatRupiah(monthlyPrice)}</span> <span class="unit">/month</span></div>
+        `;
+
+          button.addEventListener("click", () => {
+            state.durationId = duration.id;
+            render();
+          });
+
+          durationGrid.appendChild(button);
+        });
+      }
+
+      function renderSummary() {
+        const selectedPackage = getSelectedPackage();
+        const selectedDuration = getSelectedDuration();
+
+        const subtotal = selectedDuration.price;
+        const discount = (subtotal * selectedDuration.discount) / 100;
+        const priceAfterRegularDiscount = subtotal - discount;
+
+        const discountSpecial = (priceAfterRegularDiscount * state.voucherDiscount) / 100;
+        const total = priceAfterRegularDiscount - discountSpecial;
+
+        summaryTitle.textContent = `${selectedPackage.name} ${selectedDuration.label}`;
+
+        const allFeatures = [...selectedPackage.features];
+        summaryFeatures.innerHTML = allFeatures
+          .map(
+            (feature) => `
+        <li>
+          <span class="icon"><i class="fa-solid fa-check"></i></span>
+          <span>${feature}</span>
+        </li>
+      `,
+          )
+          .join("");
+
+        subtotalText.textContent = formatRupiah(subtotal);
+        discountText.textContent = `-${formatRupiah(discount)}`;
+
+        if (state.voucherDiscount > 0) {
+          discountSpecialRow.style.display = "flex";
+          discountSpecialBadge.textContent = `${state.voucherDiscount}%`;
+          discountSpecialText.textContent = `-${formatRupiah(discountSpecial)}`;
+        } else {
+          discountSpecialRow.style.display = "none";
+        }
+
+        totalText.textContent = formatRupiah(total);
+        discountBadge.textContent = `${selectedDuration.discount}% Off`;
+      }
+
+      function setupPaymentMethod() {
+        const paymentButtons = document.querySelectorAll(".payment-card");
+
+        paymentButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            paymentButtons.forEach((item) => item.classList.remove("active"));
+            button.classList.add("active");
+            state.paymentMethod = button.dataset.payment;
+          });
+        });
+      }
+
+      function render() {
+        renderPackages();
+        renderDurations();
+        renderSummary();
+      }
+
+      function setupVoucher() {
+        voucherToggleBtn.addEventListener("click", () => {
+          if (!voucherContainer.classList.contains("is-expanded")) {
+            voucherContainer.classList.add("is-expanded");
+            voucherToggleBtn.classList.add("is-expanded");
+            voucherSubtext.style.display = "none";
+            voucherCloseBtn.style.display = "flex";
+            voucherForm.classList.add("is-active");
+            voucherInput.focus();
+          }
+        });
+
+        voucherCloseBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          voucherContainer.classList.remove("is-expanded");
+          voucherToggleBtn.classList.remove("is-expanded");
+          voucherSubtext.style.display = "block";
+          voucherCloseBtn.style.display = "none";
+          voucherForm.classList.remove("is-active");
+          voucherError.style.display = "none";
+          voucherInput.value = "";
+        });
+
+        voucherApplyBtn.addEventListener("click", () => {
+          const code = voucherInput.value.trim().toUpperCase();
+          if (vouchers[code]) {
+            state.voucherCode = code;
+            state.voucherDiscount = vouchers[code];
+
+            voucherForm.classList.remove("is-active");
+            voucherError.style.display = "none";
+            voucherHeader.style.display = "none";
+
+            voucherApplied.classList.add("is-active");
+            voucherCodeLabel.textContent = code;
+
+            render();
+          } else {
+            voucherError.textContent = "Voucher code is invalid.";
+            voucherError.style.display = "block";
+          }
+        });
+
+        voucherInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            voucherApplyBtn.click();
+          }
+        });
+
+        voucherRemoveBtn.addEventListener("click", () => {
+          state.voucherCode = null;
+          state.voucherDiscount = 0;
+          voucherInput.value = "";
+
+          voucherApplied.classList.remove("is-active");
+          voucherHeader.style.display = "flex";
+          voucherContainer.classList.remove("is-expanded");
+          voucherToggleBtn.classList.remove("is-expanded");
+          voucherSubtext.style.display = "block";
+          voucherCloseBtn.style.display = "none";
+
+          render();
+        });
+      }
+
+      setupVoucher();
+      setupPaymentMethod();
+      render();
+    </script>
+  </body>
+</html>

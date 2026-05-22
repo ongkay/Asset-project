@@ -14,6 +14,7 @@ import {
   failTransaction,
   succeedTransaction,
 } from "@/modules/transactions/services";
+import { consumeVoucherUsage } from "@/modules/vouchers/services";
 
 import {
   adminManualActivationFormSchema,
@@ -520,6 +521,7 @@ export async function purchaseSubscriptionWithPaymentDummy(
 
   const transaction = await createTransaction({
     userId: input.userId,
+    pricingSnapshot: input.pricingSnapshot,
     source: "payment_dummy",
     packageSnapshot: {
       packageId: activePackage.packageId,
@@ -539,6 +541,10 @@ export async function purchaseSubscriptionWithPaymentDummy(
       source: "payment_dummy",
     });
     const activationResult = activationExecution.result;
+
+    if (input.pricingSnapshot?.voucherId) {
+      await consumeVoucherUsage(input.pricingSnapshot.voucherId);
+    }
 
     await attachTransactionToSubscription(transaction.id, activationResult.subscriptionId);
     await succeedTransaction(transaction.id);

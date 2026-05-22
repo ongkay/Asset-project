@@ -34,7 +34,7 @@ select public.seed_package(
   true,
   '["tradingview:private", "fxreplay:share", "fxtester:share", "fxtester:private"]'::jsonb,
   null,
-  true
+  false
 );
 
 select public.seed_package(
@@ -45,7 +45,7 @@ select public.seed_package(
   true,
   '["tradingview:share", "fxreplay:private"]'::jsonb,
   null,
-  true
+  false
 );
 
 select public.seed_package(
@@ -56,7 +56,7 @@ select public.seed_package(
   true,
   '["tradingview:share"]'::jsonb,
   null,
-  true
+  false
 );
 
 select public.seed_package(

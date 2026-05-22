@@ -23,6 +23,8 @@ export function getPackageTableQueryKey(filters: PackageTableFilters) {
   return [
     ...ADMIN_PACKAGE_QUERY_KEY,
     {
+      checkoutGroup: filters.checkoutGroup,
+      lifecycle: filters.lifecycle,
       order: filters.order,
       page: filters.page,
       pageSize: filters.pageSize,

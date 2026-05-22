@@ -12,6 +12,8 @@ type TransactionRow = {
   created_at: string;
   failure_reason: string | null;
   id: string;
+  list_amount_rp: number;
+  package_discount_amount_rp: number;
   package_id: string;
   package_name: string;
   paid_at: string | null;
@@ -19,6 +21,10 @@ type TransactionRow = {
   status: TransactionRecord["status"];
   subscription_id: string | null;
   user_id: string;
+  voucher_code: string | null;
+  voucher_discount_amount_rp: number;
+  voucher_discount_percent: number | null;
+  voucher_id: string | null;
 };
 
 function createTransactionCode() {
@@ -54,15 +60,19 @@ async function updateTransactionStatus(input: {
 }
 
 export async function insertTransaction(input: CreateTransactionInput): Promise<TransactionRecord> {
+  const pricingSnapshot = input.pricingSnapshot;
+  const finalAmountRp = Math.max(0, input.packageSnapshot.amountRp - (pricingSnapshot?.voucherDiscountAmountRp ?? 0));
   const database = createInsForgeAdminDatabase();
   const { data, error } = await database
     .from("transactions")
     .insert([
       {
-        amount_rp: input.packageSnapshot.amountRp,
+        amount_rp: finalAmountRp,
         cd_key_id: input.cdKeyId ?? null,
         code: createTransactionCode(),
         failure_reason: null,
+        list_amount_rp: pricingSnapshot?.listAmountRp ?? input.packageSnapshot.amountRp,
+        package_discount_amount_rp: pricingSnapshot?.packageDiscountAmountRp ?? 0,
         package_id: input.packageSnapshot.packageId,
         package_name: input.packageSnapshot.name,
         paid_at: null,
@@ -70,10 +80,14 @@ export async function insertTransaction(input: CreateTransactionInput): Promise<
         status: "pending",
         subscription_id: input.subscriptionId ?? null,
         user_id: input.userId,
+        voucher_code: pricingSnapshot?.voucherCode ?? null,
+        voucher_discount_amount_rp: pricingSnapshot?.voucherDiscountAmountRp ?? 0,
+        voucher_discount_percent: pricingSnapshot?.voucherDiscountPercent ?? null,
+        voucher_id: pricingSnapshot?.voucherId ?? null,
       },
     ])
     .select(
-      "id, code, user_id, subscription_id, package_id, package_name, source, status, amount_rp, paid_at, failure_reason, created_at",
+      "id, code, user_id, subscription_id, package_id, package_name, source, status, amount_rp, list_amount_rp, package_discount_amount_rp, voucher_id, voucher_code, voucher_discount_percent, voucher_discount_amount_rp, paid_at, failure_reason, created_at",
     )
     .single<TransactionRow>();
 
@@ -87,6 +101,8 @@ export async function insertTransaction(input: CreateTransactionInput): Promise<
     createdAt: data.created_at,
     failureReason: data.failure_reason,
     id: data.id,
+    listAmountRp: data.list_amount_rp,
+    packageDiscountAmountRp: data.package_discount_amount_rp,
     packageId: data.package_id,
     packageName: data.package_name,
     paidAt: data.paid_at,
@@ -94,6 +110,10 @@ export async function insertTransaction(input: CreateTransactionInput): Promise<
     status: data.status,
     subscriptionId: data.subscription_id,
     userId: data.user_id,
+    voucherCode: data.voucher_code,
+    voucherDiscountAmountRp: data.voucher_discount_amount_rp,
+    voucherDiscountPercent: data.voucher_discount_percent,
+    voucherId: data.voucher_id,
   };
 }
 

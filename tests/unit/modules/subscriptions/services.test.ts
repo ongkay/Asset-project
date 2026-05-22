@@ -46,6 +46,10 @@ vi.mock("@/modules/transactions/services", () => ({
   succeedTransaction: vi.fn(),
 }));
 
+vi.mock("@/modules/vouchers/services", () => ({
+  consumeVoucherUsage: vi.fn(),
+}));
+
 vi.mock("@/modules/assets/services", () => ({
   createAsset: vi.fn(),
 }));
@@ -62,6 +66,7 @@ import {
 } from "@/modules/subscriptions/services";
 import * as transactionServices from "@/modules/transactions/services";
 
+import type { MemberPurchasablePackage, PackageRow } from "@/modules/packages/types";
 import type { SubscriptionPackageSnapshot, SubscriptionRow } from "@/modules/subscriptions/types";
 
 const mockedGetMemberPurchasablePackageById = vi.mocked(packageServices.getMemberPurchasablePackageById);
@@ -99,6 +104,43 @@ function createPackageSnapshot(overrides: Partial<SubscriptionPackageSnapshot> =
     durationDays: 30,
     isExtended: true,
     accessKeys: ["tradingview:private"],
+    ...overrides,
+  };
+}
+
+function createMemberPackageSnapshot(overrides: Partial<MemberPurchasablePackage> = {}): MemberPurchasablePackage {
+  return {
+    accessKeys: ["tradingview:private"],
+    amountRp: 150000,
+    checkoutGroup: "full-private",
+    durationDays: 30,
+    id: "package-1",
+    isExtended: true,
+    listAmountRp: 180000,
+    name: "Premium Package",
+    packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+    sortOrder: 10,
+    summary: "private",
+    ...overrides,
+  };
+}
+
+function createPackageRowSnapshot(overrides: Partial<PackageRow> = {}): PackageRow {
+  return {
+    accessKeys: ["tradingview:private"],
+    amountRp: 150000,
+    checkoutGroup: "legacy",
+    checkoutUrl: null,
+    code: "PKG-1",
+    createdAt: "2026-04-01T00:00:00.000Z",
+    durationDays: 30,
+    id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
+    isActive: true,
+    isExtended: true,
+    listAmountRp: 150000,
+    name: "Premium Package",
+    sortOrder: 0,
+    updatedAt: "2026-04-01T00:00:00.000Z",
     ...overrides,
   };
 }
@@ -146,6 +188,8 @@ describe("subscriptions/services", () => {
       amountRp: 150000,
       createdAt: "2026-04-16T00:00:00.000Z",
       failureReason: null,
+      listAmountRp: 150000,
+      packageDiscountAmountRp: 0,
       packageId: "package-1",
       packageName: "Premium Package",
       paidAt: null,
@@ -153,6 +197,10 @@ describe("subscriptions/services", () => {
       status: "pending",
       subscriptionId: null,
       userId: "user-1",
+      voucherCode: null,
+      voucherDiscountAmountRp: 0,
+      voucherDiscountPercent: null,
+      voucherId: null,
     });
     mockedFailTransaction.mockReset();
     mockedSucceedTransaction.mockReset();
@@ -408,16 +456,7 @@ describe("subscriptions/services", () => {
   });
 
   it("creates, links, and finalizes a member payment transaction on success", async () => {
-    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
-      id: "package-1",
-      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Premium Package",
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      summary: "private",
-    });
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce(createMemberPackageSnapshot());
 
     const result = await purchaseSubscriptionWithPaymentDummy({
       userId: "user-1",
@@ -454,19 +493,7 @@ describe("subscriptions/services", () => {
 
   it("returns disabled-package when the selected package is no longer active", async () => {
     mockedGetMemberPurchasablePackageById.mockResolvedValueOnce(null);
-    mockedGetPackageByIdFromPackages.mockResolvedValueOnce({
-      id: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Premium Package",
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      checkoutUrl: null,
-      code: "PKG-1",
-      createdAt: "2026-04-01T00:00:00.000Z",
-      isActive: false,
-      updatedAt: "2026-04-01T00:00:00.000Z",
-    });
+    mockedGetPackageByIdFromPackages.mockResolvedValueOnce(createPackageRowSnapshot({ isActive: false }));
 
     const result = await purchaseSubscriptionWithPaymentDummy({
       userId: "user-1",
@@ -482,16 +509,7 @@ describe("subscriptions/services", () => {
   });
 
   it("fails the transient member transaction when checkout orchestration throws", async () => {
-    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
-      id: "package-1",
-      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Premium Package",
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      summary: "private",
-    });
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce(createMemberPackageSnapshot());
     mockedCreateSubscriptionWithSnapshot.mockRejectedValueOnce(new Error("assignment failure"));
 
     const result = await purchaseSubscriptionWithPaymentDummy({
@@ -512,16 +530,7 @@ describe("subscriptions/services", () => {
   });
 
   it("compensates activation before failing the transaction when attach fails", async () => {
-    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
-      id: "package-1",
-      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Premium Package",
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      summary: "private",
-    });
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce(createMemberPackageSnapshot());
     mockedAttachTransactionToSubscription.mockRejectedValueOnce(new Error("attach failed"));
 
     const result = await purchaseSubscriptionWithPaymentDummy({
@@ -585,16 +594,7 @@ describe("subscriptions/services", () => {
   });
 
   it("does not mask the original failure when failTransaction rejects after a finalization race", async () => {
-    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
-      id: "package-1",
-      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Premium Package",
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      summary: "private",
-    });
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce(createMemberPackageSnapshot());
     mockedAttachTransactionToSubscription.mockRejectedValueOnce(new Error("attach failed"));
     mockedFailTransaction.mockRejectedValueOnce(new Error("Transaction is missing or already finalized."));
 
@@ -611,16 +611,7 @@ describe("subscriptions/services", () => {
   });
 
   it("keeps the original checkout failure when rollback also throws and still attempts failTransaction", async () => {
-    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
-      id: "package-1",
-      packageId: "f1c2183f-8f95-4db1-acf4-2d4d23e4c8f7",
-      name: "Premium Package",
-      amountRp: 150000,
-      durationDays: 30,
-      isExtended: true,
-      accessKeys: ["tradingview:private"],
-      summary: "private",
-    });
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce(createMemberPackageSnapshot());
     mockedAttachTransactionToSubscription.mockRejectedValueOnce(new Error("attach failed"));
     mockedCancelSubscriptionRow.mockRejectedValueOnce(new Error("rollback failed"));
 

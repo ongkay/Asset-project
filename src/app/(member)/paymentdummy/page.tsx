@@ -1,11 +1,8 @@
 import { redirect } from "next/navigation";
 
-import { PaymentDummyPage } from "./_components/paymentdummy-page";
-
-import { getConsoleSnapshot } from "@/modules/console/queries";
 import { parsePaymentDummyPackageIdSearchParam } from "@/modules/console/schemas";
-import { getMemberPurchasablePackageById, getPackageById } from "@/modules/packages/services";
 import type { ConsolePaymentError } from "@/modules/console/types";
+import { getMemberPurchasablePackageById, getPackageById } from "@/modules/packages/services";
 
 type PaymentDummyRoutePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -24,16 +21,13 @@ export default async function PaymentDummyRoutePage({ searchParams }: PaymentDum
   }
 
   const packageId = packageSearchParam.packageId;
-  const [selectedPackage, consoleSnapshot] = await Promise.all([
-    getMemberPurchasablePackageById(packageId),
-    getConsoleSnapshot(),
-  ]);
 
-  if (!selectedPackage) {
+  const purchasablePackage = await getMemberPurchasablePackageById(packageId);
+
+  if (!purchasablePackage) {
     const packageRow = await getPackageById(packageId);
-
-    redirectToConsole(packageRow?.isActive === false ? "disabled-package" : "invalid-package");
+    redirectToConsole(packageRow && !packageRow.isActive ? "disabled-package" : "invalid-package");
   }
 
-  return <PaymentDummyPage currentSubscription={consoleSnapshot.subscription} selectedPackage={selectedPackage} />;
+  redirect(`/checkout?packageId=${packageId}`);
 }

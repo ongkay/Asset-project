@@ -1,14 +1,23 @@
 import { z } from "zod";
 
 import type { PackageTableFilters } from "./types";
-import type { PackageSummary, PackageTableSortKey, PackageTableSortOrder } from "@/modules/packages/types";
+import type {
+  EditablePackageCheckoutGroup,
+  PackageSummary,
+  PackageTableSortKey,
+  PackageTableSortOrder,
+} from "@/modules/packages/types";
 
 const packageSummarySchema = z.enum(["private", "share", "mixed"]);
+const packageCheckoutGroupSchema = z.enum(["semi-private", "full-private"]);
+const packageLifecycleFilterSchema = z.enum(["all", "archived", "current"]);
 const packageTableSortKeySchema = z.enum(["status", "updatedAt"]);
 const packageTableSortOrderSchema = z.enum(["asc", "desc"]);
 
 export const packageTableFilterSchema = z
   .object({
+    checkoutGroup: packageCheckoutGroupSchema.nullable().optional().default(null),
+    lifecycle: packageLifecycleFilterSchema.optional().default("current"),
     order: packageTableSortOrderSchema.nullable().optional().default(null),
     page: z.number({ error: "Page must be a number." }).int().min(1).default(1),
     pageSize: z.number({ error: "Page size must be a number." }).int().min(1).max(100).default(10),
@@ -61,6 +70,16 @@ function normalizeSummary(summaryValue: string | undefined): PackageSummary | nu
   return parsedSummary.success ? parsedSummary.data : null;
 }
 
+function normalizeCheckoutGroup(checkoutGroupValue: string | undefined): EditablePackageCheckoutGroup | null {
+  const parsedCheckoutGroup = packageCheckoutGroupSchema.safeParse(checkoutGroupValue);
+  return parsedCheckoutGroup.success ? parsedCheckoutGroup.data : null;
+}
+
+function normalizeLifecycle(lifecycleValue: string | undefined): PackageTableFilters["lifecycle"] {
+  const parsedLifecycle = packageLifecycleFilterSchema.safeParse(lifecycleValue);
+  return parsedLifecycle.success ? parsedLifecycle.data : "current";
+}
+
 function normalizeSort(sortValue: string | undefined): PackageTableSortKey | null {
   const parsedSort = packageTableSortKeySchema.safeParse(sortValue);
   return parsedSort.success ? parsedSort.data : null;
@@ -77,6 +96,8 @@ export function parsePackageTableSearchParams(
   const sort = normalizeSort(readSingleSearchParam(searchParams.sort));
 
   return {
+    checkoutGroup: normalizeCheckoutGroup(readSingleSearchParam(searchParams.checkoutGroup)),
+    lifecycle: normalizeLifecycle(readSingleSearchParam(searchParams.lifecycle)),
     order: sort ? (normalizeOrder(readSingleSearchParam(searchParams.order)) ?? "asc") : null,
     page: normalizePage(readSingleSearchParam(searchParams.page)),
     pageSize: normalizePageSize(readSingleSearchParam(searchParams.pageSize)),

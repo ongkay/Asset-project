@@ -1,5 +1,6 @@
 import type { AssetJsonArray, AssetJsonObject, AssetPlatform, AssetType } from "@/modules/assets/types";
 import type { PackageActivationSnapshot } from "@/modules/packages/types";
+import type { TransactionPricingSnapshot } from "@/modules/transactions/types";
 
 export type SubscriptionStatus = "active" | "processed" | "expired" | "canceled";
 export type SubscriptionSource = "payment_dummy" | "cdkey" | "admin_manual";
@@ -27,6 +28,7 @@ export type AdminManualActivationInput = {
 
 export type MemberPaymentDummyInput = {
   packageId: string;
+  pricingSnapshot?: TransactionPricingSnapshot;
   userId: string;
 };
 

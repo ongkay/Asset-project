@@ -31,7 +31,7 @@ export default async function AdminPackageRoutePage({ searchParams }: AdminPacka
 
   return (
     <AdminPackagePage
-      key={`${filters.page}|${filters.pageSize}|${filters.search ?? ""}|${filters.summary ?? ""}|${filters.sort ?? ""}|${filters.order ?? ""}`}
+      key={`${filters.checkoutGroup ?? ""}|${filters.lifecycle}|${filters.page}|${filters.pageSize}|${filters.search ?? ""}|${filters.summary ?? ""}|${filters.sort ?? ""}|${filters.order ?? ""}`}
       initialEditorPrefillById={{}}
       filters={filters}
       tableError={packageTableError}

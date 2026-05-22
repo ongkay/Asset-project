@@ -1,4 +1,5 @@
 import type {
+  EditablePackageCheckoutGroup,
   PackageAdminRow,
   PackageEditorData,
   PackageSummary,
@@ -7,7 +8,11 @@ import type {
   PackageTableSortOrder,
 } from "@/modules/packages/types";
 
+export type PackageAdminLifecycleFilter = "all" | "archived" | "current";
+
 export type PackageTableFilters = {
+  checkoutGroup: EditablePackageCheckoutGroup | null;
+  lifecycle: PackageAdminLifecycleFilter;
   page: number;
   pageSize: number;
   order: PackageTableSortOrder | null;

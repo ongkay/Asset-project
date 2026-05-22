@@ -73,7 +73,7 @@ export function ConsoleExtendDialog({ onOpenChange, open, packages, state }: Con
   function handleSubmitExtend(values: z.infer<typeof consoleExtendFormSchema>) {
     const parsedValues = consoleExtendFormSchema.parse(values);
     onOpenChange(false);
-    router.push(`/paymentdummy?packageId=${parsedValues.packageId}`);
+    router.push(`/checkout?packageId=${parsedValues.packageId}`);
   }
 
   return (

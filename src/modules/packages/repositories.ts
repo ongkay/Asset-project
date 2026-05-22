@@ -8,8 +8,10 @@ import { parsePackageAccessKeysFromReadPath } from "@/modules/packages/access-ke
 import { validateActiveAppSession } from "@/modules/sessions/services";
 
 import {
+  PACKAGE_CHECKOUT_GROUPS,
   derivePackageSummaryFromAccessKeys,
   sortPackageAccessKeysCanonical,
+  type EditablePackageCheckoutGroup,
   type PackageAccessKey,
   type PackageEditorData,
   type PackageFormInput,
@@ -24,6 +26,7 @@ import {
 type PackageDatabaseRow = {
   access_keys_json: unknown;
   amount_rp: number;
+  checkout_group: (typeof PACKAGE_CHECKOUT_GROUPS)[number];
   checkout_url: string | null;
   code: string;
   created_at: string;
@@ -31,7 +34,9 @@ type PackageDatabaseRow = {
   id: string;
   is_active: boolean;
   is_extended: boolean;
+  list_amount_rp: number;
   name: string;
+  sort_order: number;
   updated_at: string;
 };
 
@@ -40,6 +45,7 @@ type GetPackageSummaryResponse = PackageSummary | null;
 const packageDatabaseRowSchema = z.object({
   access_keys_json: z.unknown(),
   amount_rp: z.number().int().safe(),
+  checkout_group: z.enum(PACKAGE_CHECKOUT_GROUPS),
   checkout_url: z.string().nullable(),
   code: z.string().min(1),
   created_at: z.string().min(1),
@@ -47,7 +53,9 @@ const packageDatabaseRowSchema = z.object({
   id: z.guid(),
   is_active: z.boolean(),
   is_extended: z.boolean(),
+  list_amount_rp: z.number().int().safe(),
   name: z.string().min(1),
+  sort_order: z.number().int().safe(),
   updated_at: z.string().min(1),
 });
 
@@ -60,6 +68,8 @@ type CurrentSubscriptionRow = {
 };
 
 type PackageListInput = {
+  checkoutGroup: EditablePackageCheckoutGroup | null;
+  lifecycle: "all" | "archived" | "current";
   order: PackageTableSortOrder | null;
   page: number;
   pageSize: number;
@@ -98,7 +108,7 @@ async function authorizeMemberPackageRead() {
 }
 
 const PACKAGE_BASE_SELECT_FIELDS =
-  "id, code, name, amount_rp, duration_days, checkout_url, is_extended, is_active, access_keys_json, created_at, updated_at";
+  "id, code, name, amount_rp, list_amount_rp, duration_days, checkout_group, sort_order, checkout_url, is_extended, is_active, access_keys_json, created_at, updated_at";
 
 function parsePackageDatabaseRows(data: unknown): PackageDatabaseRow[] {
   if (!Array.isArray(data)) {
@@ -120,6 +130,7 @@ function mapPackageDatabaseRow(data: PackageDatabaseRow): PackageRow {
   return {
     accessKeys: parsePackageAccessKeysFromReadPath(data.access_keys_json),
     amountRp: data.amount_rp,
+    checkoutGroup: data.checkout_group,
     checkoutUrl: data.checkout_url,
     code: data.code,
     createdAt: data.created_at,
@@ -127,7 +138,9 @@ function mapPackageDatabaseRow(data: PackageDatabaseRow): PackageRow {
     id: data.id,
     isActive: data.is_active,
     isExtended: data.is_extended,
+    listAmountRp: data.list_amount_rp,
     name: data.name,
+    sortOrder: data.sort_order,
     updatedAt: data.updated_at,
   };
 }
@@ -171,6 +184,29 @@ async function listPackagesBySearch(input: { search: string | null }) {
   return parsePackageDatabaseRows(data);
 }
 
+function filterPackageRowsByCheckoutGroup(
+  packageRows: PackageDatabaseRow[],
+  checkoutGroup: EditablePackageCheckoutGroup | null,
+) {
+  if (!checkoutGroup) {
+    return packageRows;
+  }
+
+  return packageRows.filter((packageRow) => packageRow.checkout_group === checkoutGroup);
+}
+
+function filterPackageRowsByLifecycle(packageRows: PackageDatabaseRow[], lifecycle: PackageListInput["lifecycle"]) {
+  if (lifecycle === "all") {
+    return packageRows;
+  }
+
+  if (lifecycle === "archived") {
+    return packageRows.filter((packageRow) => packageRow.checkout_group === "legacy");
+  }
+
+  return packageRows.filter((packageRow) => packageRow.checkout_group !== "legacy");
+}
+
 function filterPackageRowsBySummary(packageRows: PackageDatabaseRow[], summary: PackageSummary | null) {
   return packageRows.filter((packageRow) => {
     const derivedSummary = derivePackageSummaryFromAccessKeys(
@@ -194,10 +230,19 @@ export async function listPackages(input: PackageListInput): Promise<PackageTabl
   const allCandidateRows = await listPackagesBySearch({
     search: input.search,
   });
-  const filteredRows = sortPackageDatabaseRows(filterPackageRowsBySummary(allCandidateRows, input.summary), {
-    order: input.order,
-    sort: input.sort,
-  });
+  const filteredRows = sortPackageDatabaseRows(
+    filterPackageRowsByLifecycle(
+      filterPackageRowsByCheckoutGroup(
+        filterPackageRowsBySummary(allCandidateRows, input.summary),
+        input.checkoutGroup,
+      ),
+      input.lifecycle,
+    ),
+    {
+      order: input.order,
+      sort: input.sort,
+    },
+  );
   const pagedRows = filteredRows.slice(startIndex, startIndex + input.pageSize).map(mapPackageDatabaseRow);
 
   return {
@@ -307,13 +352,16 @@ export async function getPackageEditorData(packageId: string): Promise<PackageEd
   return {
     accessKeys: sortPackageAccessKeysCanonical(packageRow.accessKeys),
     amountRp: packageRow.amountRp,
+    checkoutGroup: packageRow.checkoutGroup,
     checkoutUrl: packageRow.checkoutUrl,
     code: packageRow.code,
     durationDays: packageRow.durationDays,
     id: packageRow.id,
     isActive: packageRow.isActive,
     isExtended: packageRow.isExtended,
+    listAmountRp: packageRow.listAmountRp,
     name: packageRow.name,
+    sortOrder: packageRow.sortOrder,
   };
 }
 
@@ -325,12 +373,15 @@ export async function createPackageRow(input: CreatePackageRowInput): Promise<Pa
       {
         access_keys_json: input.accessKeys,
         amount_rp: input.amountRp,
+        checkout_group: input.checkoutGroup,
         checkout_url: input.checkoutUrl,
         code: input.code,
         duration_days: input.durationDays,
         is_active: input.isActive,
         is_extended: input.isExtended,
+        list_amount_rp: input.listAmountRp,
         name: input.name,
+        sort_order: input.sortOrder,
       },
     ])
     .select(PACKAGE_BASE_SELECT_FIELDS)
@@ -350,10 +401,13 @@ export async function updatePackageRow(input: UpdatePackageRowInput): Promise<Pa
     .update({
       access_keys_json: input.accessKeys,
       amount_rp: input.amountRp,
+      checkout_group: input.checkoutGroup,
       checkout_url: input.checkoutUrl,
       duration_days: input.durationDays,
       is_extended: input.isExtended,
+      list_amount_rp: input.listAmountRp,
       name: input.name,
+      sort_order: input.sortOrder,
     })
     .eq("id", input.id)
     .select(PACKAGE_BASE_SELECT_FIELDS)

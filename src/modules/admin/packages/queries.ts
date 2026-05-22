@@ -5,15 +5,22 @@ import {
   listCurrentSubscriptionsByPackageIds,
   listPackages,
 } from "@/modules/packages/repositories";
-import { derivePackageSummaryFromAccessKeys, sortPackageAccessKeysCanonical } from "@/modules/packages/types";
+import {
+  calculatePackageDiscountAmountRp,
+  calculatePackageDiscountPercent,
+  derivePackageSummaryFromAccessKeys,
+  isArchivedPackage,
+  sortPackageAccessKeysCanonical,
+} from "@/modules/packages/types";
 
 import { packageTableFilterSchema } from "./schemas";
 import type { PackageEditorPrefill, PackageTablePage } from "./types";
+import type { PackageAdminRow } from "@/modules/packages/types";
 
 function buildPackageAdminRowOrNull(
   packageRow: Awaited<ReturnType<typeof listPackages>>["items"][number],
   totalUsed: number,
-) {
+): PackageAdminRow | null {
   const summary = derivePackageSummaryFromAccessKeys(packageRow.accessKeys);
 
   if (!summary) {
@@ -23,6 +30,7 @@ function buildPackageAdminRowOrNull(
   return {
     accessKeys: packageRow.accessKeys,
     amountRp: packageRow.amountRp,
+    checkoutGroup: packageRow.checkoutGroup,
     checkoutUrl: packageRow.checkoutUrl,
     code: packageRow.code,
     createdAt: packageRow.createdAt,
@@ -30,7 +38,12 @@ function buildPackageAdminRowOrNull(
     id: packageRow.id,
     isActive: packageRow.isActive,
     isExtended: packageRow.isExtended,
+    lifecycle: isArchivedPackage(packageRow.checkoutGroup) ? "archived" : "current",
+    listAmountRp: packageRow.listAmountRp,
     name: packageRow.name,
+    packageDiscountAmountRp: calculatePackageDiscountAmountRp(packageRow.listAmountRp, packageRow.amountRp),
+    packageDiscountPercent: calculatePackageDiscountPercent(packageRow.listAmountRp, packageRow.amountRp),
+    sortOrder: packageRow.sortOrder,
     summary,
     totalUsed,
     updatedAt: packageRow.updatedAt,
@@ -38,6 +51,8 @@ function buildPackageAdminRowOrNull(
 }
 
 export async function getPackageTablePage(input: {
+  checkoutGroup?: "semi-private" | "full-private" | null;
+  lifecycle?: "all" | "archived" | "current";
   order?: "asc" | "desc" | null;
   page?: number;
   pageSize?: number;
@@ -47,6 +62,8 @@ export async function getPackageTablePage(input: {
 }): Promise<PackageTablePage> {
   const parsedFilters = packageTableFilterSchema.parse(input);
   const packageRows = await listPackages({
+    checkoutGroup: parsedFilters.checkoutGroup,
+    lifecycle: parsedFilters.lifecycle,
     order: parsedFilters.order,
     page: parsedFilters.page,
     pageSize: parsedFilters.pageSize,
@@ -95,12 +112,15 @@ export async function getPackageEditorData(packageId: string): Promise<PackageEd
   return {
     accessKeys: canonicalAccessKeys,
     amountRp: editorData.amountRp,
+    checkoutGroup: editorData.checkoutGroup,
     checkoutUrl: editorData.checkoutUrl,
     code: editorData.code,
     durationDays: editorData.durationDays,
     id: editorData.id,
     isActive: editorData.isActive,
     isExtended: editorData.isExtended,
+    listAmountRp: editorData.listAmountRp,
     name: editorData.name,
+    sortOrder: editorData.sortOrder,
   };
 }

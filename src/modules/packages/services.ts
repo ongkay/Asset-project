@@ -15,7 +15,13 @@ import {
   togglePackageActiveRow,
   updatePackageRow,
 } from "./repositories";
-import { derivePackageSummaryFromAccessKeys, sortPackageAccessKeysCanonical } from "./types";
+import {
+  calculatePackageDiscountAmountRp,
+  calculatePackageDiscountPercent,
+  derivePackageSummaryFromAccessKeys,
+  isArchivedPackage,
+  sortPackageAccessKeysCanonical,
+} from "./types";
 import type {
   PackageAdminRow,
   PackageActivationSnapshot,
@@ -111,10 +117,13 @@ function mapPackageRowToIssuableSnapshot(packageRow: PackageRow): PackageIssuabl
     packageId: packageRow.id,
     accessKeys: canonicalAccessKeys,
     amountRp: packageRow.amountRp,
+    checkoutGroup: packageRow.checkoutGroup,
     durationDays: packageRow.durationDays,
     id: packageRow.id,
     isExtended: packageRow.isExtended,
+    listAmountRp: packageRow.listAmountRp,
     name: packageRow.name,
+    sortOrder: packageRow.sortOrder,
     summary,
   };
 }
@@ -131,10 +140,13 @@ function tryMapPackageRowToIssuableSnapshot(packageRow: PackageRow): PackageIssu
     packageId: packageRow.id,
     accessKeys: canonicalAccessKeys,
     amountRp: packageRow.amountRp,
+    checkoutGroup: packageRow.checkoutGroup,
     durationDays: packageRow.durationDays,
     id: packageRow.id,
     isExtended: packageRow.isExtended,
+    listAmountRp: packageRow.listAmountRp,
     name: packageRow.name,
+    sortOrder: packageRow.sortOrder,
     summary,
   };
 }
@@ -217,6 +229,7 @@ export async function buildPackageAdminRow(packageRow: PackageRow): Promise<Pack
   return {
     accessKeys: packageRow.accessKeys,
     amountRp: packageRow.amountRp,
+    checkoutGroup: packageRow.checkoutGroup,
     checkoutUrl: packageRow.checkoutUrl,
     code: packageRow.code,
     createdAt: packageRow.createdAt,
@@ -224,7 +237,12 @@ export async function buildPackageAdminRow(packageRow: PackageRow): Promise<Pack
     id: packageRow.id,
     isActive: packageRow.isActive,
     isExtended: packageRow.isExtended,
+    lifecycle: isArchivedPackage(packageRow.checkoutGroup) ? "archived" : "current",
+    listAmountRp: packageRow.listAmountRp,
     name: packageRow.name,
+    packageDiscountAmountRp: calculatePackageDiscountAmountRp(packageRow.listAmountRp, packageRow.amountRp),
+    packageDiscountPercent: calculatePackageDiscountPercent(packageRow.listAmountRp, packageRow.amountRp),
+    sortOrder: packageRow.sortOrder,
     summary,
     totalUsed,
     updatedAt: packageRow.updatedAt,
