@@ -80,15 +80,15 @@ export default async function EmailVerifiedPage({ searchParams }: EmailVerifiedP
       </CardHeader>
       <CardContent className="text-center text-sm text-muted-foreground">
         {pageState === "success"
-          ? "Setelah kembali ke console, warning verifikasi email akan hilang otomatis pada request berikutnya."
-          : "Jika Anda masih membutuhkan akses, kembali ke aplikasi lalu minta link verifikasi baru dari halaman console."}
+          ? "Setelah kembali ke member area, warning verifikasi email akan hilang otomatis pada request berikutnya."
+          : "Jika Anda masih membutuhkan akses, kembali ke aplikasi lalu minta link verifikasi baru dari halaman member area."}
       </CardContent>
       <CardFooter className="flex flex-col gap-3 sm:flex-row sm:justify-center">
         <Button asChild className="sm:min-w-40">
           <Link href="/login">Masuk</Link>
         </Button>
         <Button asChild type="button" variant="ghost">
-          <Link href="/console">Buka console</Link>
+          <Link href="/member">Buka member area</Link>
         </Button>
       </CardFooter>
     </Card>

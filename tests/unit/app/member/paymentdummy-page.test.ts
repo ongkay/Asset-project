@@ -62,7 +62,7 @@ describe("app/member/paymentdummy/page", () => {
     ).rejects.toThrow("NEXT_REDIRECT:/checkout?packageId=11111111-1111-4111-8111-111111111111");
   });
 
-  it("redirects to the console when packageId is missing", async () => {
+  it("redirects to /member when packageId is missing", async () => {
     mockedParsePaymentDummyPackageIdSearchParam.mockReturnValueOnce({
       packageId: null,
       paymentError: "missing-package",
@@ -72,10 +72,10 @@ describe("app/member/paymentdummy/page", () => {
       PaymentDummyRoutePage({
         searchParams: Promise.resolve({}),
       }),
-    ).rejects.toThrow("NEXT_REDIRECT:/console?paymentError=missing-package");
+    ).rejects.toThrow("NEXT_REDIRECT:/member?paymentError=missing-package");
   });
 
-  it("redirects to the console when packageId is invalid", async () => {
+  it("redirects to /member when packageId is invalid", async () => {
     mockedParsePaymentDummyPackageIdSearchParam.mockReturnValueOnce({
       packageId: null,
       paymentError: "invalid-package",
@@ -85,10 +85,10 @@ describe("app/member/paymentdummy/page", () => {
       PaymentDummyRoutePage({
         searchParams: Promise.resolve({ packageId: "bad-id" }),
       }),
-    ).rejects.toThrow("NEXT_REDIRECT:/console?paymentError=invalid-package");
+    ).rejects.toThrow("NEXT_REDIRECT:/member?paymentError=invalid-package");
   });
 
-  it("redirects to the console when the package is disabled", async () => {
+  it("redirects to /member when the package is disabled", async () => {
     mockedParsePaymentDummyPackageIdSearchParam.mockReturnValueOnce({
       packageId: "11111111-1111-4111-8111-111111111111",
       paymentError: null,
@@ -115,10 +115,10 @@ describe("app/member/paymentdummy/page", () => {
       PaymentDummyRoutePage({
         searchParams: Promise.resolve({ packageId: "11111111-1111-4111-8111-111111111111" }),
       }),
-    ).rejects.toThrow("NEXT_REDIRECT:/console?paymentError=disabled-package");
+    ).rejects.toThrow("NEXT_REDIRECT:/member?paymentError=disabled-package");
   });
 
-  it("redirects to the console when the package is no longer purchasable", async () => {
+  it("redirects to /member when the package is no longer purchasable", async () => {
     mockedParsePaymentDummyPackageIdSearchParam.mockReturnValueOnce({
       packageId: "11111111-1111-4111-8111-111111111111",
       paymentError: null,
@@ -130,6 +130,6 @@ describe("app/member/paymentdummy/page", () => {
       PaymentDummyRoutePage({
         searchParams: Promise.resolve({ packageId: "11111111-1111-4111-8111-111111111111" }),
       }),
-    ).rejects.toThrow("NEXT_REDIRECT:/console?paymentError=invalid-package");
+    ).rejects.toThrow("NEXT_REDIRECT:/member?paymentError=invalid-package");
   });
 });

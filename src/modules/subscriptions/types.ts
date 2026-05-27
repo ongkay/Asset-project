@@ -35,7 +35,7 @@ export type MemberPaymentDummyInput = {
 export type MemberPaymentDummyResult =
   | {
       ok: true;
-      redirectTo: "/console";
+      redirectTo: "/member";
       subscriptionId: string;
       transactionId: string;
     }

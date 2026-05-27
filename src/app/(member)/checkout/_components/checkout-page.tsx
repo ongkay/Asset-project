@@ -267,7 +267,7 @@ export function CheckoutPage({ initialState }: CheckoutPageProps) {
         <div className="mx-auto max-w-[1160px]">
           <Link
             className="mb-8 inline-flex items-center gap-2.5 text-left font-extrabold text-2xl tracking-tight text-white transition-colors hover:text-sky-300 sm:mb-11"
-            href="/console"
+            href="/member"
           >
             <span className="text-3xl font-normal leading-none text-slate-400">
               <ChevronLeft className="size-7" />

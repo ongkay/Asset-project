@@ -91,7 +91,7 @@ describe("subscriptions/actions", () => {
       ok: true,
       subscriptionId: "subscription-1",
       transactionId: "transaction-1",
-      redirectTo: "/console",
+      redirectTo: "/member",
     });
 
     const result = await purchaseSubscriptionWithPaymentDummyAction({
@@ -106,7 +106,7 @@ describe("subscriptions/actions", () => {
       ok: true,
       subscriptionId: "subscription-1",
       transactionId: "transaction-1",
-      redirectTo: "/console",
+      redirectTo: "/member",
     });
   });
 });

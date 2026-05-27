@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { redirect } from "next/navigation";
 
 import { createAuthUserAsAdmin, deleteAuthUserAsAdmin, readAuthUserByEmail } from "@/modules/auth/repositories";
@@ -254,7 +256,7 @@ export async function toggleUserBanByAdmin(input: unknown) {
   };
 }
 
-export async function getAuthenticatedAppUser(): Promise<AuthenticatedAppUser | null> {
+export const getAuthenticatedAppUser = cache(async (): Promise<AuthenticatedAppUser | null> => {
   const activeSession = await validateActiveAppSession();
 
   if (!activeSession) {
@@ -278,9 +280,9 @@ export async function getAuthenticatedAppUser(): Promise<AuthenticatedAppUser | 
     profile,
     session: activeSession,
   };
-}
+});
 
-export async function requireMemberShellAccess(): Promise<AuthenticatedAppUser> {
+export const requireMemberShellAccess = cache(async (): Promise<AuthenticatedAppUser> => {
   const authenticatedUser = await getAuthenticatedAppUser();
 
   if (!authenticatedUser) {
@@ -298,9 +300,9 @@ export async function requireMemberShellAccess(): Promise<AuthenticatedAppUser> 
   await touchActiveAppSessionLastSeen();
 
   return authenticatedUser;
-}
+});
 
-export async function requireAdminShellAccess(): Promise<AuthenticatedAppUser> {
+export const requireAdminShellAccess = cache(async (): Promise<AuthenticatedAppUser> => {
   const authenticatedUser = await getAuthenticatedAppUser();
 
   if (!authenticatedUser) {
@@ -314,4 +316,4 @@ export async function requireAdminShellAccess(): Promise<AuthenticatedAppUser> {
   await touchActiveAppSessionLastSeen();
 
   return authenticatedUser;
-}
+});

@@ -477,7 +477,7 @@ describe("subscriptions/services", () => {
       ok: true,
       subscriptionId: "subscription-2",
       transactionId: "transaction-member-1",
-      redirectTo: "/console",
+      redirectTo: "/member",
     });
     expect(mockedCreateTransaction).toHaveBeenCalledWith(
       expect.objectContaining({

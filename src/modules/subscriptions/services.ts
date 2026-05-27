@@ -579,7 +579,7 @@ export async function purchaseSubscriptionWithPaymentDummy(
       ok: true,
       subscriptionId: activationResult.subscriptionId,
       transactionId: transaction.id,
-      redirectTo: "/console",
+      redirectTo: "/member",
     };
   } catch (error) {
     await tryFinalizeFailureWithoutMasking({

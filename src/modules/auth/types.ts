@@ -1,6 +1,6 @@
 export type AuthEmailCheckStatus = "registered" | "unregistered";
 
-export type AuthRedirectTarget = "/admin" | "/console" | "/login";
+export type AuthRedirectTarget = "/admin" | "/member" | "/login";
 
 export type AuthFailureReason =
   | "auth_provider_error"

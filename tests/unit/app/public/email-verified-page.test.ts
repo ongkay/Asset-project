@@ -17,7 +17,7 @@ describe("app/public/email-verified/page", () => {
     expect(markup).toContain("Email berhasil diverifikasi");
     expect(markup).toContain("Masuk");
     expect(markup).toContain('href="/login"');
-    expect(markup).toContain('href="/console"');
+    expect(markup).toContain('href="/member"');
   });
 
   it("renders the provider error when the verification redirect returns an error state", async () => {
@@ -32,6 +32,6 @@ describe("app/public/email-verified/page", () => {
 
     expect(markup).toContain("Link verifikasi tidak tersedia");
     expect(markup).toContain("Verification link expired.");
-    expect(markup).toContain("Buka console");
+    expect(markup).toContain("Buka member area");
   });
 });

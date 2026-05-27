@@ -164,7 +164,7 @@ describe("signInAndCreateAppSession", () => {
       }),
     ).resolves.toEqual({
       ok: true,
-      redirectTo: "/console",
+      redirectTo: "/member",
     });
 
     expect(cookieMocks.writeInsForgeAccessTokenCookie).toHaveBeenCalledWith("insforge-access-token");
@@ -210,7 +210,7 @@ describe("signInAndCreateAppSession", () => {
       }),
     ).resolves.toEqual({
       ok: true,
-      redirectTo: "/console",
+      redirectTo: "/member",
     });
 
     expect(sessionMocks.revokeActiveAppSession).not.toHaveBeenCalled();
@@ -564,7 +564,7 @@ describe("signInAndCreateAppSession", () => {
     ).resolves.toEqual({
       message: "Welcome, member-1.",
       ok: true,
-      redirectTo: "/console",
+      redirectTo: "/member",
     });
 
     expect(sessionMocks.revokeActiveAppSession).not.toHaveBeenCalled();

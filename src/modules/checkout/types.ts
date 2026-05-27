@@ -80,7 +80,7 @@ export type SubmitCheckoutInput = {
 export type SubmitCheckoutResult =
   | {
       ok: true;
-      redirectTo: `/payment/${string}` | "/console";
+      redirectTo: `/payment/${string}` | "/member";
       subscriptionId?: string;
       transactionId: string;
     }

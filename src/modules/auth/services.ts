@@ -84,7 +84,7 @@ async function writeAuthenticationLogSafely(input: {
 }
 
 function resolveRedirectTarget(profile: AuthProfile): AuthRedirectTarget {
-  return profile.role === "admin" ? "/admin" : "/console";
+  return profile.role === "admin" ? "/admin" : "/member";
 }
 
 function mapAuthFailureReason(error: { error?: string | null; message?: string | null; statusCode?: number } | null) {
@@ -509,7 +509,7 @@ export async function signUpAndCreateAppSession(input: {
     return {
       message: `Welcome, ${profile.username}.`,
       ok: true,
-      redirectTo: "/console",
+      redirectTo: "/member",
     };
   } catch (error) {
     if (hasAlignedAppSession) {

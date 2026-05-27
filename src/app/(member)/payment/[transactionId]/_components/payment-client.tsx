@@ -71,7 +71,7 @@ function getPaymentPresentation(payment: MemberPaymentPageData) {
       accentClassName: "text-emerald-400",
       helperMessage: "Pembayaran sudah dikonfirmasi dan akses Anda sudah aktif.",
       helperToneClassName: "text-emerald-300",
-      primaryCtaLabel: "Buka Console",
+      primaryCtaLabel: "Buka Member Area",
       qrHint: "Pembayaran QRIS telah berhasil dikonfirmasi.",
       title: "Pembayaran Berhasil",
     };
@@ -376,7 +376,7 @@ export function PaymentClient({ initialPayment }: PaymentClientProps) {
                 className="h-12 rounded-[6px] bg-cyan-400 font-bold text-[#080c12] shadow-[0_8px_16px_rgba(0,194,255,0.2)] hover:-translate-y-0.5 hover:bg-cyan-300 hover:shadow-[0_12px_24px_rgba(0,194,255,0.3)]"
                 type="button"
               >
-                <Link href="/console">{presentation.primaryCtaLabel}</Link>
+                <Link href="/member">{presentation.primaryCtaLabel}</Link>
               </Button>
             ) : payment.state === "expired" || payment.state === "canceled" || payment.state === "failed" ? (
               <Button
@@ -422,10 +422,10 @@ export function PaymentClient({ initialPayment }: PaymentClientProps) {
         <div className="mt-5 text-center">
           <Link
             className="inline-flex items-center gap-2 text-[13px] font-medium text-slate-300 transition hover:text-white"
-            href="/console"
+            href="/member"
           >
             <ArrowLeft className="size-4" />
-            Kembali ke console
+            Kembali ke member area
           </Link>
         </div>
       </div>

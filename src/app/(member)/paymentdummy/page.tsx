@@ -8,8 +8,8 @@ type PaymentDummyRoutePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function redirectToConsole(paymentError: ConsolePaymentError): never {
-  redirect(`/console?paymentError=${paymentError}`);
+function redirectToMember(paymentError: ConsolePaymentError): never {
+  redirect(`/member?paymentError=${paymentError}`);
 }
 
 export default async function PaymentDummyRoutePage({ searchParams }: PaymentDummyRoutePageProps) {
@@ -17,7 +17,7 @@ export default async function PaymentDummyRoutePage({ searchParams }: PaymentDum
   const packageSearchParam = parsePaymentDummyPackageIdSearchParam(resolvedSearchParams);
 
   if (packageSearchParam.paymentError) {
-    redirectToConsole(packageSearchParam.paymentError);
+    redirectToMember(packageSearchParam.paymentError);
   }
 
   const packageId = packageSearchParam.packageId;
@@ -26,7 +26,7 @@ export default async function PaymentDummyRoutePage({ searchParams }: PaymentDum
 
   if (!purchasablePackage) {
     const packageRow = await getPackageById(packageId);
-    redirectToConsole(packageRow && !packageRow.isActive ? "disabled-package" : "invalid-package");
+    redirectToMember(packageRow && !packageRow.isActive ? "disabled-package" : "invalid-package");
   }
 
   redirect(`/checkout?packageId=${packageId}`);

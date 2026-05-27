@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <title>Member Area - Dashboard</title>
+
+  <!--
+
+    Component map:
+    - Header / User Menu
+    - Welcome Section
+    - Subscription Card
+    - Support Card
+    - Tutorial Tabs
+    - Redeem Modal
+    - Toast Notification
+    - Video Modal
+
+    Key UI states:
+    - Subscription status: active | expired | canceled | none
+    - User menu: active
+    - Tutorial tabs: active
+    - Redeem input: error
+    - Toast: show
+    - Video modal: active
+
+    Data model used in this mockup:
+    - USER_CONFIG.subscription.status
+    - USER_CONFIG.subscription.package
+    - USER_CONFIG.subscription.startDate
+    - USER_CONFIG.subscription.endDate
+
+    Interaction map:
+    - [data-action="open-redeem-modal"] opens redeem modal
+    - [data-tab-trigger] activates tutorial tab content
+    - [data-video-id] opens YouTube video modal
+    - #user-trigger toggles account dropdown
+
+    Implementation notes for AI agents:
+    - Keep this file single-file portable for design reference usage.
+    - Copy remains mixed Bahasa Indonesia + English by design.
+    - Visual output should stay stable if ported into a component-based app.
+  -->
+
+  <style>
+    /* DESIGN TOKENS */
+    :root {
+      --bg: #080c12;
+      --card: #171b24;
+      --card-soft: #10151d;
+      --card-hover: #1d2330;
+
+      --border: #2b313d;
+      --border-soft: rgba(255, 255, 255, 0.08);
+
+      --primary: #00c2ff;
+      --primary-soft: rgba(0, 194, 255, 0.12);
+
+      --success: #4ade80;
+      --success-soft: rgba(74, 222, 128, 0.12);
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.12);
+      --warning: #f59e0b;
+      --warning-soft: rgba(245, 158, 11, 0.12);
+      --gray-soft: rgba(167, 175, 189, 0.12);
+
+      --text: #f8fafc;
+      --text-muted: #a7afbd;
+      --text-soft: #7b8190;
+
+      --radius-card: 16px;
+      --radius-sm: 8px;
+
+      --shadow-card: 0 30px 80px rgba(0, 0, 0, 0.32);
+      --shadow-dropdown: 0 20px 40px rgba(0, 0, 0, 0.5);
+      --shadow-button: 0 8px 16px rgba(0, 194, 255, 0.2);
+      --shadow-button-hover: 0 12px 24px rgba(0, 194, 255, 0.3);
+
+      --transition-fast: 0.2s ease;
+      --transition-base: 0.3s ease;
+    }
+
+    /* BASE */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(0, 194, 255, 0.08), transparent 40%),
+        radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.08), transparent 40%),
+        var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    /* SHARED LAYOUT */
+    .container {
+      max-width: 1160px;
+      margin: 40px auto;
+      padding: 0 32px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .card {
+      background: rgba(23, 27, 36, 0.6);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-card);
+      padding: 28px;
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow-card);
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border-soft);
+      margin: 24px 0;
+    }
+
+    /* SHARED INTERACTIVE ELEMENTS */
+    .btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 46px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: none;
+      letter-spacing: 0.01em;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #080c12;
+      box-shadow: var(--shadow-button);
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-button-hover);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: var(--text);
+    }
+
+    .btn-premium {
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      z-index: 1;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.15);
+      background: linear-gradient(135deg, #0072ff, #00c6ff);
+      box-shadow: 0 4px 14px rgba(0, 114, 255, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(0, 198, 255, 0.5);
+      outline: none;
+    }
+
+    .btn-premium::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(255, 255, 255, 0.1), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: -1;
+    }
+
+    .btn-premium:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(0, 114, 255, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+    }
+
+    .btn-premium:hover::after {
+      opacity: 1;
+    }
+
+    .btn-premium:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 0 0 4px rgba(0, 194, 255, 0.18),
+        0 10px 24px rgba(0, 114, 255, 0.32),
+        inset 0 1px 1px rgba(255, 255, 255, 0.35);
+    }
+
+    .btn-premium:active {
+      transform: translateY(-1px) scale(0.992);
+      box-shadow:
+        0 5px 14px rgba(0, 114, 255, 0.28),
+        inset 0 1px 1px rgba(255, 255, 255, 0.18),
+        inset 0 2px 6px rgba(0, 0, 0, 0.16);
+      filter: brightness(0.98);
+    }
+
+    .interactive-focus:focus-visible,
+    .user-trigger:focus-visible,
+    .dropdown-item:focus-visible,
+    .tab:focus-visible,
+    .video-placeholder:focus-visible,
+    .modal-close:focus-visible,
+    .video-popup-close:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 194, 255, 0.18);
+    }
+
+    /* COMPONENT: HEADER */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(8, 12, 18, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-soft);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+
+    .logo i {
+      color: var(--primary);
+      font-size: 24px;
+    }
+
+    .user-menu {
+      position: relative;
+    }
+
+    .user-trigger {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      padding: 6px 14px 6px 6px;
+      border-radius: 99px;
+      transition: background var(--transition-fast);
+      border: 1px solid var(--border-soft);
+      user-select: none;
+      background: transparent;
+    }
+
+    .user-trigger:hover,
+    .user-trigger.active {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #a855f7);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .user-role {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-soft);
+    }
+
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 220px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-dropdown);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all var(--transition-fast);
+      overflow: hidden;
+    }
+
+    .user-menu:hover .dropdown,
+    .user-trigger.active + .dropdown {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 14px 16px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all var(--transition-fast);
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      text-align: left;
+    }
+
+    .dropdown-item:hover {
+      background: var(--card-hover);
+      color: var(--text);
+    }
+
+    .dropdown-item i {
+      width: 16px;
+      font-size: 14px;
+      text-align: center;
+      color: var(--text-soft);
+      transition: color var(--transition-fast);
+    }
+
+    .dropdown-item:hover i {
+      color: var(--primary);
+    }
+
+    .dropdown-divider {
+      height: 1px;
+      background: var(--border-soft);
+      margin: 4px 0;
+    }
+
+    .dropdown-item.danger:hover {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .dropdown-item.danger:hover i {
+      color: var(--danger);
+    }
+
+    /* COMPONENT: WELCOME */
+    .welcome-section {
+      grid-column: 1 / -1;
+      margin-bottom: 4px;
+    }
+
+    .welcome-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .welcome-desc {
+      font-size: 15px;
+      color: var(--text-soft);
+      line-height: 1.6;
+    }
+
+    /* COMPONENT: SUBSCRIPTION CARD */
+    .summary-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .summary-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .badge {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .badge.active {
+      background: var(--success-soft);
+      color: var(--success);
+      border: 1px solid rgba(74, 222, 128, 0.2);
+    }
+
+    .badge.expired {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .badge.canceled {
+      background: var(--warning-soft);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .badge.none {
+      background: var(--gray-soft);
+      color: var(--text-muted);
+      border: 1px solid rgba(167, 175, 189, 0.2);
+    }
+
+    .info-group {
+      margin-bottom: 18px;
+    }
+
+    .info-group.info-group-compact {
+      margin-bottom: 0;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: var(--text-soft);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .info-value {
+      font-size: 15px;
+      color: var(--text);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 6px;
+    }
+
+    .action-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* COMPONENT: SUPPORT CARD */
+    .support-card {
+      padding: 24px 28px;
+    }
+
+    .support-header {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 20px;
+      letter-spacing: -0.01em;
+    }
+
+    .support-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+      border: 1px solid transparent;
+      margin-left: -12px;
+      margin-right: -12px;
+    }
+
+    .support-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--border-soft);
+    }
+
+    .support-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .support-text h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .support-text p {
+      font-size: 12px;
+      color: var(--text-soft);
+      line-height: 1.4;
+    }
+
+    /* COMPONENT: TUTORIAL SECTION */
+    .tutorial-card {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .tutorial-header {
+      padding: 28px 32px 0;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .tutorial-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      letter-spacing: -0.01em;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 28px;
+    }
+
+    .tab {
+      padding: 0 0 16px 0;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      border-bottom: 2px solid transparent;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-content {
+      display: none;
+      padding: 32px;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .step-list {
+      list-style: none;
+      counter-reset: steps;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .step-item {
+      position: relative;
+      padding-left: 38px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .step-item::before {
+      counter-increment: steps;
+      content: counter(steps);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .step-item a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      transition: var(--transition-fast);
+    }
+
+    .step-item a:hover {
+      text-decoration: underline;
+      color: #38bdf8;
+    }
+
+    .step-item code {
+      background: var(--card-soft);
+      padding: 3px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      font-family: monospace;
+      font-size: 12px;
+      color: #a855f7;
+    }
+
+    .video-container-wrapper {
+      padding: 12px;
+      background: linear-gradient(to bottom right, rgba(23, 27, 36, 0.8), rgba(16, 21, 29, 0.8));
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+      transition: all var(--transition-base);
+      margin-top: 24px;
+    }
+
+    .video-container-wrapper:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 25px -5px rgba(0, 194, 255, 0.15), 0 10px 10px -5px rgba(0, 194, 255, 0.1);
+      border-color: rgba(0, 194, 255, 0.3);
+    }
+
+    .video-placeholder {
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+      border-radius: 6px;
+      width: 100%;
+      padding: 0;
+      border: none;
+      background: transparent;
+    }
+
+    .video-placeholder img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      transition: transform var(--transition-base);
+    }
+
+    .video-placeholder:hover img {
+      transform: scale(1.03);
+    }
+
+    .video-placeholder .play-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(1);
+      width: 64px;
+      height: 64px;
+      background-color: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(4px);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-base) cubic-bezier(0.25, 0.8, 0.25, 1);
+      box-shadow: 0 0 0 0 rgba(0, 194, 255, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .video-placeholder:hover .play-button {
+      background-color: var(--primary);
+      transform: translate(-50%, -50%) scale(1.1);
+      box-shadow: 0 4px 15px rgba(0, 194, 255, 0.4);
+      border-color: transparent;
+    }
+
+    .play-button.pulse {
+      animation: pulse-primary 2s infinite;
+    }
+
+    .video-placeholder .play-button svg {
+      fill: #fff;
+      width: 32px;
+      height: 32px;
+      transition: transform var(--transition-base);
+      margin-left: 4px;
+    }
+
+    .video-placeholder:hover .play-button svg {
+      fill: #080c12;
+      transform: scale(1.1);
+    }
+
+    /* COMPONENT: REDEEM MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: all var(--transition-fast);
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-card);
+      width: 100%;
+      max-width: 420px;
+      padding: 36px;
+      box-shadow: var(--shadow-card);
+      transform: translateY(20px);
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+
+    .modal-overlay.active .modal {
+      transform: translateY(0);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .modal-desc {
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    .form-group {
+      margin-bottom: 28px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(16, 21, 29, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      color: var(--text);
+      font-size: 14px;
+      transition: all var(--transition-fast);
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: var(--primary);
+      background: var(--card-soft);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    .form-input.error {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px var(--danger-soft);
+    }
+
+    .error-text {
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 8px;
+      display: none;
+      font-weight: 500;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .modal-actions .btn {
+      flex: 1;
+    }
+
+    /* COMPONENT: TOAST */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--card);
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast i {
+      color: var(--success);
+      font-size: 18px;
+    }
+
+    .toast-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* COMPONENT: VIDEO MODAL */
+    .video-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: all var(--transition-base);
+      padding: 16px;
+    }
+
+    .video-modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .video-popup-content {
+      background: var(--card);
+      padding: 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-soft);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      position: relative;
+      width: 90%;
+      max-width: 20rem;
+      transition: all var(--transition-base);
+      transform: translateY(20px) scale(0.95);
+    }
+
+    .video-modal-overlay.active .video-popup-content {
+      transform: translateY(0) scale(1);
+    }
+
+    .video-popup-close {
+      position: absolute;
+      top: -12px;
+      right: -12px;
+      width: 36px;
+      height: 36px;
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 160;
+      box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
+      transition: all var(--transition-fast);
+    }
+
+    .video-popup-close:hover {
+      background: #dc2626;
+      transform: scale(1.1);
+    }
+
+    .popup-video-container {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      border-radius: 4px;
+      background-color: #000;
+      height: 0;
+      padding-bottom: 177.77%;
+    }
+
+    .popup-video-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    /* STATES & ANIMATIONS */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse-primary {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 194, 255, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 12px rgba(0, 194, 255, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 194, 255, 0);
+      }
+    }
+
+    /* RESPONSIVE */
+    @media (min-width: 640px) {
+      .video-popup-content {
+        padding: 8px;
+        width: 70vw;
+        max-width: 1200px;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .popup-video-container {
+        padding-bottom: 62.5%;
+        max-height: calc(85vh - 16px);
+      }
+
+      .video-popup-close {
+        top: -16px;
+        right: -16px;
+        width: 40px;
+        height: 40px;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .container {
+        grid-template-columns: 1fr;
+        padding: 0 24px;
+        margin: 32px auto;
+        gap: 24px;
+      }
+
+      .left-column {
+        gap: 24px;
+      }
+
+      .header {
+        padding: 16px 24px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 0 16px;
+        margin: 24px auto;
+        gap: 20px;
+      }
+
+      .left-column {
+        gap: 20px;
+      }
+
+      .header {
+        padding: 14px 20px;
+      }
+
+      .card {
+        padding: 24px;
+      }
+
+      .welcome-title {
+        font-size: 20px;
+      }
+
+      .welcome-desc {
+        font-size: 14px;
+      }
+
+      .tutorial-header {
+        padding: 24px 24px 0;
+      }
+
+      .tab-content {
+        padding: 24px;
+      }
+
+      .tabs {
+        gap: 20px;
+      }
+
+      .user-info {
+        display: none;
+      }
+
+      .modal {
+        padding: 28px;
+        width: calc(100% - 32px);
+        margin: 16px;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- PAGE SHELL: HEADER -->
+  <header class="header">
+    <a href="#" class="logo">
+      <i class="fa-solid fa-chart-line"></i> TvLink
+    </a>
+
+    <!-- COMPONENT: USER MENU -->
+    <div class="user-menu" id="user-menu">
+      <button
+        type="button"
+        class="user-trigger"
+        id="user-trigger"
+        aria-haspopup="menu"
+        aria-controls="dropdown-menu"
+        aria-expanded="false"
+      >
+        <div class="user-avatar">AD</div>
+        <div class="user-info">
+          <span class="user-name">Ahmad Dani</span>
+          <span class="user-role">Member Area</span>
+        </div>
+      </button>
+
+      <div class="dropdown" id="dropdown-menu" role="menu" aria-label="User Menu">
+        <a href="#" class="dropdown-item" role="menuitem">
+          <i class="fa-regular fa-user"></i> Account
+        </a>
+        <button type="button" class="dropdown-item" role="menuitem" data-action="open-redeem-modal">
+          <i class="fa-solid fa-gift"></i> Redeem Code
+        </button>
+        <a href="#" class="dropdown-item" role="menuitem">
+          <i class="fa-solid fa-rotate"></i> Extend Subscriber
+        </a>
+        <div class="dropdown-divider"></div>
+        <a href="#" class="dropdown-item danger" role="menuitem">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE SHELL: MAIN LAYOUT -->
+  <main class="container">
+    <!-- COMPONENT: WELCOME SECTION -->
+    <section class="welcome-section" aria-label="Ucapan Selamat Datang">
+      <h1 class="welcome-title">Welcome back, Ahmad! 👋</h1>
+      <p class="welcome-desc">Kelola langganan dan akses ekstensi TvLink Anda melalui dashboard ini.</p>
+    </section>
+
+    <!-- PAGE REGION: LEFT COLUMN -->
+    <div class="left-column">
+      <!-- COMPONENT: SUBSCRIPTION CARD -->
+      <section class="card" aria-label="Subscription Overview">
+        <header class="summary-header">
+          <h2 class="summary-title">Subscription</h2>
+          <div class="badge" id="sub-status">-</div>
+        </header>
+
+        <div class="info-group">
+          <div class="info-label">Active Plan</div>
+          <div class="info-value" id="sub-package">-</div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-group info-group-compact">
+            <div class="info-label">Start Date</div>
+            <div class="info-value" id="sub-start">-</div>
+          </div>
+          <div class="info-group info-group-compact">
+            <div class="info-label">Expiry Date</div>
+            <div class="info-value" id="sub-end">-</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="action-group">
+          <button type="button" class="btn btn-premium" data-action="open-redeem-modal">
+            <i class="fa-solid fa-gift"></i> Redeem Code
+          </button>
+          <button type="button" class="btn btn-outline">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Renew Subscription
+          </button>
+        </div>
+      </section>
+
+      <!-- COMPONENT: SUPPORT CARD -->
+      <section class="card support-card" aria-label="Help & Support">
+        <h2 class="support-header">Help & Support</h2>
+
+        <a href="#" class="support-item interactive-focus">
+          <div class="support-icon"><i class="fa-brands fa-whatsapp"></i></div>
+          <div class="support-text">
+            <h4>Hubungi Admin</h4>
+            <p>Butuh bantuan? Chat admin kami via WhatsApp.</p>
+          </div>
+        </a>
+
+        <a href="#" class="support-item interactive-focus">
+          <div class="support-icon"><i class="fa-brands fa-telegram"></i></div>
+          <div class="support-text">
+            <h4>Grup Komunitas</h4>
+            <p>Gabung grup diskusi bersama member lainnya.</p>
+          </div>
+        </a>
+      </section>
+    </div>
+
+    <!-- COMPONENT: TUTORIAL SECTION -->
+    <section class="card tutorial-card" aria-label="Tutorial Instalasi">
+      <header class="tutorial-header">
+        <h2 class="tutorial-title">Cara Install Extension TvLink</h2>
+
+        <!-- Tutorial tabs share the same content structure to ease component extraction into real apps. -->
+        <div class="tabs" role="tablist" aria-label="Tutorial Device Tabs">
+          <button
+            type="button"
+            class="tab active"
+            id="tab-trigger-pc"
+            data-tab-trigger
+            data-target="tab-pc"
+            role="tab"
+            aria-selected="true"
+            aria-controls="tab-pc"
+          >
+            <i class="fa-solid fa-desktop"></i> PC / Laptop
+          </button>
+          <button
+            type="button"
+            class="tab"
+            id="tab-trigger-android"
+            data-tab-trigger
+            data-target="tab-android"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tab-android"
+          >
+            <i class="fa-brands fa-android"></i> Android (Kiwi)
+          </button>
+        </div>
+      </header>
+
+      <!-- COMPONENT PATTERN: Tutorial content block / PC -->
+      <div class="tab-content active" id="tab-pc" role="tabpanel" aria-labelledby="tab-trigger-pc">
+        <ol class="step-list">
+          <li class="step-item">Download extension TvLink: <a href="https://tvlink.netlify.app/tvlink.zip" target="_blank" rel="noreferrer">Klik Disini</a></li>
+          <li class="step-item">Buka folder download, pindahkan file tvlink ke folder baru, lalu extract file.</li>
+          <li class="step-item">Buka Chrome dan buat profil Chrome baru</li>
+          <li class="step-item">Ketik <code>chrome://extensions/</code> di address bar & Enter.</li>
+          <li class="step-item">Aktifkan "Mode Developer" di pojok kanan atas.</li>
+          <li class="step-item">Klik "Load unpacked" di pojok kiri atas</li>
+          <li class="step-item">Pilih folder hasil extrak file ZIP TvLink tadi</li>
+          <li class="step-item">Buka extension tvlink dan jika belum login silahkan login.</li>
+        </ol>
+
+        <div class="video-container-wrapper">
+          <button type="button" class="video-placeholder" data-video-id="rjQpnHK5zTw" aria-label="Play video tutorial install TvLink di PC">
+            <img src="release/img/thumbnail-pc.jpg" alt="Video tutorial install TvLink di PC">
+            <div class="play-button">
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- COMPONENT PATTERN: Tutorial content block / Android -->
+      <div class="tab-content" id="tab-android" role="tabpanel" aria-labelledby="tab-trigger-android" hidden>
+        <ol class="step-list">
+          <li class="step-item">Download extension TvLink: <a href="https://tvlink.netlify.app/tvlink.zip" target="_blank" rel="noreferrer">Klik Disini</a></li>
+          <li class="step-item">Download Install Kiwi Browser dari Play Store: <a href="https://play.google.com/store/apps/details?id=com.kiwibrowser.browser" target="_blank" rel="noreferrer">Klik Disini</a></li>
+          <li class="step-item">Buka Kiwi Browser.</li>
+          <li class="step-item">Klik ikon titik tiga (menu) di pojok kanan atas.</li>
+          <li class="step-item">Pilih menu "Ekstensi" (Extensions) lalu Aktifkan "Mode Developer".</li>
+          <li class="step-item">Klik <code>+(from .zip/.crx/.user.js)</code> dan Pilih file tvlink.zip.</li>
+          <li class="step-item">Setelah terinstal, klik menu (titik tiga lagi), dan klik "TvLink".</li>
+          <li class="step-item">Jika belum login silahkan login</li>
+        </ol>
+
+        <div class="video-container-wrapper">
+          <button type="button" class="video-placeholder" data-video-id="hm2RDtn427U" aria-label="Play video tutorial install TvLink di Android">
+            <img src="release/img/thumbnail-hp.jpg" alt="Video tutorial install TvLink di Android">
+            <div class="play-button">
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- COMPONENT: REDEEM MODAL -->
+  <div class="modal-overlay" id="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button type="button" class="modal-close" id="modal-close" aria-label="Tutup modal"><i class="fa-solid fa-xmark"></i></button>
+
+      <h3 class="modal-title" id="modal-title">Redeem Voucher</h3>
+      <p class="modal-desc">Masukkan kode voucher atau CD key Anda untuk mengaktifkan langganan TvLink.</p>
+
+      <form id="redeem-form">
+        <div class="form-group">
+          <label class="form-label" for="redeem-input">Kode Voucher</label>
+          <input type="text" class="form-input" id="redeem-input" placeholder="Contoh: TVL-XXXX-XXXX" autocomplete="off" />
+          <div class="error-text" id="error-text">Kode voucher tidak boleh kosong</div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="modal-cancel">Batal</button>
+          <button type="submit" class="btn btn-premium">Redeem Sekarang</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- COMPONENT: TOAST -->
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <i class="fa-solid fa-circle-check"></i>
+    <span class="toast-text" id="toast-msg">Pesan sukses</span>
+  </div>
+
+  <!-- COMPONENT: VIDEO MODAL -->
+  <div class="video-modal-overlay" id="video-modal-overlay" aria-hidden="true">
+    <div class="video-popup-content" role="dialog" aria-modal="true" aria-label="Video Tutorial">
+      <button type="button" class="video-popup-close" id="video-popup-close" aria-label="Tutup Video"><i class="fa-solid fa-xmark"></i></button>
+      <div class="popup-video-container" id="popup-video-container"></div>
+    </div>
+  </div>
+
+  <script>
+    // SCRIPT: MOCK DATA
+    const USER_CONFIG = {
+      subscription: {
+        status: 'active', // Options: 'active' | 'expired' | 'canceled' | 'none'
+        package: 'Semi private 360 days',
+        startDate: '12/05/2026',
+        endDate: '12/05/2027'
+      }
+    };
+
+    // SCRIPT: DOM MAP
+    const elements = {
+      subscription: {
+        status: document.getElementById('sub-status'),
+        package: document.getElementById('sub-package'),
+        start: document.getElementById('sub-start'),
+        end: document.getElementById('sub-end')
+      },
+      userMenu: {
+        root: document.getElementById('user-menu'),
+        trigger: document.getElementById('user-trigger'),
+        dropdown: document.getElementById('dropdown-menu')
+      },
+      tabs: {
+        triggers: document.querySelectorAll('[data-tab-trigger]'),
+        panels: document.querySelectorAll('.tab-content')
+      },
+      redeemModal: {
+        triggers: document.querySelectorAll('[data-action="open-redeem-modal"]'),
+        overlay: document.getElementById('modal-overlay'),
+        close: document.getElementById('modal-close'),
+        cancel: document.getElementById('modal-cancel'),
+        form: document.getElementById('redeem-form'),
+        input: document.getElementById('redeem-input'),
+        errorText: document.getElementById('error-text')
+      },
+      toast: {
+        root: document.getElementById('toast'),
+        message: document.getElementById('toast-msg')
+      },
+      videoModal: {
+        overlay: document.getElementById('video-modal-overlay'),
+        close: document.getElementById('video-popup-close'),
+        container: document.getElementById('popup-video-container'),
+        triggers: document.querySelectorAll('[data-video-id]')
+      }
+    };
+
+    const appState = {
+      toastTimeout: null
+    };
+
+    // SCRIPT: RENDER LOGIC
+    function renderSubscriptionCard() {
+      const { status, package: planName, startDate, endDate } = USER_CONFIG.subscription;
+
+      elements.subscription.status.textContent = status;
+      elements.subscription.status.className = `badge ${status}`;
+
+      if (status === 'none') {
+        elements.subscription.package.textContent = '-';
+        elements.subscription.start.textContent = '-';
+        elements.subscription.end.textContent = '-';
+        return;
+      }
+
+      elements.subscription.package.textContent = planName;
+      elements.subscription.start.textContent = startDate;
+      elements.subscription.end.textContent = endDate;
+    }
+
+    // SCRIPT: STATE HELPERS
+    function toggleUserMenu(forceOpen) {
+      const shouldOpen = typeof forceOpen === 'boolean'
+        ? forceOpen
+        : !elements.userMenu.trigger.classList.contains('active');
+
+      elements.userMenu.trigger.classList.toggle('active', shouldOpen);
+      elements.userMenu.trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    }
+
+    function resetRedeemForm() {
+      elements.redeemModal.input.value = '';
+      elements.redeemModal.input.classList.remove('error');
+      elements.redeemModal.errorText.style.display = 'none';
+    }
+
+    function openRedeemModal() {
+      elements.redeemModal.overlay.classList.add('active');
+      elements.redeemModal.overlay.setAttribute('aria-hidden', 'false');
+      resetRedeemForm();
+      toggleUserMenu(false);
+      setTimeout(() => elements.redeemModal.input.focus(), 100);
+    }
+
+    function closeRedeemModal() {
+      elements.redeemModal.overlay.classList.remove('active');
+      elements.redeemModal.overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    function activateTab(selectedTab) {
+      elements.tabs.triggers.forEach((tab) => {
+        const isActive = tab === selectedTab;
+        tab.classList.toggle('active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+
+      elements.tabs.panels.forEach((panel) => {
+        const isActive = panel.id === selectedTab.dataset.target;
+        panel.classList.toggle('active', isActive);
+        panel.hidden = !isActive;
+      });
+    }
+
+    function openVideoModal(videoId) {
+      if (!videoId) {
+        return;
+      }
+
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('src', `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&fs=1&controls=1&disablekb=1&iv_load_policy=3&hl=id`);
+      iframe.setAttribute('frameborder', '0');
+      iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+      iframe.setAttribute('allowfullscreen', '');
+      iframe.setAttribute('loading', 'lazy');
+
+      elements.videoModal.container.innerHTML = '';
+      elements.videoModal.container.appendChild(iframe);
+      elements.videoModal.overlay.classList.add('active');
+      elements.videoModal.overlay.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeVideoModal() {
+      elements.videoModal.overlay.classList.remove('active');
+      elements.videoModal.overlay.setAttribute('aria-hidden', 'true');
+      elements.videoModal.container.innerHTML = '';
+      document.body.style.overflow = '';
+    }
+
+    function showToast(message) {
+      elements.toast.message.textContent = message;
+      elements.toast.root.classList.add('show');
+
+      clearTimeout(appState.toastTimeout);
+      appState.toastTimeout = setTimeout(() => {
+        elements.toast.root.classList.remove('show');
+      }, 3500);
+    }
+
+    // SCRIPT: EVENT SETUP
+    function setupUserMenu() {
+      elements.userMenu.trigger.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleUserMenu();
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!elements.userMenu.root.contains(event.target)) {
+          toggleUserMenu(false);
+        }
+      });
+    }
+
+    function setupTutorialTabs() {
+      elements.tabs.triggers.forEach((tab, index) => {
+        tab.addEventListener('click', () => {
+          activateTab(tab);
+        });
+
+        tab.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            activateTab(tab);
+          }
+
+          if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+            event.preventDefault();
+            const direction = event.key === 'ArrowRight' ? 1 : -1;
+            const nextIndex = (index + direction + elements.tabs.triggers.length) % elements.tabs.triggers.length;
+            const nextTab = elements.tabs.triggers[nextIndex];
+            nextTab.focus();
+            activateTab(nextTab);
+          }
+        });
+      });
+    }
+
+    function setupRedeemModal() {
+      elements.redeemModal.triggers.forEach((trigger) => {
+        trigger.addEventListener('click', openRedeemModal);
+      });
+
+      elements.redeemModal.close.addEventListener('click', closeRedeemModal);
+      elements.redeemModal.cancel.addEventListener('click', closeRedeemModal);
+
+      elements.redeemModal.overlay.addEventListener('click', (event) => {
+        if (event.target === elements.redeemModal.overlay) {
+          closeRedeemModal();
+        }
+      });
+
+      elements.redeemModal.form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const code = elements.redeemModal.input.value.trim();
+
+        if (!code) {
+          elements.redeemModal.input.classList.add('error');
+          elements.redeemModal.errorText.style.display = 'block';
+          return;
+        }
+
+        elements.redeemModal.input.classList.remove('error');
+        elements.redeemModal.errorText.style.display = 'none';
+        closeRedeemModal();
+        showToast('Voucher berhasil di-redeem!');
+      });
+
+      elements.redeemModal.input.addEventListener('input', () => {
+        if (elements.redeemModal.input.classList.contains('error')) {
+          elements.redeemModal.input.classList.remove('error');
+          elements.redeemModal.errorText.style.display = 'none';
+        }
+      });
+    }
+
+    function setupVideoModal() {
+      elements.videoModal.triggers.forEach((trigger) => {
+        const playButton = trigger.querySelector('.play-button');
+
+        if (playButton) {
+          playButton.classList.add('pulse');
+        }
+
+        trigger.addEventListener('click', () => {
+          openVideoModal(trigger.dataset.videoId);
+        });
+      });
+
+      elements.videoModal.close.addEventListener('click', closeVideoModal);
+
+      elements.videoModal.overlay.addEventListener('click', (event) => {
+        if (event.target === elements.videoModal.overlay) {
+          closeVideoModal();
+        }
+      });
+    }
+
+    function setupGlobalKeyboardShortcuts() {
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          if (elements.redeemModal.overlay.classList.contains('active')) {
+            closeRedeemModal();
+          }
+
+          if (elements.videoModal.overlay.classList.contains('active')) {
+            closeVideoModal();
+          }
+
+          toggleUserMenu(false);
+        }
+      });
+    }
+
+    // SCRIPT: INIT
+    function init() {
+      renderSubscriptionCard();
+      setupUserMenu();
+      setupTutorialTabs();
+      setupRedeemModal();
+      setupVideoModal();
+      setupGlobalKeyboardShortcuts();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
