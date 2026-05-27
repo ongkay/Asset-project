@@ -61,7 +61,7 @@ type ConsoleTransactionRow = {
   package_id: string;
   package_name: string;
   paid_at: string | null;
-  source: "payment_dummy" | "cdkey" | "admin_manual";
+  source: "payment_dummy" | "payment_qris" | "cdkey" | "admin_manual";
   status: "pending" | "success" | "failed" | "canceled";
 };
 

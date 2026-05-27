@@ -46,7 +46,7 @@ const consoleTransactionSchema = z.object({
   package_id: canonicalUuidLikeSchema,
   package_name: z.string(),
   paid_at: isoDateTimeSchema.nullable(),
-  source: z.enum(["payment_dummy", "cdkey", "admin_manual"]),
+  source: z.enum(["payment_dummy", "payment_qris", "cdkey", "admin_manual"]),
   status: z.enum(["pending", "success", "failed", "canceled"]),
 });
 

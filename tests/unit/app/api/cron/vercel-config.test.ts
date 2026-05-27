@@ -12,6 +12,7 @@ describe("vercel cron config", () => {
       $schema: "https://openapi.vercel.sh/vercel.json",
       crons: [
         { path: "/api/cron/expire-subscriptions", schedule: "* * * * *" },
+        { path: "/api/cron/reconcile-qris-payments", schedule: "*/3 * * * *" },
         { path: "/api/cron/reconcile-invalid-assets", schedule: "* * * * *" },
       ],
     });

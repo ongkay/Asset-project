@@ -22,10 +22,20 @@ describe("transactions/repositories", () => {
         failure_reason: null,
         id: "transaction-1",
         list_amount_rp: 150000,
+        payment_fee_amount_rp: null,
+        payment_fulfillment_status: null,
+        payment_provider: null,
+        payment_provider_status: null,
+        payment_received_at: null,
         package_discount_amount_rp: 0,
         package_id: "package-1",
         package_name: "Paket 1",
         paid_at: null,
+        provider_expired_at: null,
+        provider_invoice_id: null,
+        provider_payment_url: null,
+        provider_payload_json: null,
+        qris_string: null,
         source: "payment_dummy",
         status: "pending",
         subscription_id: null,
@@ -70,10 +80,20 @@ describe("transactions/repositories", () => {
         code: expect.stringMatching(/^TRX-[A-Z0-9]{12}$/),
         failure_reason: null,
         list_amount_rp: 150000,
+        payment_fee_amount_rp: null,
+        payment_fulfillment_status: null,
+        payment_provider: null,
+        payment_provider_status: null,
+        payment_received_at: null,
         package_discount_amount_rp: 0,
         package_id: "package-1",
         package_name: "Paket 1",
         paid_at: null,
+        provider_expired_at: null,
+        provider_invoice_id: null,
+        provider_payment_url: null,
+        provider_payload_json: null,
+        qris_string: null,
         source: "payment_dummy",
         status: "pending",
         subscription_id: null,
@@ -228,5 +248,33 @@ describe("transactions/repositories", () => {
     await expect(markTransactionAsFailed("missing-transaction", "checkout_failed")).rejects.toThrow(
       "Transaction is missing or already finalized.",
     );
+  });
+
+  it("does not let pending refreshes overwrite member-canceled transactions", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ maybeSingle });
+    const neqPaymentProviderStatus = vi.fn().mockReturnValue({ select });
+    const neqStatus = vi.fn().mockReturnValue({ neq: neqPaymentProviderStatus });
+    const eq = vi.fn().mockReturnValue({ neq: neqStatus });
+    const update = vi.fn().mockReturnValue({ eq });
+
+    databaseMocks.createInsForgeAdminDatabase.mockReturnValue({
+      from: vi.fn().mockReturnValue({ update }),
+    });
+
+    const { updateTransactionPaymentState } = await import("@/modules/transactions/repositories");
+
+    await expect(
+      updateTransactionPaymentState({
+        paymentProviderStatus: "pending",
+        transactionId: "transaction-1",
+      }),
+    ).rejects.toThrow("Transaction is missing.");
+
+    expect(neqStatus).toHaveBeenCalledWith("status", "canceled");
+    expect(neqPaymentProviderStatus).toHaveBeenCalledWith("payment_provider_status", "canceled");
   });
 });

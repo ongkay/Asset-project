@@ -26,13 +26,15 @@ type CheckoutPageProps = {
 };
 
 const paymentMethods: Array<{
+  description: string;
+  enabled: boolean;
   icon: typeof QrCode;
   key: CheckoutPaymentMethod;
   label: string;
 }> = [
-  { icon: QrCode, key: "qris", label: "QRIS" },
-  { icon: Bitcoin, key: "crypto", label: "Crypto" },
-  { icon: CreditCard, key: "card", label: "Card" },
+  { description: "Siap dipakai sekarang", enabled: true, icon: QrCode, key: "qris", label: "QRIS" },
+  { description: "Segera hadir", enabled: false, icon: Bitcoin, key: "crypto", label: "Crypto" },
+  { description: "Segera hadir", enabled: false, icon: CreditCard, key: "card", label: "Card" },
 ];
 
 function formatRupiah(value: number) {
@@ -398,27 +400,43 @@ export function CheckoutPage({ initialState }: CheckoutPageProps) {
                   {paymentMethods.map((method) => {
                     const Icon = method.icon;
                     const isActive = paymentMethod === method.key;
+                    const isDisabled = !method.enabled;
 
                     return (
                       <button
                         className={cn(
                           "flex min-h-[92px] flex-1 flex-col items-center justify-center gap-2 rounded-[10px] border px-3 py-3 text-center transition duration-200 sm:max-w-[120px]",
+                          isDisabled && "cursor-not-allowed opacity-55",
                           isActive
                             ? "border-cyan-400 bg-linear-to-br from-cyan-400/8 to-purple-400/6 shadow-[0_0_0_1px_rgba(0,194,255,0.24),0_8px_24px_rgba(0,194,255,0.08)]"
                             : "border-[#2b313d] bg-[rgba(16,21,29,0.68)] hover:border-cyan-400/30 hover:bg-[#1d2330]",
+                          isDisabled && "hover:translate-y-0 hover:border-[#2b313d] hover:bg-[rgba(16,21,29,0.68)]",
                         )}
+                        disabled={isDisabled}
                         key={method.key}
-                        onClick={() => setPaymentMethod(method.key)}
+                        onClick={() => {
+                          if (!method.enabled) {
+                            return;
+                          }
+
+                          setPaymentMethod(method.key);
+                        }}
                         type="button"
                       >
                         <span className="grid size-7 place-items-center rounded-lg bg-cyan-400/12 text-cyan-400">
                           <Icon className="size-3.5" />
                         </span>
                         <span className="font-semibold text-[13px] text-white">{method.label}</span>
+                        <span className="text-[11px] text-slate-400">{method.description}</span>
                       </button>
                     );
                   })}
                 </div>
+
+                <p className="mt-3 text-sm text-slate-400">
+                  Untuk fase ini, checkout hanya menerima pembayaran QRIS. Metode Crypto dan Card tetap ditampilkan
+                  sebagai placeholder dan belum bisa digunakan.
+                </p>
               </section>
             </div>
 

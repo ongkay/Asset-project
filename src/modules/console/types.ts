@@ -27,7 +27,7 @@ export type ConsoleTransactionSnapshot = {
   packageId: string;
   packageName: string;
   paidAt: string | null;
-  source: "payment_dummy" | "cdkey" | "admin_manual";
+  source: "payment_dummy" | "payment_qris" | "cdkey" | "admin_manual";
   status: "pending" | "success" | "failed" | "canceled";
 };
 

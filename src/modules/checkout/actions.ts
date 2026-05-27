@@ -17,6 +17,8 @@ export const submitCheckoutAction = memberActionClient
   .inputSchema(submitCheckoutSchema)
   .action(async ({ ctx, parsedInput }) => {
     return submitCheckout({
+      customerEmail: ctx.currentAppUser.profile.email,
+      customerName: ctx.currentAppUser.profile.username,
       packageId: parsedInput.packageId,
       paymentMethod: parsedInput.paymentMethod,
       userId: ctx.currentAppUser.profile.userId,

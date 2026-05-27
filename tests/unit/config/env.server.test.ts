@@ -8,6 +8,8 @@ const baseServerEnv = {
   EXT_API_DEV_HEADER_OVERRIDE: "true",
   EXTENSION_ALLOWED_IDS: "ext-id-1, ext-id-2",
   EXTENSION_ALLOWED_ORIGINS: "chrome-extension://ext-id-1, https://app.example.com",
+  INVOICEKU_API_KEY: "invoiceku-api-key",
+  INVOICEKU_BASE_URL: "https://invoiceku.example.com/api/v1",
   INSFORGE_ANON_KEY: "insforge-anon",
   INSFORGE_PROJECT_ADMIN_EMAIL: "admin@example.com",
   INSFORGE_PROJECT_ADMIN_PASSWORD: "admin-password",
@@ -64,5 +66,20 @@ describe("config/env.server", () => {
 
     const { env: falsyEnv } = await loadEnvModule({ EXT_API_DEV_HEADER_OVERRIDE: "false" });
     expect(falsyEnv.EXT_API_DEV_HEADER_OVERRIDE).toBe(false);
+  });
+
+  it("loads InvoiceKu configuration", async () => {
+    const { env } = await loadEnvModule();
+
+    expect(env.INVOICEKU_API_KEY).toBe("invoiceku-api-key");
+    expect(env.INVOICEKU_BASE_URL).toBe("https://invoiceku.example.com/api/v1");
+  });
+
+  it("normalizes InvoiceKu base url when user includes /invoice suffix", async () => {
+    const { env } = await loadEnvModule({
+      INVOICEKU_BASE_URL: "https://invoiceku.example.com/api/v1/invoice",
+    });
+
+    expect(env.INVOICEKU_BASE_URL).toBe("https://invoiceku.example.com/api/v1");
   });
 });

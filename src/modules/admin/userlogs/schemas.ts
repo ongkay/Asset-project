@@ -9,7 +9,7 @@ import type {
 } from "./types";
 
 const ADMIN_USER_LOGS_TABS = ["login", "extension", "transactions"] as const;
-const ADMIN_TRANSACTION_SOURCES = ["payment_dummy", "cdkey", "admin_manual"] as const;
+const ADMIN_TRANSACTION_SOURCES = ["payment_dummy", "payment_qris", "cdkey", "admin_manual"] as const;
 const ADMIN_TRANSACTION_STATUSES = ["pending", "success", "failed", "canceled"] as const;
 
 const DEFAULT_PAGE = 1;

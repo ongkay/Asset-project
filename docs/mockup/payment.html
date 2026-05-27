@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <title>Menunggu Pembayaran</title>
+  <style>
+    /* Design Tokens */
+    :root {
+      --bg: #080c12;
+      --card: #171b24;
+      --card-soft: #10151d;
+      --card-hover: #1d2330;
+      --surface-light: #ffffff;
+
+      --border: #2b313d;
+      --border-soft: rgba(255, 255, 255, 0.08);
+
+      --primary: #00c2ff;
+      --primary-soft: rgba(0, 194, 255, 0.12);
+      --success: #4ade80;
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.12);
+      --warning: #f59e0b;
+      --warning-soft: rgba(245, 158, 11, 0.12);
+      --warning-border: rgba(245, 158, 11, 0.2);
+
+      --text: #f8fafc;
+      --text-muted: #a7afbd;
+      --text-soft: #7b8190;
+
+      --radius-card: 12px;
+      --radius-sm: 6px;
+      --radius-full: 999px;
+
+      --space-1: 4px;
+      --space-2: 6px;
+      --space-3: 8px;
+      --space-4: 12px;
+      --space-5: 16px;
+      --space-6: 24px;
+      --space-7: 28px;
+      --space-8: 32px;
+
+      --text-xs: 11px;
+      --text-sm: 13px;
+      --text-md: 14px;
+      --text-lg: 15px;
+      --text-xl: 16px;
+      --text-2xl: 32px;
+
+      --shadow-card: 0 30px 80px rgba(0, 0, 0, 0.32);
+      --shadow-qris:
+        0 16px 40px rgba(0, 0, 0, 0.25),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.04),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+      --shadow-button: 0 8px 16px rgba(0, 194, 255, 0.2);
+      --shadow-button-hover: 0 12px 24px rgba(0, 194, 255, 0.3);
+      --shadow-toast: 0 10px 30px rgba(0, 0, 0, 0.5);
+      --shadow-modal: 0 20px 40px rgba(0, 0, 0, 0.4);
+
+      --transition-fast: 0.2s ease;
+      --transition-base: 0.3s ease;
+    }
+
+    /* Base */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      padding: var(--space-6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(circle at top left, rgba(0, 194, 255, 0.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.12), transparent 30%),
+        var(--bg);
+    }
+
+    button {
+      font: inherit;
+    }
+
+    /* Layout */
+    .payment-shell {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .payment-card {
+      position: relative;
+      overflow: hidden;
+      padding: var(--space-8) var(--space-6);
+      background: var(--card);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+    }
+
+    /* Payment Header */
+    .payment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--space-5);
+      margin-bottom: var(--space-7);
+      padding-bottom: var(--space-6);
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .payment-header__meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .payment-header__title {
+      font-size: var(--text-xl);
+      font-weight: 700;
+      line-height: 1.4;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+
+    .payment-header__subtitle {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--text-soft);
+    }
+
+    .payment-countdown {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: var(--space-2);
+      text-align: right;
+    }
+
+    .payment-countdown__label {
+      font-size: var(--text-xs);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--warning);
+    }
+
+    .payment-countdown__badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      color: #fbbf24;
+      background: var(--warning-soft);
+      border: 1px solid var(--warning-border);
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-base);
+    }
+
+    .payment-countdown__badge i {
+      font-size: var(--text-md);
+    }
+
+    .payment-countdown__timer {
+      font-size: var(--text-lg);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+
+    .payment-countdown.is-expired .payment-countdown__label {
+      color: var(--danger);
+    }
+
+    .payment-countdown.is-expired .payment-countdown__badge,
+    .payment-qris.is-expired .payment-qris__overlay {
+      color: var(--danger);
+    }
+
+    .payment-countdown.is-expired .payment-countdown__badge {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    /* Payment Amount */
+    .payment-amount {
+      margin-bottom: var(--space-6);
+      text-align: center;
+    }
+
+    .payment-amount__label {
+      display: block;
+      margin-bottom: var(--space-2);
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+    }
+
+    .payment-amount__value {
+      font-size: var(--text-2xl);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--success);
+      text-shadow: 0 0 20px rgba(74, 222, 128, 0.14);
+    }
+
+    /* Payment QRIS */
+    .payment-qris__hint {
+      margin-bottom: var(--space-5);
+      text-align: center;
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .payment-qris__frame {
+      display: flex;
+      justify-content: center;
+      margin-bottom: var(--space-7);
+    }
+
+    .payment-qris {
+      position: relative;
+      width: fit-content;
+      padding: 18px;
+      background: var(--surface-light);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-qris);
+    }
+
+    .payment-qris__image {
+      display: block;
+      width: 210px;
+      height: 210px;
+      object-fit: contain;
+      transition: all var(--transition-base);
+    }
+
+    .payment-qris__overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: var(--radius-sm);
+      backdrop-filter: blur(4px);
+      transition: opacity var(--transition-base);
+    }
+
+    .payment-qris__overlay i {
+      font-size: 40px;
+    }
+
+    .payment-qris__overlay-badge {
+      padding: var(--space-2) 14px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      color: #ffffff;
+      background: var(--danger);
+      border-radius: var(--radius-sm);
+    }
+
+    .payment-qris.is-expired .payment-qris__image {
+      opacity: 0.12;
+      filter: grayscale(100%);
+    }
+
+    .payment-qris.is-expired .payment-qris__overlay {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Payment Instructions */
+    .payment-instructions {
+      margin-bottom: var(--space-8);
+      padding: var(--space-5);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+    }
+
+    .payment-instructions__title {
+      margin-bottom: var(--space-5);
+      font-size: var(--text-sm);
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .payment-instructions__list {
+      list-style: none;
+      counter-reset: payment-steps;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .payment-instructions__list li {
+      position: relative;
+      padding-left: 32px;
+      font-size: var(--text-sm);
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    .payment-instructions__list li::before {
+      content: counter(payment-steps);
+      counter-increment: payment-steps;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: 700;
+      color: var(--primary);
+      background: var(--primary-soft);
+      border-radius: 50%;
+    }
+
+    .payment-instructions__amount {
+      font-weight: 600;
+      color: var(--success);
+    }
+
+    /* Payment Actions */
+    .payment-actions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .btn {
+      width: 100%;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-3);
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-md);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      color: #080c12;
+      background: var(--primary);
+      box-shadow: var(--shadow-button);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      filter: brightness(1.1);
+      box-shadow: var(--shadow-button-hover);
+    }
+
+    .btn-primary:disabled {
+      color: var(--text-muted);
+      background: var(--border);
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      color: var(--danger);
+      background: var(--card-hover);
+      border-color: var(--danger-soft);
+    }
+
+    .btn-secondary:disabled {
+      opacity: 0.5;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: var(--space-6);
+      left: 50%;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: var(--space-4) var(--space-6);
+      white-space: nowrap;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-toast);
+      transform: translateX(-50%) translateY(100px);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .toast.is-visible {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toast__icon {
+      color: var(--primary);
+    }
+
+    .toast__text {
+      font-size: var(--text-sm);
+      font-weight: 500;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      transition: opacity var(--transition-fast);
+    }
+
+    .modal-overlay.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      width: 90%;
+      max-width: 320px;
+      padding: var(--space-6);
+      text-align: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-modal);
+      transform: translateY(20px);
+      transition: transform var(--transition-fast);
+    }
+
+    .modal-overlay.is-open .modal {
+      transform: translateY(0);
+    }
+
+    .modal__icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto var(--space-5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: var(--danger);
+      background: var(--danger-soft);
+      border-radius: 50%;
+    }
+
+    .modal__title {
+      margin-bottom: var(--space-3);
+      font-size: var(--text-xl);
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .modal__body {
+      margin-bottom: var(--space-6);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    .modal__actions {
+      display: flex;
+      gap: var(--space-4);
+    }
+
+    .modal__button {
+      flex: 1;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .modal__button--ghost {
+      color: var(--text);
+      background: var(--card-soft);
+      border: 1px solid var(--border);
+    }
+
+    .modal__button--ghost:hover {
+      background: var(--border);
+    }
+
+    .modal__button--danger {
+      color: #ffffff;
+      background: var(--danger);
+      border: none;
+    }
+
+    .modal__button--danger:hover {
+      background: #dc2626;
+    }
+
+    /* Responsive */
+    @media (max-width: 380px) {
+      .payment-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .payment-countdown {
+        align-items: flex-start;
+        text-align: left;
+        margin-top: var(--space-1);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="payment-shell">
+    <section class="payment-card" aria-label="QRIS payment mockup">
+      <header class="payment-header">
+        <div class="payment-header__meta">
+          <div class="payment-header__title" id="package-name">-</div>
+          <div class="payment-header__subtitle" id="invoice-id">-</div>
+        </div>
+
+        <div class="payment-countdown" id="countdown-section">
+          <span class="payment-countdown__label" id="countdown-label">Sisa Waktu</span>
+          <div class="payment-countdown__badge">
+            <i class="fa-regular fa-clock" aria-hidden="true"></i>
+            <span class="payment-countdown__timer" id="countdown">00:00</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="payment-amount" aria-label="Total pembayaran">
+        <span class="payment-amount__label">Total Tagihan</span>
+        <div class="payment-amount__value" id="total-amount">-</div>
+      </section>
+
+      <section class="payment-qris-block" aria-label="QRIS pembayaran">
+        <div class="payment-qris__hint">Scan QRIS berikut ini</div>
+
+        <div class="payment-qris__frame">
+          <div class="payment-qris" id="qris-container">
+            <img src="assets/QRIS.png" alt="QR Code QRIS" class="payment-qris__image" />
+            <div class="payment-qris__overlay" aria-hidden="true">
+              <i class="fa-solid fa-circle-xmark"></i>
+              <span class="payment-qris__overlay-badge">QRIS KEDALUWARSA</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="payment-instructions" aria-label="Instruksi pembayaran">
+        <h2 class="payment-instructions__title">Cara Pembayaran</h2>
+        <ol class="payment-instructions__list">
+          <li>Buka aplikasi E-Wallet / Mobile Banking</li>
+          <li>Scan QR Code di atas</li>
+          <li>Pastikan nominal transfer = <strong class="payment-instructions__amount" id="instruction-amount">-</strong></li>
+          <li>Pembayaran akan terkonfirmasi otomatis dalam 1-5 menit</li>
+        </ol>
+      </section>
+
+      <section class="payment-actions" aria-label="Aksi pembayaran">
+        <button class="btn btn-primary" id="btn-check" type="button">
+          <i class="fa-solid fa-rotate-right" id="btn-check-icon" aria-hidden="true"></i>
+          <span id="btn-check-text">Cek Status Pembayaran</span>
+        </button>
+        <button class="btn btn-secondary" id="btn-cancel" type="button">Batalkan Transaksi</button>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <i class="fa-solid fa-info-circle toast__icon" id="toast-icon" aria-hidden="true"></i>
+    <span class="toast__text" id="toast-message">Pesan</span>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cancel-modal-title">
+      <div class="modal__icon">
+        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+      </div>
+      <h3 class="modal__title" id="cancel-modal-title">Batalkan Transaksi?</h3>
+      <p class="modal__body">Apakah Anda yakin ingin membatalkan transaksi ini? QRIS tidak akan berlaku lagi setelah dibatalkan.</p>
+      <div class="modal__actions">
+        <button class="modal__button modal__button--ghost" id="btn-modal-cancel" type="button">Tidak</button>
+        <button class="modal__button modal__button--danger" id="btn-modal-confirm" type="button">Ya, Batalkan</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mockup reference config: edit this object when adapting the design to another project.
+    const PAYMENT_CONFIG = {
+      packageName: 'Paket Premium 30 Hari',
+      invoiceId: 'INV-20260522-001',
+      amount: 'Rp 149.000',
+      expiredMinutes: 15,
+    };
+
+    // Compact transaction header on top, strong amount in the middle, compact QR card below.
+    const elements = {
+      packageName: document.getElementById('package-name'),
+      invoiceId: document.getElementById('invoice-id'),
+      totalAmount: document.getElementById('total-amount'),
+      instructionAmount: document.getElementById('instruction-amount'),
+      countdownSection: document.getElementById('countdown-section'),
+      countdownLabel: document.getElementById('countdown-label'),
+      countdownTimer: document.getElementById('countdown'),
+      qrisContainer: document.getElementById('qris-container'),
+      checkButton: document.getElementById('btn-check'),
+      checkButtonIcon: document.getElementById('btn-check-icon'),
+      checkButtonText: document.getElementById('btn-check-text'),
+      cancelButton: document.getElementById('btn-cancel'),
+      toast: document.getElementById('toast'),
+      toastIcon: document.getElementById('toast-icon'),
+      toastMessage: document.getElementById('toast-message'),
+      modalOverlay: document.getElementById('modal-overlay'),
+      modalCancelButton: document.getElementById('btn-modal-cancel'),
+      modalConfirmButton: document.getElementById('btn-modal-confirm'),
+    };
+
+    const state = {
+      countdownInterval: null,
+      toastTimeout: null,
+      timeRemaining: PAYMENT_CONFIG.expiredMinutes * 60,
+      isExpired: false,
+    };
+
+    const CHECK_BUTTON_DEFAULT = {
+      icon: 'fa-solid fa-rotate-right',
+      label: 'Cek Status Pembayaran',
+    };
+
+    function setText(element, value) {
+      element.textContent = value;
+    }
+
+    function setCheckButtonContent(iconClassName, label) {
+      elements.checkButtonIcon.className = iconClassName;
+      setText(elements.checkButtonText, label);
+    }
+
+    function renderPaymentData() {
+      setText(elements.packageName, PAYMENT_CONFIG.packageName);
+      setText(elements.invoiceId, PAYMENT_CONFIG.invoiceId);
+      setText(elements.totalAmount, PAYMENT_CONFIG.amount);
+      setText(elements.instructionAmount, PAYMENT_CONFIG.amount);
+    }
+
+    function formatTime(totalSeconds) {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+
+      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function renderCountdown() {
+      setText(elements.countdownTimer, formatTime(state.timeRemaining));
+    }
+
+    function showToast({ iconClass, iconColor, message }) {
+      elements.toastIcon.className = `${iconClass} toast__icon`;
+      elements.toastIcon.style.color = iconColor;
+      setText(elements.toastMessage, message);
+      elements.toast.classList.add('is-visible');
+
+      clearTimeout(state.toastTimeout);
+      state.toastTimeout = window.setTimeout(() => {
+        elements.toast.classList.remove('is-visible');
+      }, 3500);
+    }
+
+    function setExpiredState({ cancelled = false } = {}) {
+      if (state.isExpired) return;
+
+      state.isExpired = true;
+      setText(elements.countdownTimer, '00:00');
+      setText(elements.countdownLabel, cancelled ? 'Transaksi Dibatalkan' : 'Waktu Habis');
+
+      elements.countdownSection.classList.add('is-expired');
+      elements.qrisContainer.classList.add('is-expired');
+      elements.checkButton.disabled = true;
+      elements.cancelButton.disabled = true;
+
+      setCheckButtonContent(
+        'fa-solid fa-ban',
+        cancelled ? 'Dibatalkan' : 'Transaksi Kedaluwarsa'
+      );
+
+      if (!cancelled) {
+        showToast({
+          iconClass: 'fa-solid fa-circle-exclamation',
+          iconColor: 'var(--danger)',
+          message: 'Sesi pembayaran telah kedaluwarsa.',
+        });
+      }
+    }
+
+    function stopCountdown() {
+      if (!state.countdownInterval) return;
+      window.clearInterval(state.countdownInterval);
+      state.countdownInterval = null;
+    }
+
+    function tickCountdown() {
+      if (state.timeRemaining <= 0) {
+        stopCountdown();
+        setExpiredState();
+        return;
+      }
+
+      renderCountdown();
+      state.timeRemaining -= 1;
+    }
+
+    function startCountdown() {
+      stopCountdown();
+      tickCountdown();
+      state.countdownInterval = window.setInterval(tickCountdown, 1000);
+    }
+
+    function openCancelModal() {
+      if (state.isExpired) return;
+      elements.modalOverlay.classList.add('is-open');
+      elements.modalOverlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeCancelModal() {
+      elements.modalOverlay.classList.remove('is-open');
+      elements.modalOverlay.setAttribute('aria-hidden', 'true');
+    }
+
+    function checkPaymentStatus() {
+      if (state.isExpired) return;
+
+      elements.checkButton.disabled = true;
+      setCheckButtonContent('fa-solid fa-spinner fa-spin', 'Memeriksa...');
+
+      window.setTimeout(() => {
+        if (state.isExpired) return;
+
+        elements.checkButton.disabled = false;
+        setCheckButtonContent(CHECK_BUTTON_DEFAULT.icon, CHECK_BUTTON_DEFAULT.label);
+
+        showToast({
+          iconClass: 'fa-solid fa-circle-info',
+          iconColor: 'var(--primary)',
+          message: 'Status pembayaran sedang diperiksa, dana belum masuk.',
+        });
+      }, 1500);
+    }
+
+    function confirmCancel() {
+      closeCancelModal();
+      stopCountdown();
+      state.timeRemaining = 0;
+      setExpiredState({ cancelled: true });
+
+      showToast({
+        iconClass: 'fa-solid fa-check-circle',
+        iconColor: '#10b981',
+        message: 'Transaksi berhasil dibatalkan.',
+      });
+    }
+
+    function bindEvents() {
+      elements.checkButton.addEventListener('click', checkPaymentStatus);
+      elements.cancelButton.addEventListener('click', openCancelModal);
+      elements.modalCancelButton.addEventListener('click', closeCancelModal);
+      elements.modalConfirmButton.addEventListener('click', confirmCancel);
+      elements.modalOverlay.addEventListener('click', (event) => {
+        if (event.target === elements.modalOverlay) closeCancelModal();
+      });
+    }
+
+    function initPaymentMockup() {
+      renderPaymentData();
+      setCheckButtonContent(CHECK_BUTTON_DEFAULT.icon, CHECK_BUTTON_DEFAULT.label);
+      bindEvents();
+      startCountdown();
+    }
+
+    initPaymentMockup();
+  </script>
+</body>
+</html>

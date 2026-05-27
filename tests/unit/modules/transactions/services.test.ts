@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/modules/transactions/repositories", () => ({
+  claimTransactionPaymentFulfillment: vi.fn(),
   insertTransaction: vi.fn(),
   linkTransactionToSubscription: vi.fn(),
+  markTransactionPaymentFulfilled: vi.fn(),
+  markTransactionPaymentFulfillmentFailed: vi.fn(),
   markTransactionAsCanceled: vi.fn(),
   markTransactionAsFailed: vi.fn(),
   markTransactionAsSucceeded: vi.fn(),
+  saveTransactionPaymentInvoiceData: vi.fn(),
+  updateTransactionPaymentState: vi.fn(),
 }));
 
 import * as transactionRepositories from "@/modules/transactions/repositories";
@@ -40,10 +45,20 @@ describe("transactions/services", () => {
       failureReason: null,
       id: "transaction-1",
       listAmountRp: 150000,
+      paymentFeeAmountRp: null,
+      paymentFulfillmentStatus: null,
+      paymentProvider: null,
+      paymentProviderStatus: null,
+      paymentReceivedAt: null,
       packageDiscountAmountRp: 0,
       packageId: "package-1",
       packageName: "Paket 1",
       paidAt: null,
+      providerExpiredAt: null,
+      providerInvoiceId: null,
+      providerPaymentUrl: null,
+      providerPayloadJson: null,
+      qrisString: null,
       source: "payment_dummy",
       status: "pending",
       subscriptionId: null,

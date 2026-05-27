@@ -44,7 +44,7 @@ function getDialogCopy(state: ConsoleState) {
   }
 
   return {
-    description: "Pilih salah satu package aktif untuk memulai pembelian melalui payment dummy.",
+    description: "Pilih salah satu package aktif untuk memulai pembelian melalui checkout QRIS.",
     title: "Pilih package aktif",
   };
 }
@@ -133,7 +133,7 @@ export function ConsoleExtendDialog({ onOpenChange, open, packages, state }: Con
             </Button>
             <Button disabled={packages.length === 0} type="submit">
               <ArrowRight data-icon="inline-end" />
-              Lanjut ke payment dummy
+              Lanjut ke checkout
             </Button>
           </DialogFooter>
         </form>

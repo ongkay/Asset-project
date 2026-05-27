@@ -80,8 +80,8 @@ export type SubmitCheckoutInput = {
 export type SubmitCheckoutResult =
   | {
       ok: true;
-      redirectTo: "/console";
-      subscriptionId: string;
+      redirectTo: `/payment/${string}` | "/console";
+      subscriptionId?: string;
       transactionId: string;
     }
   | {
@@ -89,6 +89,12 @@ export type SubmitCheckoutResult =
         | "checkout-failed"
         | "disabled-package"
         | "invalid-package"
+        | "payment-backend-not-ready"
+        | "payment-method-unavailable"
+        | "provider-auth-error"
+        | "provider-invalid-response"
+        | "provider-not-found"
+        | "provider-unavailable"
         | "voucher-expired"
         | "voucher-inactive"
         | "voucher-not-found"

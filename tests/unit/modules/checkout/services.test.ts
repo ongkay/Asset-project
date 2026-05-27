@@ -4,8 +4,13 @@ vi.mock("@/modules/checkout/queries", () => ({
   getCheckoutCatalog: vi.fn(),
 }));
 
-vi.mock("@/modules/subscriptions/services", () => ({
-  purchaseSubscriptionWithPaymentDummy: vi.fn(),
+vi.mock("@/modules/packages/services", () => ({
+  getMemberPurchasablePackageById: vi.fn(),
+  getPackageById: vi.fn(),
+}));
+
+vi.mock("@/modules/payments/services", () => ({
+  createQrisPaymentForCheckout: vi.fn(),
 }));
 
 vi.mock("@/modules/vouchers/services", () => ({
@@ -13,12 +18,14 @@ vi.mock("@/modules/vouchers/services", () => ({
 }));
 
 import * as checkoutQueries from "@/modules/checkout/queries";
+import * as packageServices from "@/modules/packages/services";
+import * as paymentServices from "@/modules/payments/services";
 import { resolveCheckoutState, submitCheckout } from "@/modules/checkout/services";
-import * as subscriptionServices from "@/modules/subscriptions/services";
 import * as voucherServices from "@/modules/vouchers/services";
 
 const mockedGetCheckoutCatalog = vi.mocked(checkoutQueries.getCheckoutCatalog);
-const mockedPurchaseSubscriptionWithPaymentDummy = vi.mocked(subscriptionServices.purchaseSubscriptionWithPaymentDummy);
+const mockedGetMemberPurchasablePackageById = vi.mocked(packageServices.getMemberPurchasablePackageById);
+const mockedCreateQrisPaymentForCheckout = vi.mocked(paymentServices.createQrisPaymentForCheckout);
 const mockedValidateVoucherForPackage = vi.mocked(voucherServices.validateVoucherForPackage);
 
 function createCatalog() {
@@ -57,7 +64,8 @@ function createCatalog() {
 describe("checkout/services", () => {
   beforeEach(() => {
     mockedGetCheckoutCatalog.mockReset();
-    mockedPurchaseSubscriptionWithPaymentDummy.mockReset();
+    mockedGetMemberPurchasablePackageById.mockReset();
+    mockedCreateQrisPaymentForCheckout.mockReset();
     mockedValidateVoucherForPackage.mockReset();
   });
 
@@ -98,23 +106,18 @@ describe("checkout/services", () => {
 
   it("submits checkout with transaction pricing snapshots", async () => {
     mockedGetCheckoutCatalog.mockResolvedValueOnce(createCatalog());
-    mockedValidateVoucherForPackage.mockResolvedValueOnce({
-      discountAmountRp: 11400,
-      ok: true,
-      voucher: {
-        code: "VIP15",
-        createdAt: "2026-05-21T00:00:00.000Z",
-        createdBy: "99999999-9999-4999-8999-999999999999",
-        discountPercent: 15,
-        expiresAt: null,
-        id: "22222222-2222-4222-8222-222222222222",
-        isActive: true,
-        maxUses: null,
-        packageId: null,
-        scopeType: "global",
-        updatedAt: "2026-05-21T00:00:00.000Z",
-        usedCount: 0,
-      },
+    mockedGetMemberPurchasablePackageById.mockResolvedValueOnce({
+      accessKeys: ["tradingview:private"],
+      amountRp: 76000,
+      checkoutGroup: "semi-private",
+      durationDays: 30,
+      id: "11111111-1111-4111-8111-111111111111",
+      isExtended: true,
+      listAmountRp: 80000,
+      name: "Semi Private 30 days",
+      packageId: "11111111-1111-4111-8111-111111111111",
+      sortOrder: 10,
+      summary: "share",
     });
     mockedValidateVoucherForPackage.mockResolvedValueOnce({
       discountAmountRp: 11400,
@@ -134,15 +137,34 @@ describe("checkout/services", () => {
         usedCount: 0,
       },
     });
-    mockedPurchaseSubscriptionWithPaymentDummy.mockResolvedValueOnce({
+    mockedValidateVoucherForPackage.mockResolvedValueOnce({
+      discountAmountRp: 11400,
       ok: true,
-      redirectTo: "/console",
-      subscriptionId: "subscription-1",
+      voucher: {
+        code: "VIP15",
+        createdAt: "2026-05-21T00:00:00.000Z",
+        createdBy: "99999999-9999-4999-8999-999999999999",
+        discountPercent: 15,
+        expiresAt: null,
+        id: "22222222-2222-4222-8222-222222222222",
+        isActive: true,
+        maxUses: null,
+        packageId: null,
+        scopeType: "global",
+        updatedAt: "2026-05-21T00:00:00.000Z",
+        usedCount: 0,
+      },
+    });
+    mockedCreateQrisPaymentForCheckout.mockResolvedValueOnce({
+      ok: true,
+      redirectTo: "/payment/transaction-1",
       transactionId: "transaction-1",
     });
 
     await expect(
       submitCheckout({
+        customerEmail: "member@example.com",
+        customerName: "member-one",
         packageId: "11111111-1111-4111-8111-111111111111",
         paymentMethod: "qris",
         userId: "33333333-3333-4333-8333-333333333333",
@@ -150,13 +172,21 @@ describe("checkout/services", () => {
       }),
     ).resolves.toEqual({
       ok: true,
-      redirectTo: "/console",
-      subscriptionId: "subscription-1",
+      redirectTo: "/payment/transaction-1",
       transactionId: "transaction-1",
     });
 
-    expect(mockedPurchaseSubscriptionWithPaymentDummy).toHaveBeenCalledWith({
-      packageId: "11111111-1111-4111-8111-111111111111",
+    expect(mockedCreateQrisPaymentForCheckout).toHaveBeenCalledWith({
+      customerEmail: "member@example.com",
+      customerName: "member-one",
+      packageSnapshot: {
+        accessKeys: ["tradingview:private"],
+        amountRp: 76000,
+        durationDays: 30,
+        isExtended: true,
+        name: "Semi Private 30 days",
+        packageId: "11111111-1111-4111-8111-111111111111",
+      },
       pricingSnapshot: {
         listAmountRp: 80000,
         packageDiscountAmountRp: 4000,
@@ -167,5 +197,26 @@ describe("checkout/services", () => {
       },
       userId: "33333333-3333-4333-8333-333333333333",
     });
+  });
+
+  it("returns a stable unavailable error for non-QRIS methods", async () => {
+    mockedGetCheckoutCatalog.mockResolvedValueOnce(createCatalog());
+
+    await expect(
+      submitCheckout({
+        customerEmail: "member@example.com",
+        customerName: "member-one",
+        packageId: "11111111-1111-4111-8111-111111111111",
+        paymentMethod: "card",
+        userId: "33333333-3333-4333-8333-333333333333",
+        voucherCode: null,
+      }),
+    ).resolves.toEqual({
+      errorCode: "payment-method-unavailable",
+      message: "Metode pembayaran ini belum tersedia. Silakan gunakan QRIS untuk saat ini.",
+      ok: false,
+    });
+
+    expect(mockedCreateQrisPaymentForCheckout).not.toHaveBeenCalled();
   });
 });

@@ -3,7 +3,7 @@ import type { PackageActivationSnapshot } from "@/modules/packages/types";
 import type { TransactionPricingSnapshot } from "@/modules/transactions/types";
 
 export type SubscriptionStatus = "active" | "processed" | "expired" | "canceled";
-export type SubscriptionSource = "payment_dummy" | "cdkey" | "admin_manual";
+export type SubscriptionSource = "payment_dummy" | "payment_qris" | "cdkey" | "admin_manual";
 
 export type ManualAssignmentsByAccessKey = Record<string, string | null>;
 
@@ -44,6 +44,15 @@ export type MemberPaymentDummyResult =
       message: string;
       ok: false;
     };
+
+export type FulfillPaidSubscriptionInput = {
+  durationDays: number;
+  packageSnapshot: SubscriptionPackageSnapshot;
+  pricingSnapshot?: TransactionPricingSnapshot;
+  source: Extract<SubscriptionSource, "payment_dummy" | "payment_qris">;
+  transactionId: string;
+  userId: string;
+};
 
 export type SubscriberQuickAddAssetValues = {
   userId: string;

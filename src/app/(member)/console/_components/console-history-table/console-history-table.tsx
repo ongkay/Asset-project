@@ -1,4 +1,5 @@
 import { History } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +39,10 @@ function getSourceLabel(source: ConsoleTransactionSnapshot["source"]) {
     return "Payment Dummy";
   }
 
+  if (source === "payment_qris") {
+    return "QRIS Payment";
+  }
+
   if (source === "cdkey") {
     return "CD-Key";
   }
@@ -74,6 +79,7 @@ export function ConsoleHistoryTable({ transactions }: ConsoleHistoryTableProps) 
                 <TableHead>Amount (Rp)</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created at</TableHead>
+                <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -88,6 +94,18 @@ export function ConsoleHistoryTable({ transactions }: ConsoleHistoryTableProps) 
                     </Badge>
                   </TableCell>
                   <TableCell>{formatDateTime(transaction.createdAt)}</TableCell>
+                  <TableCell>
+                    {transaction.source === "payment_qris" && transaction.status === "pending" ? (
+                      <Link
+                        className="text-sm font-medium text-cyan-600 transition hover:text-cyan-500"
+                        href={`/payment/${transaction.id}`}
+                      >
+                        Lanjutkan pembayaran
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

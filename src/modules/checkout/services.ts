@@ -2,7 +2,12 @@ import "server-only";
 
 import { getCheckoutCatalog } from "./queries";
 import { resolveCheckoutStateSchema, submitCheckoutSchema } from "./schemas";
-import { purchaseSubscriptionWithPaymentDummy } from "@/modules/subscriptions/services";
+import { mapPaymentFailure } from "@/modules/payments/error-utils";
+import { createQrisPaymentForCheckout } from "@/modules/payments/services";
+import {
+  getMemberPurchasablePackageById,
+  getPackageById as getPackageByIdFromPackages,
+} from "@/modules/packages/services";
 import { validateVoucherForPackage } from "@/modules/vouchers/services";
 
 import type { CheckoutCatalogItem, CheckoutSummaryQuote, ResolvedCheckoutState, SubmitCheckoutResult } from "./types";
@@ -195,53 +200,101 @@ export async function resolveCheckoutState(input: {
 }
 
 export async function submitCheckout(input: {
+  customerEmail: string;
+  customerName: string;
   packageId: string;
   paymentMethod: "qris" | "crypto" | "card";
   userId: string;
   voucherCode: string | null;
 }): Promise<SubmitCheckoutResult> {
   const parsedInput = submitCheckoutSchema.parse(input);
-  const resolvedState = await resolveCheckoutState({
-    packageId: parsedInput.packageId,
-    voucherCode: parsedInput.voucherCode,
-  });
 
-  if (
-    !resolvedState.quote ||
-    !resolvedState.selectedPackageId ||
-    resolvedState.selectedPackageId !== parsedInput.packageId
-  ) {
-    return {
-      errorCode: "invalid-package",
-      message: "Package yang dipilih tidak valid atau sudah tidak tersedia.",
-      ok: false,
-    };
-  }
+  try {
+    const resolvedState = await resolveCheckoutState({
+      packageId: parsedInput.packageId,
+      voucherCode: parsedInput.voucherCode,
+    });
 
-  if (resolvedState.voucherError) {
-    return {
-      errorCode: resolvedState.voucherError.errorCode,
-      message: resolvedState.voucherError.message,
-      ok: false,
-    };
-  }
+    if (
+      !resolvedState.quote ||
+      !resolvedState.selectedPackageId ||
+      resolvedState.selectedPackageId !== parsedInput.packageId
+    ) {
+      return {
+        errorCode: "invalid-package",
+        message: "Package yang dipilih tidak valid atau sudah tidak tersedia.",
+        ok: false,
+      };
+    }
 
-  const purchaseResult = await purchaseSubscriptionWithPaymentDummy({
-    packageId: parsedInput.packageId,
-    pricingSnapshot: {
-      listAmountRp: resolvedState.quote.listAmountRp,
-      packageDiscountAmountRp: resolvedState.quote.packageDiscountAmountRp,
-      voucherCode: resolvedState.quote.voucherCode,
-      voucherDiscountAmountRp: resolvedState.quote.voucherDiscountAmountRp,
-      voucherDiscountPercent: resolvedState.quote.voucherDiscountPercent,
-      voucherId: resolvedState.quote.voucherId,
-    },
-    userId: input.userId,
-  });
+    if (resolvedState.voucherError) {
+      return {
+        errorCode: resolvedState.voucherError.errorCode,
+        message: resolvedState.voucherError.message,
+        ok: false,
+      };
+    }
 
-  if (!purchaseResult.ok) {
+    if (parsedInput.paymentMethod !== "qris") {
+      return {
+        errorCode: "payment-method-unavailable",
+        message: "Metode pembayaran ini belum tersedia. Silakan gunakan QRIS untuk saat ini.",
+        ok: false,
+      };
+    }
+
+    const activePackage = await getMemberPurchasablePackageById(parsedInput.packageId);
+
+    if (!activePackage) {
+      const packageRow = await getPackageByIdFromPackages(parsedInput.packageId);
+
+      return packageRow
+        ? {
+            errorCode: "disabled-package",
+            message: "Package yang dipilih sudah tidak tersedia untuk pembelian baru.",
+            ok: false,
+          }
+        : {
+            errorCode: "invalid-package",
+            message: "Package yang dipilih tidak valid atau sudah tidak tersedia.",
+            ok: false,
+          };
+    }
+
+    const purchaseResult = await createQrisPaymentForCheckout({
+      customerEmail: input.customerEmail,
+      customerName: input.customerName,
+      packageSnapshot: {
+        accessKeys: activePackage.accessKeys,
+        amountRp: activePackage.amountRp,
+        durationDays: activePackage.durationDays,
+        isExtended: activePackage.isExtended,
+        name: activePackage.name,
+        packageId: activePackage.packageId,
+      },
+      pricingSnapshot: {
+        listAmountRp: resolvedState.quote.listAmountRp,
+        packageDiscountAmountRp: resolvedState.quote.packageDiscountAmountRp,
+        voucherCode: resolvedState.quote.voucherCode,
+        voucherDiscountAmountRp: resolvedState.quote.voucherDiscountAmountRp,
+        voucherDiscountPercent: resolvedState.quote.voucherDiscountPercent,
+        voucherId: resolvedState.quote.voucherId,
+      },
+      userId: input.userId,
+    });
+
+    if (!purchaseResult.ok) {
+      return purchaseResult;
+    }
+
     return purchaseResult;
-  }
+  } catch (error) {
+    const paymentFailure = mapPaymentFailure(error);
 
-  return purchaseResult;
+    return {
+      errorCode: paymentFailure.errorCode,
+      message: paymentFailure.message,
+      ok: false,
+    };
+  }
 }

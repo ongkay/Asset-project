@@ -33,7 +33,7 @@ type SubscriptionDatabaseRow = {
   package_name: string;
   access_keys_json: unknown;
   status: SubscriptionStatus;
-  source: "payment_dummy" | "cdkey" | "admin_manual";
+  source: "payment_dummy" | "payment_qris" | "cdkey" | "admin_manual";
   start_at: string;
   end_at: string;
   created_at: string;
@@ -57,7 +57,7 @@ const subscriptionDatabaseRowSchema = z.object({
   package_name: z.string().min(1),
   access_keys_json: z.unknown(),
   status: z.enum(["active", "processed", "expired", "canceled"]),
-  source: z.enum(["payment_dummy", "cdkey", "admin_manual"]),
+  source: z.enum(["payment_dummy", "payment_qris", "cdkey", "admin_manual"]),
   start_at: z.string().min(1),
   end_at: z.string().min(1),
   created_at: z.string().min(1),
@@ -653,7 +653,7 @@ export async function createSubscriptionWithSnapshot(input: {
   packageId: string;
   packageName: string;
   accessKeys: string[];
-  source: "payment_dummy" | "cdkey" | "admin_manual";
+  source: "payment_dummy" | "payment_qris" | "cdkey" | "admin_manual";
   startAt: string;
   endAt: string;
   status: "processed";

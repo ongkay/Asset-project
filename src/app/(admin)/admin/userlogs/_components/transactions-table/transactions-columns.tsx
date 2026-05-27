@@ -51,6 +51,22 @@ function getStatusVariant(status: AdminTransactionRow["status"]): "secondary" | 
   return "destructive";
 }
 
+function getSourceLabel(source: AdminTransactionRow["source"]) {
+  if (source === "payment_qris") {
+    return "QRIS Payment";
+  }
+
+  if (source === "payment_dummy") {
+    return "Dummy Payment";
+  }
+
+  if (source === "cdkey") {
+    return "CD Key";
+  }
+
+  return "Admin Manual";
+}
+
 export const ADMIN_TRANSACTIONS_COLUMNS: AdminTransactionsColumnDefinition[] = [
   {
     key: "user",
@@ -73,7 +89,11 @@ export const ADMIN_TRANSACTIONS_COLUMNS: AdminTransactionsColumnDefinition[] = [
     },
   },
   { key: "packageName", label: "Package", renderCell: (row) => <span className="font-medium">{row.packageName}</span> },
-  { key: "source", label: "Source", renderCell: (row) => <Badge variant="outline">{row.source}</Badge> },
+  {
+    key: "source",
+    label: "Source",
+    renderCell: (row) => <Badge variant="outline">{getSourceLabel(row.source)}</Badge>,
+  },
   {
     key: "amountRp",
     label: "Amount (Rp)",

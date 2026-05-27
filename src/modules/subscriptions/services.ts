@@ -44,6 +44,7 @@ import {
 import type {
   AdminManualActivationFormValues,
   AdminManualActivationInput,
+  FulfillPaidSubscriptionInput,
   MemberPaymentDummyInput,
   MemberPaymentDummyResult,
   ManualAssignmentsByAccessKey,
@@ -155,6 +156,10 @@ function getReplacementCancelReason(source: AdminManualActivationInput["source"]
     return "replaced_by_payment_dummy";
   }
 
+  if (source === "payment_qris") {
+    return "replaced_by_payment_qris";
+  }
+
   if (source === "cdkey") {
     return "replaced_by_cdkey";
   }
@@ -165,6 +170,10 @@ function getReplacementCancelReason(source: AdminManualActivationInput["source"]
 function getCompensationCancelReason(source: AdminManualActivationInput["source"]) {
   if (source === "payment_dummy") {
     return "payment_dummy_compensation";
+  }
+
+  if (source === "payment_qris") {
+    return "payment_qris_compensation";
   }
 
   if (source === "cdkey") {
@@ -497,6 +506,31 @@ function getFailureReason(error: unknown) {
   return error instanceof Error ? error.message : "Unexpected checkout error.";
 }
 
+export async function fulfillPaidSubscriptionPurchase(
+  input: FulfillPaidSubscriptionInput,
+): Promise<SubscriptionActivationResult> {
+  const activationExecution = await activateSubscriptionWithCompensation({
+    userId: input.userId,
+    packageSnapshot: input.packageSnapshot,
+    durationDays: input.durationDays,
+    manualAssignmentsByAccessKey: {},
+    source: input.source,
+  });
+
+  try {
+    if (input.pricingSnapshot?.voucherId) {
+      await consumeVoucherUsage(input.pricingSnapshot.voucherId);
+    }
+
+    await attachTransactionToSubscription(input.transactionId, activationExecution.result.subscriptionId);
+
+    return activationExecution.result;
+  } catch (error) {
+    await tryRollbackWithoutMasking(activationExecution.compensation);
+    throw error;
+  }
+}
+
 export async function purchaseSubscriptionWithPaymentDummy(
   input: MemberPaymentDummyInput,
 ): Promise<MemberPaymentDummyResult> {
@@ -530,23 +564,15 @@ export async function purchaseSubscriptionWithPaymentDummy(
     },
   });
 
-  let activationExecution: ActivationExecutionResult | null = null;
-
   try {
-    activationExecution = await activateSubscriptionWithCompensation({
-      userId: input.userId,
-      packageSnapshot: toPackageActivationSnapshot(activePackage),
+    const activationResult = await fulfillPaidSubscriptionPurchase({
       durationDays: activePackage.durationDays,
-      manualAssignmentsByAccessKey: {},
+      packageSnapshot: toPackageActivationSnapshot(activePackage),
+      pricingSnapshot: input.pricingSnapshot,
       source: "payment_dummy",
+      transactionId: transaction.id,
+      userId: input.userId,
     });
-    const activationResult = activationExecution.result;
-
-    if (input.pricingSnapshot?.voucherId) {
-      await consumeVoucherUsage(input.pricingSnapshot.voucherId);
-    }
-
-    await attachTransactionToSubscription(transaction.id, activationResult.subscriptionId);
     await succeedTransaction(transaction.id);
 
     return {
@@ -556,10 +582,6 @@ export async function purchaseSubscriptionWithPaymentDummy(
       redirectTo: "/console",
     };
   } catch (error) {
-    if (activationExecution) {
-      await tryRollbackWithoutMasking(activationExecution.compensation);
-    }
-
     await tryFinalizeFailureWithoutMasking({
       transactionId: transaction.id,
       failureReason: getFailureReason(error),

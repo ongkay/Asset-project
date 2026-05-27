@@ -47,7 +47,7 @@ const transactionRepositoryRowSchema = z.object({
   subscription_id: z.string().nullable(),
   package_id: z.string().min(1),
   package_name: z.string().min(1),
-  source: z.enum(["payment_dummy", "cdkey", "admin_manual"]),
+  source: z.enum(["payment_dummy", "payment_qris", "cdkey", "admin_manual"]),
   status: z.enum(["pending", "success", "failed", "canceled"]),
   amount_rp: z.number().int(),
   created_at: z.string().min(1),

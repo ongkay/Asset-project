@@ -32,6 +32,7 @@ const TRANSACTION_SOURCE_OPTIONS: Array<{
   value: NonNullable<AdminTransactionsFilters["source"]>;
 }> = [
   { label: "Dummy Payment", value: "payment_dummy" },
+  { label: "QRIS Payment", value: "payment_qris" },
   { label: "CD Key", value: "cdkey" },
   { label: "Admin Manual", value: "admin_manual" },
 ];
